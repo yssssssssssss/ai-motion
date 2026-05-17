@@ -1,0 +1,14 @@
+{
+  "name": "ai-motion-tool",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @motion-tool/web dev",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}
