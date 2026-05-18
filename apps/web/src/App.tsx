@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   confirmValidParams,
   importMotionSourceFromFiles,
   recommendComponents,
   scanSourceForParams,
   suggestParams,
+  type BriefParseResult,
   type MotionComponent,
   type MotionManifest,
   type MotionParam,
@@ -18,8 +19,10 @@ import { ExportPanel } from "./features/export/ExportPanel";
 import { ConfirmParamsPanel } from "./features/import/ConfirmParamsPanel";
 import { ImportPanel } from "./features/import/ImportPanel";
 import { ComponentCandidates } from "./features/library/ComponentCandidates";
+import { ComponentFeed } from "./features/library/ComponentFeed";
 import { createEmptyPatch, type MotionProject } from "./state/projectStore";
 import { workEasyComponents } from "./data/workeasyComponents";
+import { parseBrief } from "./services/briefParserClient";
 
 const heroManifest: MotionManifest = {
   version: "1.0",
@@ -173,13 +176,20 @@ function createProject(source: MotionSource, manifest: MotionManifest): MotionPr
   };
 }
 
+type View = "home" | "editor";
+
 export function App() {
+  const [view, setView] = useState<View>("home");
   const [brief, setBrief] = useState("subtle saas hero text");
+  const [parseResult, setParseResult] = useState<BriefParseResult | null>(null);
+  const [isRecommending, setIsRecommending] = useState(false);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [project, setProject] = useState<MotionProject | null>(null);
   const [pendingImport, setPendingImport] = useState<MotionSource | null>(null);
   const [suggestedParams, setSuggestedParams] = useState<MotionParam[]>([]);
   const [selectedParamIds, setSelectedParamIds] = useState<Set<string>>(new Set());
+
+  const aiMatchIds = useMemo(() => new Set(recommendations.map((item) => item.componentId)), [recommendations]);
 
   function updateParam(paramId: string, value: unknown) {
     setProject((current) => {
@@ -195,8 +205,12 @@ export function App() {
     });
   }
 
-  function runRecommend() {
-    setRecommendations(recommendComponents({ brief, components }));
+  async function runRecommend() {
+    setIsRecommending(true);
+    const result = await parseBrief(brief);
+    setParseResult(result);
+    setRecommendations(recommendComponents({ intent: result.intent, components }));
+    setIsRecommending(false);
   }
 
   function selectComponent(componentId: string) {
@@ -204,6 +218,7 @@ export function App() {
     if (!component) return;
 
     setProject(createProject(component.source, component.manifest));
+    setView("editor");
   }
 
   function importFiles(files: Record<string, string>) {
@@ -239,49 +254,60 @@ export function App() {
     };
 
     setProject(createProject(pendingImport, manifest));
+    setView("editor");
+  }
+
+  if (view === "editor") {
+    return (
+      <main className="editor-shell">
+        <header className="editor-header">
+          <button type="button" onClick={() => setView("home")}>
+            Back to feed
+          </button>
+          <div>
+            <p className="eyebrow">Editor</p>
+            <h1>{project?.manifest.name ?? "Component Editor"}</h1>
+          </div>
+        </header>
+        <section className="editor-preview" aria-label="Motion preview">
+          <PreviewFrame source={project?.source ?? null} manifest={project?.manifest ?? null} patch={project?.patch ?? null} />
+        </section>
+        <aside className="editor-inspector" aria-label="Parameters">
+          <div className="panel-header">
+            <p className="eyebrow">Inspector</p>
+            <h2>Parameters</h2>
+          </div>
+          <ParameterPanel manifest={project?.manifest ?? null} patch={project?.patch ?? null} onChange={updateParam} />
+        </aside>
+        <footer className="transport" aria-label="Playback and export controls">
+          <button type="button" onClick={() => setProject((current) => (current ? { ...current } : current))}>
+            Replay
+          </button>
+          <button type="button">Pause</button>
+          <button type="button">Viewport</button>
+          <ExportPanel project={project} />
+        </footer>
+      </main>
+    );
   }
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar" aria-label="Library and import">
-        <div className="panel-header">
-          <p className="eyebrow">Source</p>
-          <h1>AI Motion Tool</h1>
-        </div>
-        <BriefPanel brief={brief} onBriefChange={setBrief} onRecommend={runRecommend} />
-        <ComponentCandidates recommendations={recommendations} components={components} onSelect={selectComponent} />
-        <ImportPanel onImport={importFiles} />
-        <ConfirmParamsPanel
-          params={suggestedParams}
-          selected={selectedParamIds}
-          onToggle={toggleParam}
-          onConfirm={confirmImport}
-        />
-      </aside>
-
-      <section className="preview" aria-label="Motion preview">
-        <div className="preview-stage">
-          <p className="eyebrow">Preview</p>
-          <PreviewFrame source={project?.source ?? null} manifest={project?.manifest ?? null} patch={project?.patch ?? null} />
-        </div>
-      </section>
-
-      <aside className="parameters" aria-label="Parameters">
-        <div className="panel-header">
-          <p className="eyebrow">Inspector</p>
-          <h2>Parameters</h2>
-        </div>
-        <ParameterPanel manifest={project?.manifest ?? null} patch={project?.patch ?? null} onChange={updateParam} />
-      </aside>
-
-      <footer className="transport" aria-label="Playback and export controls">
-        <button type="button" onClick={() => setProject((current) => (current ? { ...current } : current))}>
-          Replay
-        </button>
-        <button type="button">Pause</button>
-        <button type="button">Viewport</button>
-        <ExportPanel project={project} />
-      </footer>
+    <main className="home-shell">
+      <div className="home-header">
+        <p className="eyebrow">AI Motion Tool</p>
+        <h1>Find editable motion components</h1>
+      </div>
+      <BriefPanel
+        brief={brief}
+        parseResult={parseResult}
+        isLoading={isRecommending}
+        onBriefChange={setBrief}
+        onRecommend={runRecommend}
+      />
+      <ComponentCandidates recommendations={recommendations} components={components} onSelect={selectComponent} />
+      <ImportPanel onImport={importFiles} />
+      <ConfirmParamsPanel params={suggestedParams} selected={selectedParamIds} onToggle={toggleParam} onConfirm={confirmImport} />
+      <ComponentFeed components={components} aiMatchIds={aiMatchIds} onSelect={selectComponent} />
     </main>
   );
 }
