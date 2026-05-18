@@ -76,4 +76,33 @@ describe("applyPatchToFiles", () => {
 
     expect(files["source/style.css"]).toContain("--duration: 1200ms");
   });
+
+  it("updates css property targets", () => {
+    const files = applyPatchToFiles({
+      files: {
+        "source/index.html": '<button class="button">Save</button>',
+        "source/style.css": ".button { color: #ffffff; transition-duration: 0.3s; border-radius: 40px; }"
+      },
+      manifest: {
+        version: "1.0",
+        id: "workeasy",
+        name: "WorkEasy",
+        sourceKind: "builtin-component",
+        runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+        params: [
+          {
+            id: "buttonColor",
+            label: "Button color",
+            type: "color",
+            default: "#ffffff",
+            status: "confirmed",
+            targets: [{ kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }]
+          }
+        ]
+      },
+      patch: { id: "patch-3", sourceManifestId: "workeasy", values: { buttonColor: "#ff3366" } }
+    });
+
+    expect(files["source/style.css"]).toContain("color: #ff3366");
+  });
 });

@@ -41,9 +41,17 @@ function applyCssVariable(content: string, name: string, value: string): string 
   return content.replace(pattern, `$1${value}`);
 }
 
+function applyCssProperty(content: string, selector: string, property: string, value: string): string {
+  const pattern = new RegExp(`(${escapeRegExp(selector)}\\s*\\{[^}]*?${escapeRegExp(property)}\\s*:\\s*)[^;]+`, "m");
+  return content.replace(pattern, `$1${value}`);
+}
+
 function applyTarget(content: string, target: MotionTarget, param: MotionParam, value: unknown): string {
   if (target.kind === "html-text") return applyHtmlText(content, target.selector, value);
   if (target.kind === "css-variable") return applyCssVariable(content, target.name, formatCssValue(param, value));
+  if (target.kind === "css-property") {
+    return applyCssProperty(content, target.selector, target.property, formatCssValue(param, value));
+  }
   return content;
 }
 
