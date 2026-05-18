@@ -8,3 +8,4 @@ export * from "./analyze/ruleScanner";
 export * from "./analyze/paramAdvisor";
 export * from "./analyze/validator";
 export * from "./export/exportPackage";
+export * from "./adapters/workeasy";
