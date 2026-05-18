@@ -53,4 +53,19 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain("color: #ff3366");
     expect(html).not.toContain('<link rel="stylesheet"');
   });
+
+  it("adds thumbnail centering styles only when requested", () => {
+    const html = renderPreviewHtml({ source, manifest, patch, mode: "thumbnail" });
+
+    expect(html).toContain('data-motion-preview="thumbnail"');
+    expect(html).toContain("place-items: center");
+    expect(html).toContain("width: fit-content");
+  });
+
+  it("keeps full previews free of thumbnail layout styles", () => {
+    const html = renderPreviewHtml({ source, manifest, patch });
+
+    expect(html).not.toContain('data-motion-preview="thumbnail"');
+    expect(html).not.toContain("place-items: center");
+  });
 });

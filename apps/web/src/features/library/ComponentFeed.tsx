@@ -42,7 +42,8 @@ function componentPreviewHtml(component: MotionComponent): string {
   return renderPreviewHtml({
     source: component.source,
     manifest: component.manifest,
-    patch: createEmptyPatch(component.manifest)
+    patch: createEmptyPatch(component.manifest),
+    mode: "thumbnail"
   });
 }
 

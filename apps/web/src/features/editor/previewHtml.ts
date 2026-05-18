@@ -4,7 +4,31 @@ type RenderPreviewInput = {
   source: MotionSource;
   manifest: MotionManifest;
   patch: MotionPatch;
+  mode?: "full" | "thumbnail";
 };
+
+const THUMBNAIL_STYLE = `<style data-motion-preview="thumbnail">
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+body > * {
+  width: fit-content;
+  max-width: 100%;
+  max-height: 100%;
+}
+</style>`;
 
 function inlineLocalAssets(html: string, files: Record<string, string>): string {
   return html
@@ -23,8 +47,17 @@ function inlineLocalAssets(html: string, files: Record<string, string>): string 
     });
 }
 
-export function renderPreviewHtml({ source, manifest, patch }: RenderPreviewInput): string {
+function addThumbnailLayout(html: string): string {
+  if (/<\/head\s*>/i.test(html)) {
+    return html.replace(/<\/head\s*>/i, `${THUMBNAIL_STYLE}</head>`);
+  }
+
+  return `${THUMBNAIL_STYLE}${html}`;
+}
+
+export function renderPreviewHtml({ source, manifest, patch, mode = "full" }: RenderPreviewInput): string {
   const files = Object.fromEntries(source.files.map((file) => [file.path, file.content]));
   const patchedFiles = applyPatchToFiles({ files, manifest, patch });
-  return inlineLocalAssets(patchedFiles[source.entry] ?? "", patchedFiles);
+  const html = inlineLocalAssets(patchedFiles[source.entry] ?? "", patchedFiles);
+  return mode === "thumbnail" ? addThumbnailLayout(html) : html;
 }
