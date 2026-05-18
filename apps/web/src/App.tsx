@@ -249,7 +249,7 @@ export function App() {
           <h1>AI Motion Tool</h1>
         </div>
         <BriefPanel brief={brief} onBriefChange={setBrief} onRecommend={runRecommend} />
-        <ComponentCandidates recommendations={recommendations} onSelect={selectComponent} />
+        <ComponentCandidates recommendations={recommendations} components={components} onSelect={selectComponent} />
         <ImportPanel onImport={importFiles} />
         <ConfirmParamsPanel
           params={suggestedParams}
