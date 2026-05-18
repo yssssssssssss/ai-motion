@@ -9,10 +9,10 @@ type Props = {
 
 export function PreviewFrame({ source, manifest, patch }: Props) {
   if (!source || !manifest || !patch) {
-    return <div className="preview-empty">Select or import a motion source.</div>;
+    return <div className="preview-empty">请选择或导入一个动效源。</div>;
   }
 
   const html = renderPreviewHtml({ source, manifest, patch });
 
-  return <iframe title="Motion preview" sandbox="allow-scripts" srcDoc={html} className="preview-frame" />;
+  return <iframe title="动效预览" sandbox="allow-scripts" srcDoc={html} className="preview-frame" />;
 }

@@ -12,7 +12,7 @@ export function ConfirmParamsPanel({ params, selected, onToggle, onConfirm }: Pr
 
   return (
     <section className="tool-section">
-      <h2>Confirm parameters</h2>
+      <h2>确认可调参数</h2>
       <div className="field-list">
         {params.map((param) => (
           <label className="check-field" key={param.id}>
@@ -24,7 +24,7 @@ export function ConfirmParamsPanel({ params, selected, onToggle, onConfirm }: Pr
         ))}
       </div>
       <button className="secondary-action" type="button" onClick={onConfirm}>
-        Use selected parameters
+        使用已选参数
       </button>
     </section>
   );

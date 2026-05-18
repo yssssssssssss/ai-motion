@@ -27,22 +27,22 @@ import { parseBrief } from "./services/briefParserClient";
 const heroManifest: MotionManifest = {
   version: "1.0",
   id: "hero-text-reveal",
-  name: "Hero Text Reveal",
+  name: "文字入场动效",
   sourceKind: "builtin-component",
   runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
   capabilities: ["builtin", "editable", "export-html"],
   params: [
     {
       id: "headline",
-      label: "Headline",
+      label: "标题文案",
       type: "text",
-      default: "Build motion faster",
+      default: "快速生成动效",
       status: "confirmed",
       targets: [{ kind: "html-text", file: "source/index.html", selector: "[data-motion=headline]" }]
     },
     {
       id: "accentColor",
-      label: "Accent color",
+      label: "强调色",
       type: "color",
       default: "#38bdf8",
       status: "confirmed",
@@ -50,7 +50,7 @@ const heroManifest: MotionManifest = {
     },
     {
       id: "duration",
-      label: "Reveal duration",
+      label: "入场时长",
       type: "duration",
       default: 800,
       constraints: { min: 200, max: 2000, step: 50, unit: "ms" },
@@ -59,15 +59,15 @@ const heroManifest: MotionManifest = {
     }
   ],
   groups: [
-    { id: "content", label: "Content", params: ["headline"] },
-    { id: "style", label: "Style", params: ["accentColor"] },
-    { id: "motion", label: "Motion", params: ["duration"] }
+    { id: "content", label: "内容", params: ["headline"] },
+    { id: "style", label: "样式", params: ["accentColor"] },
+    { id: "motion", label: "动效", params: ["duration"] }
   ]
 };
 
 const heroComponent: MotionComponent = {
   id: "hero-text-reveal",
-  name: "Hero Text Reveal",
+  name: "文字入场动效",
   category: "text",
   tags: ["hero", "text", "reveal", "saas"],
   useCases: ["landing-page", "banner"],
@@ -91,8 +91,8 @@ const heroComponent: MotionComponent = {
   </head>
   <body>
     <main class="hero">
-      <p data-motion="eyebrow">AI Motion Tool</p>
-      <h1 data-motion="headline">Build motion faster</h1>
+      <p data-motion="eyebrow">AI 动效工具</p>
+      <h1 data-motion="headline">快速生成动效</h1>
     </main>
     <script src="./script.js"></script>
   </body>
@@ -180,7 +180,7 @@ type View = "home" | "editor";
 
 export function App() {
   const [view, setView] = useState<View>("home");
-  const [brief, setBrief] = useState("subtle saas hero text");
+  const [brief, setBrief] = useState("我想要一个适合 SaaS 首页的文字入场动效");
   const [parseResult, setParseResult] = useState<BriefParseResult | null>(null);
   const [isRecommending, setIsRecommending] = useState(false);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -246,7 +246,7 @@ export function App() {
     const manifest: MotionManifest = {
       version: "1.0",
       id: `${pendingImport.id}-manifest`,
-      name: "Imported Motion",
+      name: "导入动效",
       sourceKind: pendingImport.kind,
       runtime: { engine: "html", entry: pendingImport.entry, sandbox: "iframe" },
       params: validation.confirmed,
@@ -262,29 +262,29 @@ export function App() {
       <main className="editor-shell">
         <header className="editor-header">
           <button type="button" onClick={() => setView("home")}>
-            Back to feed
+            返回组件库
           </button>
           <div>
-            <p className="eyebrow">Editor</p>
-            <h1>{project?.manifest.name ?? "Component Editor"}</h1>
+            <p className="eyebrow">参数编辑器</p>
+            <h1>{project?.manifest.name ?? "组件编辑"}</h1>
           </div>
         </header>
-        <section className="editor-preview" aria-label="Motion preview">
+        <section className="editor-preview" aria-label="动效预览">
           <PreviewFrame source={project?.source ?? null} manifest={project?.manifest ?? null} patch={project?.patch ?? null} />
         </section>
-        <aside className="editor-inspector" aria-label="Parameters">
+        <aside className="editor-inspector" aria-label="参数面板">
           <div className="panel-header">
-            <p className="eyebrow">Inspector</p>
-            <h2>Parameters</h2>
+            <p className="eyebrow">参数调节</p>
+            <h2>可调参数</h2>
           </div>
           <ParameterPanel manifest={project?.manifest ?? null} patch={project?.patch ?? null} onChange={updateParam} />
         </aside>
-        <footer className="transport" aria-label="Playback and export controls">
+        <footer className="transport" aria-label="播放和导出控制">
           <button type="button" onClick={() => setProject((current) => (current ? { ...current } : current))}>
-            Replay
+            重播
           </button>
-          <button type="button">Pause</button>
-          <button type="button">Viewport</button>
+          <button type="button">暂停</button>
+          <button type="button">视口</button>
           <ExportPanel project={project} />
         </footer>
       </main>
@@ -294,8 +294,15 @@ export function App() {
   return (
     <main className="home-shell">
       <div className="home-header">
-        <p className="eyebrow">AI Motion Tool</p>
-        <h1>Find editable motion components</h1>
+        <div>
+          <p className="brand-mark">AI 动效</p>
+          <h1>AI 动效组件工作台</h1>
+        </div>
+        <nav className="home-nav" aria-label="首页导航">
+          <a href="#recommend">智能推荐</a>
+          <a href="#feed">组件库</a>
+          <a href="#import">导入</a>
+        </nav>
       </div>
       <BriefPanel
         brief={brief}

@@ -6,21 +6,28 @@ type Props = {
   onSelect: (componentId: string) => void;
 };
 
+function categoryLabel(category: string | undefined): string {
+  if (category === "interaction") return "交互";
+  if (category === "layout") return "布局";
+  if (category === "text") return "文字";
+  return category ?? "组件";
+}
+
 export function ComponentCandidates({ recommendations, components, onSelect }: Props) {
   const componentById = new Map(components.map((component) => [component.id, component]));
   if (recommendations.length === 0) return null;
 
   return (
-    <section className="recommendation-strip" aria-label="AI recommended components">
+    <section className="recommendation-strip" id="recommend" aria-label="AI 推荐组件">
       <div>
-        <p className="eyebrow">AI Recommended</p>
-        <h2>Matched components</h2>
-        <p className="muted">These results appear after submitting a brief.</p>
+        <p className="eyebrow">AI 推荐结果</p>
+        <h2>匹配组件</h2>
+        <p className="muted">提交需求后，这里会展示最接近的可编辑动效。</p>
       </div>
       <div className="recommendation-list">
         {recommendations.map((item, index) => {
           const component = componentById.get(item.componentId);
-          const source = component?.tags.includes("workeasy") ? "WorkEasy" : "Native";
+          const source = component?.tags.includes("workeasy") ? "WorkEasy" : "内置";
           return (
             <button
               className={index === 0 ? "recommendation-card is-top" : "recommendation-card"}
@@ -34,9 +41,9 @@ export function ComponentCandidates({ recommendations, components, onSelect }: P
                 <span style={{ width: `${Math.min(100, item.score * 24)}%` }} />
               </div>
               <small>
-                {source} · {component?.category ?? "component"} · {component?.manifest.params.length ?? 0} params
+                {source} · {categoryLabel(component?.category)} · {component?.manifest.params.length ?? 0} 个参数
               </small>
-              <em>Open editor page -&gt;</em>
+              <em>打开参数编辑器 -&gt;</em>
             </button>
           );
         })}

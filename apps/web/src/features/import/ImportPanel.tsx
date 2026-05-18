@@ -15,8 +15,8 @@ export function ImportPanel({ onImport }: Props) {
   }
 
   return (
-    <section className="tool-section">
-      <h2>Import</h2>
+    <section className="tool-section" id="import">
+      <h2>导入动效</h2>
       <input type="file" multiple onChange={(event) => void handleFiles(event.target.files)} />
     </section>
   );

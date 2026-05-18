@@ -27,7 +27,7 @@ export function ExportPanel({ project }: Props) {
 
   return (
     <button className="primary-action compact" type="button" disabled={!project} onClick={exportJson}>
-      Export editable package
+      导出可编辑包
     </button>
   );
 }

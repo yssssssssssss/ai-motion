@@ -7,10 +7,10 @@ type Props = {
 };
 
 export function ParameterPanel({ manifest, patch, onChange }: Props) {
-  if (!manifest || !patch) return <p className="muted">No motion source selected.</p>;
+  if (!manifest || !patch) return <p className="muted">尚未选择动效源。</p>;
 
   const params = manifest.params.filter((param) => param.status === "confirmed");
-  if (params.length === 0) return <p className="muted">No confirmed parameters.</p>;
+  if (params.length === 0) return <p className="muted">暂无可确认参数。</p>;
 
   return (
     <div className="field-list">
