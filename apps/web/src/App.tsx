@@ -19,6 +19,7 @@ import { ConfirmParamsPanel } from "./features/import/ConfirmParamsPanel";
 import { ImportPanel } from "./features/import/ImportPanel";
 import { ComponentCandidates } from "./features/library/ComponentCandidates";
 import { createEmptyPatch, type MotionProject } from "./state/projectStore";
+import { workEasyComponents } from "./data/workeasyComponents";
 
 const heroManifest: MotionManifest = {
   version: "1.0",
@@ -161,7 +162,7 @@ body {
   }
 };
 
-const components = [heroComponent];
+const components = [heroComponent, ...workEasyComponents];
 
 function createProject(source: MotionSource, manifest: MotionManifest): MotionProject {
   return {
