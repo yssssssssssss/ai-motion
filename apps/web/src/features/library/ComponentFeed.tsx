@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import type { MotionComponent } from "@motion-tool/core";
+import { renderPreviewHtml } from "../editor/previewHtml";
+import { createEmptyPatch } from "../../state/projectStore";
 
 type Filter = "all" | "workeasy" | "native" | "buttons" | "cards" | "checkboxes";
 
@@ -36,6 +38,14 @@ function matchesFilter(component: MotionComponent, filter: Filter): boolean {
   return component.tags.includes(filter);
 }
 
+function componentPreviewHtml(component: MotionComponent): string {
+  return renderPreviewHtml({
+    source: component.source,
+    manifest: component.manifest,
+    patch: createEmptyPatch(component.manifest)
+  });
+}
+
 export function ComponentFeed({ components, aiMatchIds, onSelect }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const visible = useMemo(() => components.filter((component) => matchesFilter(component, filter)), [components, filter]);
@@ -65,14 +75,27 @@ export function ComponentFeed({ components, aiMatchIds, onSelect }: Props) {
         {visible.map((component) => {
           const isAiMatch = aiMatchIds.has(component.id);
           return (
-            <button
+            <article
               className={isAiMatch ? "feed-card is-ai-match" : "feed-card"}
               key={component.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(component.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(component.id);
+                }
+              }}
             >
-              <span className={`feed-thumb ${componentKind(component)}`} aria-hidden="true">
-                {componentKind(component)}
+              <span className={`feed-thumb ${componentKind(component)}`}>
+                <iframe
+                  className="feed-preview-frame"
+                  loading="lazy"
+                  sandbox="allow-scripts"
+                  srcDoc={componentPreviewHtml(component)}
+                  title={`${component.name} preview`}
+                />
               </span>
               <span className="feed-body">
                 <strong>{component.name}</strong>
@@ -82,7 +105,7 @@ export function ComponentFeed({ components, aiMatchIds, onSelect }: Props) {
                 {isAiMatch ? <em>AI match</em> : null}
                 <span>Open editor page -&gt;</span>
               </span>
-            </button>
+            </article>
           );
         })}
       </div>
