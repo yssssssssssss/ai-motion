@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convertWorkEasyComponent } from "../src/adapters/workeasy";
+import { convertWorkEasyComponent, selectedWorkEasyComponents } from "../src/adapters/workeasy";
 
 describe("convertWorkEasyComponent", () => {
   it("converts a WorkEasy html/css record into a MotionComponent", () => {
@@ -42,5 +42,11 @@ describe("convertWorkEasyComponent", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("Expected skip result");
     expect(result.skip.issue).toBe("unsupported-type");
+  });
+
+  it("defines a 10/5/5 curated WorkEasy selection", () => {
+    expect(selectedWorkEasyComponents.buttons).toHaveLength(10);
+    expect(selectedWorkEasyComponents.cards).toHaveLength(5);
+    expect(selectedWorkEasyComponents.checkboxes).toHaveLength(5);
   });
 });
