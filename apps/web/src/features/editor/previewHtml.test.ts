@@ -58,6 +58,8 @@ describe("renderPreviewHtml", () => {
     const html = renderPreviewHtml({ source, manifest, patch, mode: "thumbnail" });
 
     expect(html).toContain('data-motion-preview="thumbnail"');
+    expect(html).toContain("motion-preview-stage");
+    expect(html).toContain("requestAnimationFrame(fitThumbnail)");
     expect(html).toContain("place-items: center");
     expect(html).toContain("width: fit-content");
   });
@@ -66,6 +68,7 @@ describe("renderPreviewHtml", () => {
     const html = renderPreviewHtml({ source, manifest, patch });
 
     expect(html).not.toContain('data-motion-preview="thumbnail"');
+    expect(html).not.toContain("motion-preview-stage");
     expect(html).not.toContain("place-items: center");
   });
 });
