@@ -3,6 +3,7 @@ export * from "./manifest/schema";
 export * from "./library/componentLibrary";
 export * from "./patch/applyPatch";
 export * from "./orchestrator/recommend";
+export * from "./orchestrator/briefIntent";
 export * from "./import/sourceImporter";
 export * from "./analyze/ruleScanner";
 export * from "./analyze/paramAdvisor";
