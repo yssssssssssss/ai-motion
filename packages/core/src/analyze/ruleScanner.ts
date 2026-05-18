@@ -26,6 +26,68 @@ function cssVariableConstraints(value: string): MotionParam["constraints"] {
   return { unit };
 }
 
+function selectorToIdPrefix(selector: string): string {
+  const cleaned = selector
+    .replace(/^\./, "")
+    .replace(/[^a-zA-Z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return toParamId(cleaned || "component");
+}
+
+function propertyToParamType(property: string, value: string): MotionParam["type"] | null {
+  if (["color", "background-color"].includes(property) && /^(#|rgb|hsl)/.test(value.trim())) return "color";
+  if (["transition-duration", "animation-duration"].includes(property)) return "duration";
+  if (property === "border-radius") return "range";
+  return null;
+}
+
+function propertyConstraints(property: string, value: string): MotionParam["constraints"] {
+  const trimmed = value.trim();
+  if (property === "border-radius") return { unit: "px", min: 0, max: 100, step: 1 };
+  if (/(ms|s)$/.test(trimmed)) return { unit: trimmed.endsWith("ms") ? "ms" : "s" };
+  return undefined;
+}
+
+function propertyToIdSuffix(property: string): string {
+  return property.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase()).replace(/^./, (char) => char.toUpperCase());
+}
+
+function scanCssProperties(filePath: string, content: string): MotionParam[] {
+  const params: MotionParam[] = [];
+  const rulePattern = /([^{}]+)\{([^{}]+)\}/g;
+
+  for (const rule of content.matchAll(rulePattern)) {
+    const selector = rule[1]?.trim();
+    const body = rule[2];
+    if (!selector || !body || selector.includes(":") || selector.includes(",")) continue;
+
+    const declarationPattern = /(color|background-color|transition-duration|animation-duration|border-radius)\s*:\s*([^;]+);/g;
+    for (const declaration of body.matchAll(declarationPattern)) {
+      const property = declaration[1];
+      const value = declaration[2]?.trim();
+      if (!property || !value) continue;
+
+      const type = propertyToParamType(property, value);
+      if (!type) continue;
+
+      const param: MotionParam = {
+        id: `${selectorToIdPrefix(selector)}${propertyToIdSuffix(property)}`,
+        label: `${selectorToIdPrefix(selector)} ${property}`,
+        type,
+        default: value,
+        status: "detected",
+        confidence: 0.65,
+        targets: [{ kind: "css-property", file: filePath, selector, property }]
+      };
+      const constraints = propertyConstraints(property, value);
+      if (constraints) param.constraints = constraints;
+      params.push(param);
+    }
+  }
+
+  return params;
+}
+
 export function scanSourceForParams(source: MotionSource): MotionParam[] {
   const params: MotionParam[] = [];
 
@@ -51,6 +113,8 @@ export function scanSourceForParams(source: MotionSource): MotionParam[] {
         if (constraints) param.constraints = constraints;
         params.push(param);
       }
+
+      params.push(...scanCssProperties(file.path, file.content));
     }
 
     if (file.kind === "html") {

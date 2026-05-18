@@ -22,4 +22,26 @@ describe("scanSourceForParams", () => {
     expect(params.map((param) => param.id)).toContain("headline");
     expect(params.every((param) => param.status === "detected")).toBe(true);
   });
+
+  it("detects direct WorkEasy css colors and durations", () => {
+    const params = scanSourceForParams({
+      id: "workeasy-buttons-1-button",
+      origin: "builtin",
+      kind: "builtin-component",
+      entry: "source/index.html",
+      files: [
+        { path: "source/index.html", kind: "html", content: '<button class="button">Save</button>' },
+        {
+          path: "source/style.css",
+          kind: "css",
+          content: ".button { color: #ffffff; background-color: rgb(12,12,12); transition-duration: 0.3s; border-radius: 40px; }"
+        }
+      ]
+    });
+
+    expect(params.map((param) => param.id)).toContain("buttonColor");
+    expect(params.map((param) => param.id)).toContain("buttonBackgroundColor");
+    expect(params.map((param) => param.id)).toContain("buttonTransitionDuration");
+    expect(params.map((param) => param.id)).toContain("buttonBorderRadius");
+  });
 });
