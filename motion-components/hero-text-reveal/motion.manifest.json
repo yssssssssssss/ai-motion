@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "id": "hero-text-reveal",
+  "name": "Hero Text Reveal",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "headline",
+      "label": "Headline",
+      "type": "text",
+      "default": "Build motion faster",
+      "status": "confirmed",
+      "targets": [{ "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=headline]" }]
+    },
+    {
+      "id": "accentColor",
+      "label": "Accent color",
+      "type": "color",
+      "default": "#38bdf8",
+      "status": "confirmed",
+      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--accent-color" }]
+    },
+    {
+      "id": "duration",
+      "label": "Reveal duration",
+      "type": "duration",
+      "default": 800,
+      "constraints": { "min": 200, "max": 2000, "step": 50, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--reveal-duration" }]
+    }
+  ],
+  "groups": [
+    { "id": "content", "label": "Content", "params": ["headline"] },
+    { "id": "style", "label": "Style", "params": ["accentColor"] },
+    { "id": "motion", "label": "Motion", "params": ["duration"] }
+  ]
+}

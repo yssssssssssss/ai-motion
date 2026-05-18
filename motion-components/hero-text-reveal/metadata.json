@@ -1,0 +1,8 @@
+{
+  "id": "hero-text-reveal",
+  "name": "Hero Text Reveal",
+  "category": "text",
+  "tags": ["hero", "text", "reveal", "saas"],
+  "useCases": ["landing-page", "banner"],
+  "moods": ["subtle", "premium", "clean"]
+}
