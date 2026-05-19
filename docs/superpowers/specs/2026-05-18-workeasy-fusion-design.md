@@ -147,6 +147,9 @@ Phase 1 parameter generation:
 - Color controls from CSS hex/rgb/hsl values and CSS variables.
 - Duration controls from `transition-duration`, `animation-duration`, and simple shorthand durations.
 - Radius controls from `border-radius` only when the selector is local to the component wrapper.
+- Low-risk layout controls from `opacity`, `font-size`, and `gap` when values are simple bounded numbers or units.
+- Safe HTML attribute controls from `alt`, `title`, and `aria-label` on `data-motion` elements.
+- Safe SVG color controls from `fill` and `stroke` on `data-motion` elements.
 
 Phase 1 should not generate controls for:
 
@@ -155,6 +158,7 @@ Phase 1 should not generate controls for:
 - Complex gradients as a single editable field
 - CSS selectors that cannot be matched back to the source
 - React props or TSX code
+- Width and height controls until layout breakage bounds are defined.
 
 Generated params start as `detected`; the validator promotes only safe targets to `confirmed`. The UI only exposes `confirmed`.
 

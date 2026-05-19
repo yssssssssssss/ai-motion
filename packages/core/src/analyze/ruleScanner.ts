@@ -1,29 +1,11 @@
 import type { MotionParam } from "../manifest/types";
 import type { MotionSource } from "../library/componentLibrary";
+import { cssPropertyParam, cssVariableParam, isSafeCssSelector, isSimpleColorValue, SAFE_HTML_ATTRIBUTES, SAFE_SVG_ATTRIBUTES } from "./paramRules";
 
 function toParamId(name: string): string {
   return name
     .replace(/^--/, "")
     .replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
-}
-
-function cssVariableType(value: string): MotionParam["type"] {
-  const trimmed = value.trim();
-
-  if (/^(#|rgb|hsl)/.test(trimmed)) return "color";
-  if (/(ms|s)$/.test(trimmed)) return "duration";
-  if (/(px|rem|%|vh|vw)$/.test(trimmed)) return "range";
-  return "text";
-}
-
-function cssVariableConstraints(value: string): MotionParam["constraints"] {
-  const match = value.trim().match(/^(-?\d+(?:\.\d+)?)(px|rem|%|vh|vw|ms|s)$/);
-  if (!match) return undefined;
-
-  const unit = match[2] as NonNullable<MotionParam["constraints"]>["unit"] | undefined;
-  if (!unit) return undefined;
-
-  return { unit };
 }
 
 function selectorToIdPrefix(selector: string): string {
@@ -34,22 +16,12 @@ function selectorToIdPrefix(selector: string): string {
   return toParamId(cleaned || "component");
 }
 
-function propertyToParamType(property: string, value: string): MotionParam["type"] | null {
-  if (["color", "background-color"].includes(property) && /^(#|rgb|hsl)/.test(value.trim())) return "color";
-  if (["transition-duration", "animation-duration"].includes(property)) return "duration";
-  if (property === "border-radius") return "range";
-  return null;
-}
-
-function propertyConstraints(property: string, value: string): MotionParam["constraints"] {
-  const trimmed = value.trim();
-  if (property === "border-radius") return { unit: "px", min: 0, max: 100, step: 1 };
-  if (/(ms|s)$/.test(trimmed)) return { unit: trimmed.endsWith("ms") ? "ms" : "s" };
-  return undefined;
-}
-
 function propertyToIdSuffix(property: string): string {
   return property.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase()).replace(/^./, (char) => char.toUpperCase());
+}
+
+function attributeToIdSuffix(attribute: string): string {
+  return attribute.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase()).replace(/^./, (char) => char.toUpperCase());
 }
 
 function scanCssProperties(filePath: string, content: string): MotionParam[] {
@@ -59,29 +31,76 @@ function scanCssProperties(filePath: string, content: string): MotionParam[] {
   for (const rule of content.matchAll(rulePattern)) {
     const selector = rule[1]?.trim();
     const body = rule[2];
-    if (!selector || !body || selector.includes(":") || selector.includes(",")) continue;
+    if (!selector || !body || !isSafeCssSelector(selector)) continue;
 
-    const declarationPattern = /(color|background-color|transition-duration|animation-duration|border-radius)\s*:\s*([^;]+);/g;
+    const declarationPattern = /([a-z-]+)\s*:\s*([^;]+);/g;
     for (const declaration of body.matchAll(declarationPattern)) {
       const property = declaration[1];
       const value = declaration[2]?.trim();
       if (!property || !value) continue;
 
-      const type = propertyToParamType(property, value);
-      if (!type) continue;
+      const shape = cssPropertyParam(property, value);
+      if (!shape) continue;
 
       const param: MotionParam = {
         id: `${selectorToIdPrefix(selector)}${propertyToIdSuffix(property)}`,
         label: `${selectorToIdPrefix(selector)} ${property}`,
-        type,
+        type: shape.type,
         default: value,
         status: "detected",
         confidence: 0.65,
         targets: [{ kind: "css-property", file: filePath, selector, property }]
       };
-      const constraints = propertyConstraints(property, value);
-      if (constraints) param.constraints = constraints;
+      if (shape.constraints) param.constraints = shape.constraints;
       params.push(param);
+    }
+  }
+
+  return params;
+}
+
+function attributeValue(attributes: string, attribute: string): string | null {
+  const match = attributes.match(new RegExp(`\\b${attribute}\\s*=\\s*["']([^"']+)["']`, "i"));
+  return match?.[1] ?? null;
+}
+
+function scanHtmlAttributeParams(filePath: string, content: string): MotionParam[] {
+  const params: MotionParam[] = [];
+  const elementPattern = /<([a-z0-9-]+)\b([^>]*)>/gi;
+
+  for (const element of content.matchAll(elementPattern)) {
+    const attributes = element[2];
+    if (!attributes) continue;
+
+    const id = attributeValue(attributes, "data-motion");
+    if (!id) continue;
+
+    for (const attribute of SAFE_HTML_ATTRIBUTES) {
+      const value = attributeValue(attributes, attribute);
+      if (value === null) continue;
+      params.push({
+        id: `${id}${attributeToIdSuffix(attribute)}`,
+        label: `${id} ${attribute}`,
+        type: "text",
+        default: value,
+        status: "detected",
+        confidence: 0.75,
+        targets: [{ kind: "html-attribute", file: filePath, selector: `[data-motion=${id}]`, attribute }]
+      });
+    }
+
+    for (const attribute of SAFE_SVG_ATTRIBUTES) {
+      const value = attributeValue(attributes, attribute);
+      if (value === null || !isSimpleColorValue(value)) continue;
+      params.push({
+        id: `${id}${attributeToIdSuffix(attribute)}`,
+        label: `${id} ${attribute}`,
+        type: "color",
+        default: value,
+        status: "detected",
+        confidence: 0.75,
+        targets: [{ kind: "svg-attribute", file: filePath, selector: `[data-motion=${id}]`, attribute }]
+      });
     }
   }
 
@@ -99,18 +118,18 @@ export function scanSourceForParams(source: MotionSource): MotionParam[] {
         const value = match[2]?.trim();
         if (!name || !value) continue;
 
-        const constraints = cssVariableConstraints(value);
+        const shape = cssVariableParam(value);
         const param: MotionParam = {
           id: toParamId(name),
           label: toParamId(name),
-          type: cssVariableType(value),
+          type: shape.type,
           default: value,
           status: "detected",
           confidence: 0.9,
           targets: [{ kind: "css-variable", file: file.path, selector: ":root", name }]
         };
 
-        if (constraints) param.constraints = constraints;
+        if (shape.constraints) param.constraints = shape.constraints;
         params.push(param);
       }
 
@@ -134,6 +153,8 @@ export function scanSourceForParams(source: MotionSource): MotionParam[] {
           targets: [{ kind: "html-text", file: file.path, selector: `[data-motion=${id}]` }]
         });
       }
+
+      params.push(...scanHtmlAttributeParams(file.path, file.content));
     }
   }
 

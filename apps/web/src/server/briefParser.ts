@@ -20,14 +20,32 @@ const intentSchema = {
   additionalProperties: false,
   properties: {
     query: { type: "string" },
+    semanticQuery: { type: "string" },
     categories: { type: "array", items: { type: "string" } },
     componentKinds: { type: "array", items: { type: "string" } },
     motionStyles: { type: "array", items: { type: "string" } },
     sources: { type: "array", items: { type: "string" } },
     keywords: { type: "array", items: { type: "string" } },
+    softPreferences: { type: "array", items: { type: "string" } },
+    hardConstraints: { type: "array", items: { type: "string" } },
+    negativePreferences: { type: "array", items: { type: "string" } },
+    reasoningHints: { type: "array", items: { type: "string" } },
     confidence: { type: "number" }
   },
-  required: ["query", "categories", "componentKinds", "motionStyles", "sources", "keywords", "confidence"]
+  required: [
+    "query",
+    "semanticQuery",
+    "categories",
+    "componentKinds",
+    "motionStyles",
+    "sources",
+    "keywords",
+    "softPreferences",
+    "hardConstraints",
+    "negativePreferences",
+    "reasoningHints",
+    "confidence"
+  ]
 };
 
 function fallback(brief: string, message: string): BriefParseResult {
@@ -97,7 +115,7 @@ export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<Brie
       {
         role: "system",
         content:
-          "Extract motion component discovery intent as JSON. Do not choose a final component. Do not generate code."
+          "Extract motion component discovery intent as JSON for semantic component search. Keep structured arrays short, but preserve flexible natural-language needs in semanticQuery and softPreferences. Capture color, motion, function, scene, source, and negative preferences when present. Do not choose a final component. Do not generate code."
       },
       {
         role: "user",

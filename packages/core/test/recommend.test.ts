@@ -11,7 +11,8 @@ const components = [
     tags: ["hero", "text", "saas"],
     useCases: ["landing-page"],
     moods: ["subtle"],
-    manifest: { id: "hero-text-reveal", presets: [] }
+    manifest: { id: "hero-text-reveal", params: [], presets: [] },
+    source: { files: [] }
   },
   {
     id: "magnetic-button",
@@ -20,7 +21,16 @@ const components = [
     tags: ["button", "hover"],
     useCases: ["cta"],
     moods: ["expressive"],
-    manifest: { id: "magnetic-button", presets: [] }
+    manifest: { id: "magnetic-button", params: [], presets: [] },
+    source: {
+      files: [
+        {
+          kind: "css",
+          content: ".button { background: linear-gradient(90deg, #6B36FA, #3544EB); transition: transform 300ms; } .button:hover { transform: scale(1.08); box-shadow: 0 0 20px #8F55FD; }"
+        },
+        { kind: "html", content: "<button>Start campaign</button>" }
+      ]
+    }
   }
 ] as unknown as MotionComponent[];
 
@@ -36,11 +46,16 @@ describe("recommendComponents", () => {
     const results = recommendComponents({
       intent: {
         query: "workeasy hover button",
+        semanticQuery: "workeasy hover cta button",
         categories: ["interaction"],
         componentKinds: ["button"],
         motionStyles: ["hover"],
         sources: ["workeasy"],
         keywords: ["save", "cta"],
+        softPreferences: ["活动页", "紫色", "hover", "CTA"],
+        hardConstraints: [],
+        negativePreferences: [],
+        reasoningHints: [],
         confidence: 0.9
       },
       components,
@@ -48,7 +63,8 @@ describe("recommendComponents", () => {
     });
 
     expect(results[0]?.componentId).toBe("magnetic-button");
-    expect(results[0]?.reason).toContain("parsed brief intent");
+    expect(results[0]?.reason).toContain("命中");
+    expect(results[0]?.matches).toEqual(expect.arrayContaining(["按钮", "hover", "紫色", "CTA"]));
   });
 
   it("creates a fallback intent from raw brief text", () => {
@@ -59,17 +75,24 @@ describe("recommendComponents", () => {
     expect(intent.motionStyles).toContain("hover");
     expect(intent.sources).toContain("workeasy");
     expect(intent.keywords).toContain("tech");
+    expect(intent.semanticQuery).toBe("WorkEasy hover button with tech style");
+    expect(intent.softPreferences).toEqual(expect.arrayContaining(["button", "hover", "workeasy", "tech"]));
   });
 
   it("handles empty parsed intent without crashing", () => {
     const results = recommendComponents({
       intent: {
         query: "",
+        semanticQuery: "",
         categories: [],
         componentKinds: [],
         motionStyles: [],
         sources: [],
         keywords: [],
+        softPreferences: [],
+        hardConstraints: [],
+        negativePreferences: [],
+        reasoningHints: [],
         confidence: 0
       },
       components,
@@ -77,6 +100,30 @@ describe("recommendComponents", () => {
     });
 
     expect(results).toHaveLength(2);
-    expect(results[0]?.reason).toBe("Included as a fallback candidate.");
+    expect(results[0]?.reason).toBe("作为兜底候选展示。");
+  });
+
+  it("uses search profiles to rank natural language component needs", () => {
+    const results = recommendComponents({
+      intent: {
+        query: "我想要一个适合活动页的紫色按钮 hover 动效",
+        semanticQuery: "适合活动页 CTA 的紫蓝色按钮 hover 动效，带缩放和发光反馈",
+        categories: [],
+        componentKinds: [],
+        motionStyles: [],
+        sources: [],
+        keywords: [],
+        softPreferences: ["活动页", "CTA", "紫色", "按钮", "hover", "发光"],
+        hardConstraints: [],
+        negativePreferences: [],
+        reasoningHints: [],
+        confidence: 0.92
+      },
+      components,
+      limit: 2
+    });
+
+    expect(results[0]?.componentId).toBe("magnetic-button");
+    expect(results[0]?.matches).toEqual(expect.arrayContaining(["活动页", "CTA", "紫色", "按钮", "hover"]));
   });
 });

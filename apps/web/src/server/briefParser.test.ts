@@ -11,6 +11,11 @@ describe("briefParser", () => {
         motionStyles: ["hover"],
         sources: ["workeasy"],
         keywords: ["cta"],
+        semanticQuery: "workeasy hover cta button",
+        softPreferences: ["button", "hover", "cta"],
+        hardConstraints: [],
+        negativePreferences: [],
+        reasoningHints: [],
         confidence: 0.88
       })
     });
@@ -44,6 +49,11 @@ describe("briefParser", () => {
       motionStyles: ["hover"],
       sources: ["workeasy"],
       keywords: [],
+      semanticQuery: "workeasy hover button",
+      softPreferences: ["button", "hover"],
+      hardConstraints: [],
+      negativePreferences: [],
+      reasoningHints: [],
       confidence: 0.9
     };
     const fetchImpl: typeof fetch = async (url) => {
@@ -78,6 +88,11 @@ describe("briefParser", () => {
             motionStyles: ["hover"],
             sources: ["workeasy"],
             keywords: [],
+            semanticQuery: "workeasy hover button",
+            softPreferences: ["button", "hover"],
+            hardConstraints: [],
+            negativePreferences: [],
+            reasoningHints: [],
             confidence: 0.9
           })
         }),

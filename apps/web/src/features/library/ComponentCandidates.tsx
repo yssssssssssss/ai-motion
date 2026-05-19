@@ -37,6 +37,15 @@ export function ComponentCandidates({ recommendations, components, onSelect }: P
             >
               <strong>{component?.name ?? item.componentId}</strong>
               <span>{item.reason}</span>
+              {item.matches.length > 0 ? (
+                <div className="match-chip-row" aria-label="命中需求">
+                  {item.matches.slice(0, 5).map((match) => (
+                    <small className="match-chip" key={match}>
+                      {match}
+                    </small>
+                  ))}
+                </div>
+              ) : null}
               <div className="score-bar">
                 <span style={{ width: `${Math.min(100, item.score * 24)}%` }} />
               </div>

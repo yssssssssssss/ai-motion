@@ -105,4 +105,71 @@ describe("applyPatchToFiles", () => {
 
     expect(files["source/style.css"]).toContain("color: #ff3366");
   });
+
+  it("updates only the targeted css selector", () => {
+    const files = applyPatchToFiles({
+      files: {
+        "source/index.html": '<button class="button">Save</button><button class="secondary">Cancel</button>',
+        "source/style.css": ".button { color: #ffffff; }\n.secondary { color: #111111; }"
+      },
+      manifest: {
+        version: "1.0",
+        id: "scoped-css",
+        name: "Scoped CSS",
+        sourceKind: "builtin-component",
+        runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+        params: [
+          {
+            id: "buttonColor",
+            label: "Button color",
+            type: "color",
+            default: "#ffffff",
+            status: "confirmed",
+            targets: [{ kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }]
+          }
+        ]
+      },
+      patch: { id: "patch-4", sourceManifestId: "scoped-css", values: { buttonColor: "#ff3366" } }
+    });
+
+    expect(files["source/style.css"]).toContain(".button { color: #ff3366; }");
+    expect(files["source/style.css"]).toContain(".secondary { color: #111111; }");
+  });
+
+  it("updates safe html and svg attributes", () => {
+    const files = applyPatchToFiles({
+      files: {
+        "source/index.html": '<img data-motion="heroImage" alt="Hero"><svg><path data-motion="logoMark" fill="#ffffff" /></svg>'
+      },
+      manifest: {
+        version: "1.0",
+        id: "attributes",
+        name: "Attributes",
+        sourceKind: "single-html",
+        runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+        params: [
+          {
+            id: "heroImageAlt",
+            label: "Hero image alt",
+            type: "text",
+            default: "Hero",
+            status: "confirmed",
+            targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=heroImage]", attribute: "alt" }]
+          },
+          {
+            id: "logoMarkFill",
+            label: "Logo mark fill",
+            type: "color",
+            default: "#ffffff",
+            status: "confirmed",
+            targets: [{ kind: "svg-attribute", file: "source/index.html", selector: "[data-motion=logoMark]", attribute: "fill" }]
+          }
+        ]
+      },
+      patch: { id: "patch-5", sourceManifestId: "attributes", values: { heroImageAlt: 'Hero "new"', logoMarkFill: "#ff3366" } }
+    });
+
+    expect(files["source/index.html"]).toContain('alt="Hero &quot;new&quot;"');
+    expect(files["source/index.html"]).toContain('fill="#ff3366"');
+  });
 });

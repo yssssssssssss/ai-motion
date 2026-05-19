@@ -284,6 +284,21 @@ h2 {
   font-size: 12px;
 }
 
+.match-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.recommendation-card .match-chip {
+  border-radius: 999px;
+  background: rgba(143, 85, 253, 0.12);
+  color: var(--accent);
+  font-weight: 800;
+  line-height: 1;
+  padding: 6px 8px;
+}
+
 .recommendation-card em,
 .feed-card em,
 .feed-body > span:last-child {

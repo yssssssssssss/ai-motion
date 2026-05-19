@@ -228,6 +228,8 @@ V0+V1 should strongly prefer:
 
 Arbitrary JavaScript semantic rewriting is out of scope.
 
+Current implementation only exposes targets that the scanner, validator, patcher, and editor controls all support. Unsupported target kinds remain in the type model but must not be promoted to `confirmed`.
+
 ## AI Responsibilities
 
 AI Orchestrator handles:

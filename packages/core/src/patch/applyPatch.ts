@@ -17,6 +17,10 @@ function escapeHtmlText(value: unknown): string {
     .replaceAll(">", "&gt;");
 }
 
+function escapeHtmlAttribute(value: unknown): string {
+  return escapeHtmlText(value).replaceAll('"', "&quot;");
+}
+
 function applyHtmlText(content: string, selector: string, value: unknown): string {
   const motionMatch = selector.match(/^\[data-motion=([^\]]+)\]$/);
   if (!motionMatch) return content;
@@ -26,6 +30,20 @@ function applyHtmlText(content: string, selector: string, value: unknown): strin
 
   const pattern = new RegExp(`(<[^>]+data-motion=["']${escapeRegExp(key)}["'][^>]*>)([\\s\\S]*?)(<\\/[^>]+>)`);
   return content.replace(pattern, `$1${escapeHtmlText(value)}$3`);
+}
+
+function applyAttribute(content: string, selector: string, attribute: string, value: unknown): string {
+  const motionMatch = selector.match(/^\[data-motion=([^\]]+)\]$/);
+  if (!motionMatch) return content;
+
+  const key = motionMatch[1]?.replace(/^["']|["']$/g, "");
+  if (!key) return content;
+
+  const elementPattern = new RegExp(`<[^>]*data-motion=["']${escapeRegExp(key)}["'][^>]*>`);
+  return content.replace(elementPattern, (element) => {
+    const attributePattern = new RegExp(`(${escapeRegExp(attribute)}\\s*=\\s*)(["'])([^"']*)(\\2)`);
+    return element.replace(attributePattern, `$1$2${escapeHtmlAttribute(value)}$4`);
+  });
 }
 
 function formatCssValue(param: MotionParam, value: unknown): string {
@@ -48,6 +66,8 @@ function applyCssProperty(content: string, selector: string, property: string, v
 
 function applyTarget(content: string, target: MotionTarget, param: MotionParam, value: unknown): string {
   if (target.kind === "html-text") return applyHtmlText(content, target.selector, value);
+  if (target.kind === "html-attribute") return applyAttribute(content, target.selector, target.attribute, value);
+  if (target.kind === "svg-attribute") return applyAttribute(content, target.selector, target.attribute, value);
   if (target.kind === "css-variable") return applyCssVariable(content, target.name, formatCssValue(param, value));
   if (target.kind === "css-property") {
     return applyCssProperty(content, target.selector, target.property, formatCssValue(param, value));

@@ -14,7 +14,9 @@ export function parsedChips(parseResult: BriefParseResult | null): string[] {
     ...parseResult.intent.componentKinds,
     ...parseResult.intent.motionStyles,
     ...parseResult.intent.sources,
-    ...parseResult.intent.keywords
+    ...parseResult.intent.keywords,
+    ...parseResult.intent.softPreferences,
+    ...parseResult.intent.hardConstraints
   ];
 
   return [...new Set(terms.filter(Boolean))].slice(0, 8);
