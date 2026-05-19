@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 function readBody(req: import("node:http").IncomingMessage): Promise<string> {
@@ -13,7 +13,11 @@ function readBody(req: import("node:http").IncomingMessage): Promise<string> {
   });
 }
 
-function briefParserApiPlugin(): Plugin {
+function envValue(env: Record<string, string>, name: string): string | undefined {
+  return process.env[name] || env[name] || undefined;
+}
+
+function briefParserApiPlugin(env: Record<string, string>): Plugin {
   return {
     name: "brief-parser-api",
     configureServer(server) {
@@ -33,8 +37,9 @@ function briefParserApiPlugin(): Plugin {
           >("/src/server/briefParser.ts");
           const result = await parseBriefWithOpenAI({
             brief,
-            apiKey: process.env.OPENAI_API_KEY,
-            model: process.env.OPENAI_BRIEF_MODEL
+            apiKey: envValue(env, "OPENAI_API_KEY"),
+            apiBaseUrl: envValue(env, "OPENAI_BASE_URL"),
+            model: envValue(env, "OPENAI_BRIEF_MODEL")
           });
 
           res.setHeader("Content-Type", "application/json");
@@ -49,6 +54,10 @@ function briefParserApiPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), briefParserApiPlugin()]
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+
+  return {
+    plugins: [react(), briefParserApiPlugin(env)]
+  };
 });

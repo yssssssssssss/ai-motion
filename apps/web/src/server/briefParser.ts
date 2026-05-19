@@ -8,9 +8,12 @@ import {
 type ParseBriefInput = {
   brief: string;
   apiKey?: string | undefined;
+  apiBaseUrl?: string | undefined;
   model?: string | undefined;
   fetchImpl?: typeof fetch;
 };
+
+const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
 
 const intentSchema = {
   type: "object",
@@ -55,6 +58,21 @@ function outputText(payload: unknown): string | null {
   return null;
 }
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+export function responseEndpointCandidates(apiBaseUrl?: string): string[] {
+  const base = trimTrailingSlash(apiBaseUrl?.trim() || DEFAULT_API_BASE_URL);
+  const candidates = [base];
+
+  if (!base.endsWith("/v1")) {
+    candidates.push(`${base}/v1`);
+  }
+
+  return [...new Set(candidates)].map((candidate) => `${candidate}/responses`);
+}
+
 export function parseOpenAIIntentResponse(payload: unknown): ParsedBriefIntent | null {
   const text = outputText(payload);
   if (!text) return null;
@@ -73,45 +91,62 @@ export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<Brie
   if (!input.apiKey) return fallback(brief, "OPENAI_API_KEY is not configured; using local matching.");
 
   const fetcher = input.fetchImpl ?? fetch;
-  const response = await fetcher("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: input.model ?? "gpt-5.4-mini",
-      input: [
-        {
-          role: "system",
-          content:
-            "Extract motion component discovery intent as JSON. Do not choose a final component. Do not generate code."
-        },
-        {
-          role: "user",
-          content: brief
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "brief_intent",
-          strict: true,
-          schema: intentSchema
-        }
+  const requestBody = JSON.stringify({
+    model: input.model ?? "gpt-5.4-mini",
+    input: [
+      {
+        role: "system",
+        content:
+          "Extract motion component discovery intent as JSON. Do not choose a final component. Do not generate code."
+      },
+      {
+        role: "user",
+        content: brief
       }
-    })
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "brief_intent",
+        strict: true,
+        schema: intentSchema
+      }
+    }
   });
+  let failureMessage = "LLM parse failed; using local matching.";
 
-  if (!response.ok) return fallback(brief, `LLM parse failed with HTTP ${response.status}; using local matching.`);
+  for (const endpoint of responseEndpointCandidates(input.apiBaseUrl)) {
+    try {
+      const response = await fetcher(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${input.apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: requestBody
+      });
 
-  const payload = (await response.json()) as unknown;
-  const intent = parseOpenAIIntentResponse(payload);
-  if (!intent) return fallback(brief, "LLM response was invalid; using local matching.");
+      if (!response.ok) {
+        failureMessage = `LLM parse failed with HTTP ${response.status}; using local matching.`;
+        continue;
+      }
 
-  return {
-    mode: "llm",
-    intent,
-    message: "LLM parsed"
-  };
+      const payload = (await response.json()) as unknown;
+      const intent = parseOpenAIIntentResponse(payload);
+      if (!intent) {
+        failureMessage = "LLM response was invalid; using local matching.";
+        continue;
+      }
+
+      return {
+        mode: "llm",
+        intent,
+        message: "LLM parsed"
+      };
+    } catch {
+      failureMessage = "LLM parse request failed; using local matching.";
+    }
+  }
+
+  return fallback(brief, failureMessage);
 }
