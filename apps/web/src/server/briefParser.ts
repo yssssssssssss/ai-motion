@@ -92,7 +92,7 @@ export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<Brie
 
   const fetcher = input.fetchImpl ?? fetch;
   const requestBody = JSON.stringify({
-    model: input.model ?? "gpt-5.4-mini",
+    model: input.model ?? "gpt-5.5",
     input: [
       {
         role: "system",

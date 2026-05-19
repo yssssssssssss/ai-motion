@@ -63,4 +63,34 @@ describe("briefParser", () => {
     expect(result.mode).toBe("llm");
     expect(endpoints).toEqual(["https://otokapi.com/responses", "https://otokapi.com/v1/responses"]);
   });
+
+  it("uses gpt-5.5 as the default brief parsing model", async () => {
+    let requestBody: unknown;
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      requestBody = JSON.parse(String(init?.body));
+
+      return new Response(
+        JSON.stringify({
+          output_text: JSON.stringify({
+            query: "hover button",
+            categories: ["interaction"],
+            componentKinds: ["button"],
+            motionStyles: ["hover"],
+            sources: ["workeasy"],
+            keywords: [],
+            confidence: 0.9
+          })
+        }),
+        { status: 200 }
+      );
+    };
+
+    await parseBriefWithOpenAI({
+      brief: "WorkEasy hover button",
+      apiKey: "test-key",
+      fetchImpl
+    });
+
+    expect(requestBody).toMatchObject({ model: "gpt-5.5" });
+  });
 });
