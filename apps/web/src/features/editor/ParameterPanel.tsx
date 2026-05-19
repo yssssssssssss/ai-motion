@@ -6,6 +6,17 @@ type Props = {
   onChange: (paramId: string, value: unknown) => void;
 };
 
+export function numericParamValue(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  if (typeof value === "string") {
+    const match = value.trim().match(/^-?\d+(?:\.\d+)?/);
+    if (match?.[0]) return Number(match[0]);
+  }
+
+  return 0;
+}
+
 export function ParameterPanel({ manifest, patch, onChange }: Props) {
   if (!manifest || !patch) return <p className="muted">尚未选择动效源。</p>;
 
@@ -16,6 +27,7 @@ export function ParameterPanel({ manifest, patch, onChange }: Props) {
     <div className="field-list">
       {params.map((param) => {
         const value = patch.values[param.id] ?? param.default;
+        const numericValue = numericParamValue(value);
 
         if (param.type === "color") {
           return (
@@ -35,12 +47,12 @@ export function ParameterPanel({ manifest, patch, onChange }: Props) {
                 min={param.constraints?.min ?? 0}
                 max={param.constraints?.max ?? 2000}
                 step={param.constraints?.step ?? 1}
-                value={Number(value)}
+                value={numericValue}
                 onChange={(event) => onChange(param.id, Number(event.target.value))}
               />
               <output>
-                {String(value)}
-                {typeof value === "number" ? param.constraints?.unit ?? "" : ""}
+                {numericValue}
+                {param.constraints?.unit ?? ""}
               </output>
             </label>
           );
