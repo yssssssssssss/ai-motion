@@ -9,6 +9,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@motion-tool/components-builtin": "workspace:*",
     "@motion-tool/core": "workspace:*",
     "@vitejs/plugin-react": "^5.0.0",
     "react": "^19.0.0",

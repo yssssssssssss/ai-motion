@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+// 样式按职责拆分到 src/styles/ 子文件，本测试聚合相关文件后再做断言。
+const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
+const home = readFileSync(new URL("../src/styles/home.css", import.meta.url), "utf8");
+const styles = `${tokens}\n${home}`;
 
 describe("ComponentFeed styles", () => {
   it("uses the requested purple and blue palette", () => {

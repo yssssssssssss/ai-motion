@@ -29,7 +29,8 @@ export function importMotionSourceFromFiles(files: Record<string, string>): Impo
   }
 
   const hasCssOrJs = paths.some((path) => path.endsWith(".css") || path.endsWith(".js"));
-  const hasSvgOnly = paths.length > 0 && paths.every((path) => path.endsWith(".svg") || path.endsWith(".css"));
+  const hasSvgOnly =
+    paths.length > 0 && paths.every((path) => path.endsWith(".svg") || path.endsWith(".css"));
   const kind = hasSvgOnly ? "css-svg" : hasCssOrJs ? "html-package" : "single-html";
 
   return {

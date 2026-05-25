@@ -96,7 +96,9 @@ describe("applyPatchToFiles", () => {
             type: "color",
             default: "#ffffff",
             status: "confirmed",
-            targets: [{ kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }]
+            targets: [
+              { kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }
+            ]
           }
         ]
       },
@@ -125,7 +127,9 @@ describe("applyPatchToFiles", () => {
             type: "color",
             default: "#ffffff",
             status: "confirmed",
-            targets: [{ kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }]
+            targets: [
+              { kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }
+            ]
           }
         ]
       },
@@ -136,10 +140,47 @@ describe("applyPatchToFiles", () => {
     expect(files["source/style.css"]).toContain(".secondary { color: #111111; }");
   });
 
+  it("updates every occurrence when the selector repeats", () => {
+    const files = applyPatchToFiles({
+      files: {
+        "source/index.html": '<button class="button">Save</button>',
+        "source/style.css":
+          ".button { color: #ffffff; }\n.button:hover { background: #000000; }\n.button { color: #eeeeee; }"
+      },
+      manifest: {
+        version: "1.0",
+        id: "repeat",
+        name: "Repeat",
+        sourceKind: "builtin-component",
+        runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+        params: [
+          {
+            id: "buttonColor",
+            label: "Button color",
+            type: "color",
+            default: "#ffffff",
+            status: "confirmed",
+            targets: [
+              { kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }
+            ]
+          }
+        ]
+      },
+      patch: { id: "patch-repeat", sourceManifestId: "repeat", values: { buttonColor: "#ff3366" } }
+    });
+
+    // 两个 .button {} 中的 color 都应被改
+    const css = files["source/style.css"] ?? "";
+    expect(css.match(/color: #ff3366/g)?.length).toBe(2);
+    expect(css).not.toContain("color: #ffffff");
+    expect(css).not.toContain("color: #eeeeee");
+  });
+
   it("updates safe html and svg attributes", () => {
     const files = applyPatchToFiles({
       files: {
-        "source/index.html": '<img data-motion="heroImage" alt="Hero"><svg><path data-motion="logoMark" fill="#ffffff" /></svg>'
+        "source/index.html":
+          '<img data-motion="heroImage" alt="Hero"><svg><path data-motion="logoMark" fill="#ffffff" /></svg>'
       },
       manifest: {
         version: "1.0",
@@ -154,7 +195,14 @@ describe("applyPatchToFiles", () => {
             type: "text",
             default: "Hero",
             status: "confirmed",
-            targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=heroImage]", attribute: "alt" }]
+            targets: [
+              {
+                kind: "html-attribute",
+                file: "source/index.html",
+                selector: "[data-motion=heroImage]",
+                attribute: "alt"
+              }
+            ]
           },
           {
             id: "logoMarkFill",
@@ -162,11 +210,22 @@ describe("applyPatchToFiles", () => {
             type: "color",
             default: "#ffffff",
             status: "confirmed",
-            targets: [{ kind: "svg-attribute", file: "source/index.html", selector: "[data-motion=logoMark]", attribute: "fill" }]
+            targets: [
+              {
+                kind: "svg-attribute",
+                file: "source/index.html",
+                selector: "[data-motion=logoMark]",
+                attribute: "fill"
+              }
+            ]
           }
         ]
       },
-      patch: { id: "patch-5", sourceManifestId: "attributes", values: { heroImageAlt: 'Hero "new"', logoMarkFill: "#ff3366" } }
+      patch: {
+        id: "patch-5",
+        sourceManifestId: "attributes",
+        values: { heroImageAlt: 'Hero "new"', logoMarkFill: "#ff3366" }
+      }
     });
 
     expect(files["source/index.html"]).toContain('alt="Hero &quot;new&quot;"');

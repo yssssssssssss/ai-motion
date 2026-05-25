@@ -13,8 +13,22 @@ const component = {
     id: "campaign-cta",
     name: "Campaign CTA Button",
     params: [
-      { id: "label", label: "Button label", type: "text", status: "confirmed", default: "Join now", targets: [] },
-      { id: "duration", label: "Hover duration", type: "duration", status: "confirmed", default: "300ms", targets: [] }
+      {
+        id: "label",
+        label: "Button label",
+        type: "text",
+        status: "confirmed",
+        default: "Join now",
+        targets: []
+      },
+      {
+        id: "duration",
+        label: "Hover duration",
+        type: "duration",
+        status: "confirmed",
+        default: "300ms",
+        targets: []
+      }
     ]
   },
   source: {
@@ -31,7 +45,8 @@ const component = {
       {
         path: "source/style.css",
         kind: "css",
-        content: ".cta { background: linear-gradient(90deg, #6B36FA, #3544EB); transition: transform 300ms; } .cta:hover { transform: scale(1.08); box-shadow: 0 0 20px #8F55FD; }"
+        content:
+          ".cta { background: linear-gradient(90deg, #6B36FA, #3544EB); transition: transform 300ms; } .cta:hover { transform: scale(1.08); box-shadow: 0 0 20px #8F55FD; }"
       }
     ]
   }

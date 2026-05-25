@@ -2,13 +2,43 @@
   "name": "ai-motion-tool",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@9.12.1",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "pnpm --filter @motion-tool/web dev",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:circular": "madge --circular --extensions ts,tsx packages/core/src packages/components-builtin/src apps/web/src",
+    "gen:workeasy": "node scripts/generate-workeasy-components.mjs",
+    "gen:workeasy:check": "node scripts/generate-workeasy-components.mjs && git diff --exit-code -- apps/web/src/data/workeasyComponents.generated.ts",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,mjs,cjs,json,md,css,html,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
-    "typescript": "^5.8.0"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
+    "madge": "^8.0.0",
+    "prettier": "^3.8.3",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.59.4"
   }
 }

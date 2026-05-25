@@ -11,7 +11,8 @@ const source: MotionSource = {
     {
       path: "source/index.html",
       kind: "html",
-      content: '<!doctype html><html><head><link rel="stylesheet" href="./style.css" /></head><body><button class="button">Save</button></body></html>'
+      content:
+        '<!doctype html><html><head><link rel="stylesheet" href="./style.css" /></head><body><button class="button">Save</button></body></html>'
     },
     {
       path: "source/style.css",
@@ -68,7 +69,39 @@ describe("renderPreviewHtml", () => {
     const html = renderPreviewHtml({ source, manifest, patch });
 
     expect(html).not.toContain('data-motion-preview="thumbnail"');
+    expect(html).not.toContain('data-motion-preview="editor"');
     expect(html).not.toContain("motion-preview-stage");
+    expect(html).not.toContain("motion-editor-stage");
     expect(html).not.toContain("place-items: center");
+  });
+
+  it("adds editor centering layout when requested", () => {
+    const html = renderPreviewHtml({ source, manifest, patch, mode: "editor" });
+
+    expect(html).toContain('data-motion-preview="editor"');
+    expect(html).toContain("motion-editor-stage");
+    expect(html).toContain("height: 100%");
+    expect(html).toContain("position: absolute !important");
+    expect(html).toContain("left: 50% !important");
+    expect(html).toContain("top: 50% !important");
+    expect(html).toContain('document.addEventListener("DOMContentLoaded", scheduleFit');
+  });
+
+  it("fits the full editor preview into the iframe viewport", () => {
+    const html = renderPreviewHtml({ source, manifest, patch, mode: "editor" });
+
+    expect(html).toContain("overflow: hidden !important");
+    expect(html).toContain("max-height: none !important");
+    expect(html).toContain("transform-origin: center center !important");
+    expect(html).toContain("function fitEditorPreview()");
+    expect(html).toContain("function parseCssPixelValue(value)");
+    expect(html).toContain('style.getPropertyValue("--stage-width")');
+    expect(html).toContain('style.getPropertyValue("--stage-height")');
+    expect(html).toContain("fixElementSize(content, declaredSize)");
+    expect(html).toContain("measureEditorContent(stage)");
+    expect(html).toContain("availableWidth / contentSize.width");
+    expect(html).toContain("availableHeight / contentSize.height");
+    expect(html).toContain("stage.style.transform = `translate(-50%, -50%) scale(");
+    expect(html).toContain("ResizeObserver");
   });
 });

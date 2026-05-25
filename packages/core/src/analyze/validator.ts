@@ -1,6 +1,13 @@
 import type { MotionParam } from "../manifest/types";
 import type { MotionSource } from "../library/componentLibrary";
-import { cssPropertyParam, cssVariableParam, isAllowedCssProperty, isSafeCssSelector, isSafeHtmlAttribute, isSafeSvgAttribute } from "./paramRules";
+import {
+  cssPropertyParam,
+  cssVariableParam,
+  isAllowedCssProperty,
+  isSafeCssSelector,
+  isSafeHtmlAttribute,
+  isSafeSvgAttribute
+} from "./paramRules";
 
 export type ValidationResult = {
   confirmed: MotionParam[];
@@ -21,7 +28,10 @@ function cssDeclarationValue(content: string, selector: string, property: string
   const body = ruleBody(content, selector);
   if (!body) return null;
 
-  const pattern = new RegExp(`(?:^|;)\\s*${property.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:\\s*([^;]+)`, "m");
+  const pattern = new RegExp(
+    `(?:^|;)\\s*${property.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:\\s*([^;]+)`,
+    "m"
+  );
   return pattern.exec(body)?.[1]?.trim() ?? null;
 }
 
@@ -46,7 +56,10 @@ function hasDataMotionAttribute(content: string, selector: string, attribute: st
   const dataMotion = dataMotionSelectorValue(selector);
   if (!dataMotion) return false;
 
-  const elementPattern = new RegExp(`<[^>]*\\bdata-motion=["']${dataMotion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'][^>]*>`, "i");
+  const elementPattern = new RegExp(
+    `<[^>]*\\bdata-motion=["']${dataMotion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'][^>]*>`,
+    "i"
+  );
   const element = elementPattern.exec(content)?.[0];
   if (!element) return false;
 
@@ -78,11 +91,17 @@ function targetExists(source: MotionSource, param: MotionParam): boolean {
     }
 
     if (target.kind === "html-attribute") {
-      return isSafeHtmlAttribute(target.attribute) && hasDataMotionAttribute(file.content, target.selector, target.attribute);
+      return (
+        isSafeHtmlAttribute(target.attribute) &&
+        hasDataMotionAttribute(file.content, target.selector, target.attribute)
+      );
     }
 
     if (target.kind === "svg-attribute") {
-      return isSafeSvgAttribute(target.attribute) && hasDataMotionAttribute(file.content, target.selector, target.attribute);
+      return (
+        isSafeSvgAttribute(target.attribute) &&
+        hasDataMotionAttribute(file.content, target.selector, target.attribute)
+      );
     }
 
     return false;

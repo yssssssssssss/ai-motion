@@ -26,7 +26,8 @@ const components = [
       files: [
         {
           kind: "css",
-          content: ".button { background: linear-gradient(90deg, #6B36FA, #3544EB); transition: transform 300ms; } .button:hover { transform: scale(1.08); box-shadow: 0 0 20px #8F55FD; }"
+          content:
+            ".button { background: linear-gradient(90deg, #6B36FA, #3544EB); transition: transform 300ms; } .button:hover { transform: scale(1.08); box-shadow: 0 0 20px #8F55FD; }"
         },
         { kind: "html", content: "<button>Start campaign</button>" }
       ]
@@ -64,7 +65,8 @@ describe("recommendComponents", () => {
 
     expect(results[0]?.componentId).toBe("magnetic-button");
     expect(results[0]?.reason).toContain("命中");
-    expect(results[0]?.matches).toEqual(expect.arrayContaining(["按钮", "hover", "紫色", "CTA"]));
+    expect(results[0]?.matches).toEqual(expect.arrayContaining(["按钮", "悬停", "紫色", "转化入口"]));
+    expect(results[0]?.matches).not.toEqual(expect.arrayContaining(["hover", "CTA"]));
   });
 
   it("creates a fallback intent from raw brief text", () => {
@@ -124,6 +126,9 @@ describe("recommendComponents", () => {
     });
 
     expect(results[0]?.componentId).toBe("magnetic-button");
-    expect(results[0]?.matches).toEqual(expect.arrayContaining(["活动页", "CTA", "紫色", "按钮", "hover"]));
+    expect(results[0]?.matches).toEqual(
+      expect.arrayContaining(["活动页", "转化入口", "紫色", "按钮", "悬停"])
+    );
+    expect(results[0]?.matches).not.toEqual(expect.arrayContaining(["CTA", "hover"]));
   });
 });

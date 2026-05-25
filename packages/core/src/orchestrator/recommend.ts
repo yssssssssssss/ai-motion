@@ -1,6 +1,7 @@
 import type { MotionComponent } from "../library/componentLibrary";
 import type { MotionPatch } from "../manifest/types";
 import { createFallbackBriefIntent, type ParsedBriefIntent } from "./briefIntent";
+import { displayLabel, displayLabels } from "./displayLabels";
 import { createSearchProfile, type SearchProfile } from "./searchProfile";
 
 export type Recommendation = {
@@ -11,6 +12,17 @@ export type Recommendation = {
   missing?: string[];
   initialPatch: MotionPatch;
 };
+
+// 复用同一个组件对象的画像，避免每次推荐都重新扫描 html/css
+const profileCache = new WeakMap<MotionComponent, SearchProfile>();
+
+function getProfile(component: MotionComponent): SearchProfile {
+  const cached = profileCache.get(component);
+  if (cached) return cached;
+  const profile = createSearchProfile(component);
+  profileCache.set(component, profile);
+  return profile;
+}
 
 const ALIAS_GROUPS = [
   ["按钮", "button", "buttons", "cta", "call to action", "转化入口"],
@@ -33,7 +45,10 @@ const ALIAS_GROUPS = [
 ];
 
 function tokenize(value: string): string[] {
-  return value.toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean);
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9-]+/)
+    .filter(Boolean);
 }
 
 function normalize(value: string): string {
@@ -111,7 +126,11 @@ function traitMatch(traits: string[], term: string): string | null {
   return null;
 }
 
-function scoreTerm(term: string, profile: SearchProfile, haystack: string): { score: number; match: string | null } {
+function scoreTerm(
+  term: string,
+  profile: SearchProfile,
+  haystack: string
+): { score: number; match: string | null } {
   const functionMatch = traitMatch(profile.functionTraits, term);
   if (functionMatch) return { score: 4, match: functionMatch };
 
@@ -127,7 +146,8 @@ function scoreTerm(term: string, profile: SearchProfile, haystack: string): { sc
   const editableMatch = traitMatch(profile.editableTraits, term);
   if (editableMatch) return { score: 1, match: editableMatch };
 
-  if (textMatches(`${profile.summary} ${profile.rawText} ${haystack}`, term)) return { score: 1, match: term };
+  if (textMatches(`${profile.summary} ${profile.rawText} ${haystack}`, term))
+    return { score: 1, match: term };
 
   return { score: 0, match: null };
 }
@@ -144,14 +164,14 @@ export function recommendComponents(input: {
 
   return input.components
     .map((component) => {
-      const profile = createSearchProfile(component);
+      const profile = getProfile(component);
       const haystack = componentHaystack(component);
       const matches: string[] = [];
       const missing: string[] = [];
 
       const positiveScore = terms.reduce((total, term) => {
         const result = scoreTerm(term, profile, haystack);
-        if (result.match) matches.push(result.match);
+        if (result.match) matches.push(displayLabel(result.match));
         return total + result.score;
       }, 0);
       const penalty = negativeTerms.reduce((total, term) => {
@@ -159,12 +179,12 @@ export function recommendComponents(input: {
       }, 0);
 
       for (const constraint of intent.hardConstraints) {
-        if (scoreTerm(constraint, profile, haystack).score === 0) missing.push(constraint);
+        if (scoreTerm(constraint, profile, haystack).score === 0) missing.push(displayLabel(constraint));
       }
 
       const score = positiveScore - penalty;
-      const uniqueMatches = unique(matches).slice(0, 8);
-      const uniqueMissing = unique(missing);
+      const uniqueMatches = displayLabels(unique(matches)).slice(0, 8);
+      const uniqueMissing = displayLabels(unique(missing));
       const reason = uniqueMatches.length > 0 ? `命中：${uniqueMatches.join("、")}` : "作为兜底候选展示。";
 
       return {

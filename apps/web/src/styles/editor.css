@@ -1,0 +1,130 @@
+/* 编辑器路由：预览 / 参数面板 / 顶部导航 / 底部传输栏。 */
+
+.preview-empty {
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  color: #86868b;
+}
+
+.preview-frame {
+  width: 100%;
+  height: min(70vh, 680px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.editor-shell {
+  display: grid;
+  /* 右侧面板：在小屏到中屏之间收窄到约 28vw，最低 300px，最高 380px */
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 28vw, 380px);
+  grid-template-rows: auto minmax(0, 1fr) 58px;
+  min-height: 100vh;
+  background: #f5f5f7;
+}
+
+.editor-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(251, 251, 253, 0.82);
+  padding: 14px 18px;
+  backdrop-filter: blur(18px) saturate(180%);
+}
+
+.editor-header button {
+  background: #ffffff;
+}
+
+.editor-preview {
+  display: grid;
+  min-width: 0;
+  padding: 24px;
+}
+
+.editor-preview .preview-frame {
+  height: min(76vh, 760px);
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.12);
+}
+
+.editor-inspector {
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+  padding: 20px;
+  backdrop-filter: blur(18px);
+}
+
+.panel-header {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 18px;
+}
+
+.transport {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(251, 251, 253, 0.86);
+  padding: 10px 14px;
+  backdrop-filter: blur(18px);
+}
+
+.primary-action {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.primary-action:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.secondary-action {
+  background: var(--panel-muted);
+}
+
+.compact {
+  margin-left: auto;
+}
+
+.field-groups {
+  display: grid;
+  gap: 18px;
+}
+
+.field-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.field-toolbar .ghost {
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #1d1d1f;
+}
+
+.field-toolbar .ghost:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.field-group {
+  display: grid;
+  gap: 10px;
+}
+
+.field-group__label {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6e6e73;
+}

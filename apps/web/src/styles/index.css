@@ -1,0 +1,15 @@
+/* 样式入口：按职责分文件聚合。
+ *  - tokens：设计 token 变量
+ *  - base：全局重置 + 基础控件
+ *  - home：首页（导航 / 推荐 / 组件库 / 导入）
+ *  - editor：编辑器路由（预览 / 参数面板）
+ *  - motion：动画关键帧
+ *  - responsive：媒体查询断点
+ */
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./home.css";
+@import "./editor.css";
+@import "./motion.css";
+@import "./responsive.css";

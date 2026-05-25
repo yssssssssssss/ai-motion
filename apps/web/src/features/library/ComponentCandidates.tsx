@@ -13,21 +13,25 @@ function categoryLabel(category: string | undefined): string {
   return category ?? "组件";
 }
 
+function sourceLabel(component: MotionComponent | undefined): string {
+  return component?.tags.includes("workeasy") ? "工作易" : "内置";
+}
+
 export function ComponentCandidates({ recommendations, components, onSelect }: Props) {
   const componentById = new Map(components.map((component) => [component.id, component]));
   if (recommendations.length === 0) return null;
 
   return (
-    <section className="recommendation-strip" id="recommend" aria-label="AI 推荐组件">
+    <section className="recommendation-strip" id="recommend" aria-label="智能推荐组件">
       <div>
-        <p className="eyebrow">AI 推荐结果</p>
+        <p className="eyebrow">智能推荐结果</p>
         <h2>匹配组件</h2>
         <p className="muted">提交需求后，这里会展示最接近的可编辑动效。</p>
       </div>
       <div className="recommendation-list">
         {recommendations.map((item, index) => {
           const component = componentById.get(item.componentId);
-          const source = component?.tags.includes("workeasy") ? "WorkEasy" : "内置";
+          const source = sourceLabel(component);
           return (
             <button
               className={index === 0 ? "recommendation-card is-top" : "recommendation-card"}
@@ -50,7 +54,8 @@ export function ComponentCandidates({ recommendations, components, onSelect }: P
                 <span style={{ width: `${Math.min(100, item.score * 24)}%` }} />
               </div>
               <small>
-                {source} · {categoryLabel(component?.category)} · {component?.manifest.params.length ?? 0} 个参数
+                {source} · {categoryLabel(component?.category)} · {component?.manifest.params.length ?? 0}{" "}
+                个参数
               </small>
               <em>打开参数编辑器 -&gt;</em>
             </button>

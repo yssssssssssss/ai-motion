@@ -37,7 +37,9 @@ describe("briefParser", () => {
       "https://otokapi.com/responses",
       "https://otokapi.com/v1/responses"
     ]);
-    expect(responseEndpointCandidates("https://otokapi.com/v1")).toEqual(["https://otokapi.com/v1/responses"]);
+    expect(responseEndpointCandidates("https://otokapi.com/v1")).toEqual([
+      "https://otokapi.com/v1/responses"
+    ]);
   });
 
   it("retries the v1 endpoint when the configured base URL fails", async () => {

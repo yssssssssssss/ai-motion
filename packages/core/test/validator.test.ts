@@ -9,11 +9,17 @@ const source: MotionSource = {
   kind: "single-html",
   entry: "index.html",
   files: [
-    { path: "index.html", kind: "html", content: '<h1 data-motion="headline">Hello</h1><img data-motion="heroImage" alt="Hero image"><svg><path data-motion="logoMark" fill="#ffffff" /></svg>' },
+    {
+      path: "index.html",
+      kind: "html",
+      content:
+        '<h1 data-motion="headline">Hello</h1><img data-motion="heroImage" alt="Hero image"><svg><path data-motion="logoMark" fill="#ffffff" /></svg>'
+    },
     {
       path: "style.css",
       kind: "css",
-      content: ".button { color: #ffffff; opacity: 0.8; }\n.card { color: #111111; }\nbutton { background-color: #000000; }"
+      content:
+        ".button { color: #ffffff; opacity: 0.8; }\n.card { color: #111111; }\nbutton { background-color: #000000; }"
     }
   ]
 };
@@ -71,7 +77,9 @@ describe("confirmValidParams", () => {
           type: "range",
           default: "8px",
           status: "detected",
-          targets: [{ kind: "css-property", file: "style.css", selector: ".button", property: "border-radius" }]
+          targets: [
+            { kind: "css-property", file: "style.css", selector: ".button", property: "border-radius" }
+          ]
         }
       ]
     });
@@ -88,7 +96,9 @@ describe("confirmValidParams", () => {
         type: "color",
         default: "#000000",
         status: "detected",
-        targets: [{ kind: "css-property", file: "style.css", selector: "button", property: "background-color" }]
+        targets: [
+          { kind: "css-property", file: "style.css", selector: "button", property: "background-color" }
+        ]
       }
     ];
 
@@ -108,7 +118,14 @@ describe("confirmValidParams", () => {
           type: "text",
           default: "Hero image",
           status: "detected",
-          targets: [{ kind: "html-attribute", file: "index.html", selector: "[data-motion=heroImage]", attribute: "alt" }]
+          targets: [
+            {
+              kind: "html-attribute",
+              file: "index.html",
+              selector: "[data-motion=heroImage]",
+              attribute: "alt"
+            }
+          ]
         },
         {
           id: "logoMarkFill",
@@ -116,7 +133,14 @@ describe("confirmValidParams", () => {
           type: "color",
           default: "#ffffff",
           status: "detected",
-          targets: [{ kind: "svg-attribute", file: "index.html", selector: "[data-motion=logoMark]", attribute: "fill" }]
+          targets: [
+            {
+              kind: "svg-attribute",
+              file: "index.html",
+              selector: "[data-motion=logoMark]",
+              attribute: "fill"
+            }
+          ]
         }
       ]
     });
@@ -134,7 +158,14 @@ describe("confirmValidParams", () => {
           type: "text",
           default: "https://example.com/image.png",
           status: "detected",
-          targets: [{ kind: "html-attribute", file: "index.html", selector: "[data-motion=heroImage]", attribute: "src" }]
+          targets: [
+            {
+              kind: "html-attribute",
+              file: "index.html",
+              selector: "[data-motion=heroImage]",
+              attribute: "src"
+            }
+          ]
         },
         {
           id: "logoMarkPath",
@@ -142,7 +173,9 @@ describe("confirmValidParams", () => {
           type: "text",
           default: "M0 0",
           status: "detected",
-          targets: [{ kind: "svg-attribute", file: "index.html", selector: "[data-motion=logoMark]", attribute: "d" }]
+          targets: [
+            { kind: "svg-attribute", file: "index.html", selector: "[data-motion=logoMark]", attribute: "d" }
+          ]
         }
       ]
     });

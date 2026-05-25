@@ -138,12 +138,7 @@ type MotionManifest = {
 Supported source kinds for V0+V1:
 
 ```ts
-type SourceKind =
-  | "builtin-component"
-  | "single-html"
-  | "html-package"
-  | "css-svg"
-  | "component-lite";
+type SourceKind = "builtin-component" | "single-html" | "html-package" | "css-svg" | "component-lite";
 ```
 
 Runtime should default to HTML in V0+V1:

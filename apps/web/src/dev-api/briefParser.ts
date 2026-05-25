@@ -1,3 +1,5 @@
+// 仅在 vite dev server 中通过 ssrLoadModule 加载并执行（见 vite.config.ts 的 briefParserApiPlugin）。
+// 生产构建（vite build）不会包含本文件，因此前端 services/briefParserClient 必须有降级逻辑。
 import {
   createFallbackBriefIntent,
   isParsedBriefIntent,
@@ -105,8 +107,8 @@ export function parseOpenAIIntentResponse(payload: unknown): ParsedBriefIntent |
 
 export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<BriefParseResult> {
   const brief = input.brief.trim();
-  if (!brief) return fallback("", "Empty brief; using browse feed.");
-  if (!input.apiKey) return fallback(brief, "OPENAI_API_KEY is not configured; using local matching.");
+  if (!brief) return fallback("", "需求为空，已展示组件库。");
+  if (!input.apiKey) return fallback(brief, "未配置接口密钥，已使用本地匹配。");
 
   const fetcher = input.fetchImpl ?? fetch;
   const requestBody = JSON.stringify({
@@ -131,7 +133,7 @@ export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<Brie
       }
     }
   });
-  let failureMessage = "LLM parse failed; using local matching.";
+  let failureMessage = "模型解析失败，已使用本地匹配。";
 
   for (const endpoint of responseEndpointCandidates(input.apiBaseUrl)) {
     try {
@@ -145,24 +147,24 @@ export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<Brie
       });
 
       if (!response.ok) {
-        failureMessage = `LLM parse failed with HTTP ${response.status}; using local matching.`;
+        failureMessage = `模型解析接口返回 ${response.status}，已使用本地匹配。`;
         continue;
       }
 
       const payload = (await response.json()) as unknown;
       const intent = parseOpenAIIntentResponse(payload);
       if (!intent) {
-        failureMessage = "LLM response was invalid; using local matching.";
+        failureMessage = "模型返回无效，已使用本地匹配。";
         continue;
       }
 
       return {
         mode: "llm",
         intent,
-        message: "LLM parsed"
+        message: "模型解析完成。"
       };
     } catch {
-      failureMessage = "LLM parse request failed; using local matching.";
+      failureMessage = "模型请求失败，已使用本地匹配。";
     }
   }
 

@@ -34,7 +34,8 @@ describe("scanSourceForParams", () => {
         {
           path: "source/style.css",
           kind: "css",
-          content: ".button { color: #ffffff; background-color: rgb(12,12,12); transition-duration: 0.3s; border-radius: 40px; }"
+          content:
+            ".button { color: #ffffff; background-color: rgb(12,12,12); transition-duration: 0.3s; border-radius: 40px; }"
         }
       ]
     });
@@ -53,19 +54,26 @@ describe("scanSourceForParams", () => {
       entry: "source/index.html",
       files: [
         { path: "source/index.html", kind: "html", content: '<div class="card">Card</div>' },
-        { path: "source/style.css", kind: "css", content: ".card { opacity: 0.7; font-size: 18px; gap: 12px; width: 200px; height: 120px; }" }
+        {
+          path: "source/style.css",
+          kind: "css",
+          content: ".card { opacity: 0.7; font-size: 18px; gap: 12px; width: 200px; height: 120px; }"
+        }
       ]
     });
 
     expect(params.find((param) => param.id === "cardOpacity")).toMatchObject({
+      label: "透明度",
       type: "range",
       constraints: { min: 0, max: 1, step: 0.01 }
     });
     expect(params.find((param) => param.id === "cardFontSize")).toMatchObject({
+      label: "字号",
       type: "range",
       constraints: { unit: "px", min: 0, max: 200, step: 1 }
     });
     expect(params.find((param) => param.id === "cardGap")).toMatchObject({
+      label: "间距",
       type: "range",
       constraints: { unit: "px", min: 0, max: 200, step: 1 }
     });
@@ -81,7 +89,11 @@ describe("scanSourceForParams", () => {
       entry: "source/index.html",
       files: [
         { path: "source/index.html", kind: "html", content: "<button>Save</button>" },
-        { path: "source/style.css", kind: "css", content: "button { color: #ffffff; }\n.button { color: #111111; }" }
+        {
+          path: "source/style.css",
+          kind: "css",
+          content: "button { color: #ffffff; }\n.button { color: #111111; }"
+        }
       ]
     });
 
@@ -89,7 +101,9 @@ describe("scanSourceForParams", () => {
       .filter((param) => param.id === "buttonColor")
       .flatMap((param) => param.targets.filter((target) => target.kind === "css-property"));
 
-    expect(colorTargets).toEqual([{ kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }]);
+    expect(colorTargets).toEqual([
+      { kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }
+    ]);
   });
 
   it("detects safe html and svg attributes on data-motion elements", () => {
@@ -102,26 +116,39 @@ describe("scanSourceForParams", () => {
         {
           path: "index.html",
           kind: "html",
-          content: '<img data-motion="heroImage" alt="Hero"><button data-motion="cta" aria-label="Buy now">Buy</button><svg><path data-motion="logoMark" fill="#ffffff" stroke="rgb(0,0,0)" /></svg>'
+          content:
+            '<img data-motion="heroImage" alt="Hero"><button data-motion="cta" aria-label="Buy now">Buy</button><svg><path data-motion="logoMark" fill="#ffffff" stroke="rgb(0,0,0)" /></svg>'
         }
       ]
     });
 
     expect(params.find((param) => param.id === "heroImageAlt")).toMatchObject({
+      label: "替代文本",
       type: "text",
-      targets: [{ kind: "html-attribute", file: "index.html", selector: "[data-motion=heroImage]", attribute: "alt" }]
+      targets: [
+        { kind: "html-attribute", file: "index.html", selector: "[data-motion=heroImage]", attribute: "alt" }
+      ]
     });
     expect(params.find((param) => param.id === "ctaAriaLabel")).toMatchObject({
+      label: "辅助标签",
       type: "text",
-      targets: [{ kind: "html-attribute", file: "index.html", selector: "[data-motion=cta]", attribute: "aria-label" }]
+      targets: [
+        { kind: "html-attribute", file: "index.html", selector: "[data-motion=cta]", attribute: "aria-label" }
+      ]
     });
     expect(params.find((param) => param.id === "logoMarkFill")).toMatchObject({
+      label: "填充色",
       type: "color",
-      targets: [{ kind: "svg-attribute", file: "index.html", selector: "[data-motion=logoMark]", attribute: "fill" }]
+      targets: [
+        { kind: "svg-attribute", file: "index.html", selector: "[data-motion=logoMark]", attribute: "fill" }
+      ]
     });
     expect(params.find((param) => param.id === "logoMarkStroke")).toMatchObject({
+      label: "描边色",
       type: "color",
-      targets: [{ kind: "svg-attribute", file: "index.html", selector: "[data-motion=logoMark]", attribute: "stroke" }]
+      targets: [
+        { kind: "svg-attribute", file: "index.html", selector: "[data-motion=logoMark]", attribute: "stroke" }
+      ]
     });
   });
 });

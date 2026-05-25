@@ -1,11 +1,20 @@
 import type { MotionParam } from "../manifest/types";
 import type { MotionSource } from "../library/componentLibrary";
-import { cssPropertyParam, cssVariableParam, isSafeCssSelector, isSimpleColorValue, SAFE_HTML_ATTRIBUTES, SAFE_SVG_ATTRIBUTES } from "./paramRules";
+import {
+  cssPropertyLabel,
+  cssPropertyParam,
+  cssVariableLabel,
+  cssVariableParam,
+  htmlAttributeLabel,
+  isSafeCssSelector,
+  isSimpleColorValue,
+  SAFE_HTML_ATTRIBUTES,
+  SAFE_SVG_ATTRIBUTES,
+  svgAttributeLabel
+} from "./paramRules";
 
 function toParamId(name: string): string {
-  return name
-    .replace(/^--/, "")
-    .replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
+  return name.replace(/^--/, "").replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
 }
 
 function selectorToIdPrefix(selector: string): string {
@@ -17,11 +26,15 @@ function selectorToIdPrefix(selector: string): string {
 }
 
 function propertyToIdSuffix(property: string): string {
-  return property.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase()).replace(/^./, (char) => char.toUpperCase());
+  return property
+    .replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase())
+    .replace(/^./, (char) => char.toUpperCase());
 }
 
 function attributeToIdSuffix(attribute: string): string {
-  return attribute.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase()).replace(/^./, (char) => char.toUpperCase());
+  return attribute
+    .replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase())
+    .replace(/^./, (char) => char.toUpperCase());
 }
 
 function scanCssProperties(filePath: string, content: string): MotionParam[] {
@@ -44,7 +57,7 @@ function scanCssProperties(filePath: string, content: string): MotionParam[] {
 
       const param: MotionParam = {
         id: `${selectorToIdPrefix(selector)}${propertyToIdSuffix(property)}`,
-        label: `${selectorToIdPrefix(selector)} ${property}`,
+        label: cssPropertyLabel(property),
         type: shape.type,
         default: value,
         status: "detected",
@@ -80,7 +93,7 @@ function scanHtmlAttributeParams(filePath: string, content: string): MotionParam
       if (value === null) continue;
       params.push({
         id: `${id}${attributeToIdSuffix(attribute)}`,
-        label: `${id} ${attribute}`,
+        label: htmlAttributeLabel(attribute),
         type: "text",
         default: value,
         status: "detected",
@@ -94,7 +107,7 @@ function scanHtmlAttributeParams(filePath: string, content: string): MotionParam
       if (value === null || !isSimpleColorValue(value)) continue;
       params.push({
         id: `${id}${attributeToIdSuffix(attribute)}`,
-        label: `${id} ${attribute}`,
+        label: svgAttributeLabel(attribute),
         type: "color",
         default: value,
         status: "detected",
@@ -121,7 +134,7 @@ export function scanSourceForParams(source: MotionSource): MotionParam[] {
         const shape = cssVariableParam(value);
         const param: MotionParam = {
           id: toParamId(name),
-          label: toParamId(name),
+          label: cssVariableLabel(name),
           type: shape.type,
           default: value,
           status: "detected",

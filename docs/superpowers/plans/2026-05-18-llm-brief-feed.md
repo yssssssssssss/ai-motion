@@ -42,6 +42,7 @@
 ## Task 1: Add Parsed Brief Intent To Core Recommendation
 
 **Files:**
+
 - Create: `packages/core/src/orchestrator/briefIntent.ts`
 - Modify: `packages/core/src/orchestrator/recommend.ts`
 - Modify: `packages/core/src/index.ts`
@@ -58,53 +59,53 @@ import { createFallbackBriefIntent } from "../src/orchestrator/briefIntent";
 Then add the following tests before the closing `});` of `describe("recommendComponents", () => {`:
 
 ```ts
-  it("ranks components from parsed brief intent", () => {
-    const results = recommendComponents({
-      intent: {
-        query: "workeasy hover button",
-        categories: ["interaction"],
-        componentKinds: ["button"],
-        motionStyles: ["hover"],
-        sources: ["workeasy"],
-        keywords: ["save", "cta"],
-        confidence: 0.9
-      },
-      components,
-      limit: 3
-    });
-
-    expect(results[0]?.componentId).toBe("magnetic-button");
-    expect(results[0]?.reason).toContain("parsed brief intent");
+it("ranks components from parsed brief intent", () => {
+  const results = recommendComponents({
+    intent: {
+      query: "workeasy hover button",
+      categories: ["interaction"],
+      componentKinds: ["button"],
+      motionStyles: ["hover"],
+      sources: ["workeasy"],
+      keywords: ["save", "cta"],
+      confidence: 0.9
+    },
+    components,
+    limit: 3
   });
 
-  it("creates a fallback intent from raw brief text", () => {
-    const intent = createFallbackBriefIntent("WorkEasy hover button with tech style");
+  expect(results[0]?.componentId).toBe("magnetic-button");
+  expect(results[0]?.reason).toContain("parsed brief intent");
+});
 
-    expect(intent.query).toBe("WorkEasy hover button with tech style");
-    expect(intent.componentKinds).toContain("button");
-    expect(intent.motionStyles).toContain("hover");
-    expect(intent.sources).toContain("workeasy");
-    expect(intent.keywords).toContain("tech");
+it("creates a fallback intent from raw brief text", () => {
+  const intent = createFallbackBriefIntent("WorkEasy hover button with tech style");
+
+  expect(intent.query).toBe("WorkEasy hover button with tech style");
+  expect(intent.componentKinds).toContain("button");
+  expect(intent.motionStyles).toContain("hover");
+  expect(intent.sources).toContain("workeasy");
+  expect(intent.keywords).toContain("tech");
+});
+
+it("handles empty parsed intent without crashing", () => {
+  const results = recommendComponents({
+    intent: {
+      query: "",
+      categories: [],
+      componentKinds: [],
+      motionStyles: [],
+      sources: [],
+      keywords: [],
+      confidence: 0
+    },
+    components,
+    limit: 2
   });
 
-  it("handles empty parsed intent without crashing", () => {
-    const results = recommendComponents({
-      intent: {
-        query: "",
-        categories: [],
-        componentKinds: [],
-        motionStyles: [],
-        sources: [],
-        keywords: [],
-        confidence: 0
-      },
-      components,
-      limit: 2
-    });
-
-    expect(results).toHaveLength(2);
-    expect(results[0]?.reason).toBe("Included as a fallback candidate.");
-  });
+  expect(results).toHaveLength(2);
+  expect(results[0]?.reason).toBe("Included as a fallback candidate.");
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -190,14 +191,16 @@ export function createFallbackBriefIntent(brief: string): ParsedBriefIntent {
 }
 
 export function briefIntentTerms(intent: ParsedBriefIntent): string[] {
-  return unique([
-    intent.query,
-    ...intent.categories,
-    ...intent.componentKinds,
-    ...intent.motionStyles,
-    ...intent.sources,
-    ...intent.keywords
-  ].flatMap(tokenize));
+  return unique(
+    [
+      intent.query,
+      ...intent.categories,
+      ...intent.componentKinds,
+      ...intent.motionStyles,
+      ...intent.sources,
+      ...intent.keywords
+    ].flatMap(tokenize)
+  );
 }
 
 export function isParsedBriefIntent(value: unknown): value is ParsedBriefIntent {
@@ -315,6 +318,7 @@ git commit -m "feat: parse brief intent for recommendations"
 ## Task 2: Add Server-Side Brief Parser Endpoint
 
 **Files:**
+
 - Create: `apps/web/src/server/briefParser.ts`
 - Create: `apps/web/src/server/briefParser.test.ts`
 - Create: `apps/web/vite.config.ts`
@@ -475,7 +479,8 @@ export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<Brie
     })
   });
 
-  if (!response.ok) return fallback(brief, `LLM parse failed with HTTP ${response.status}; using local matching.`);
+  if (!response.ok)
+    return fallback(brief, `LLM parse failed with HTTP ${response.status}; using local matching.`);
 
   const payload = (await response.json()) as unknown;
   const intent = parseOpenAIIntentResponse(payload);
@@ -571,6 +576,7 @@ git commit -m "feat: add brief parser api"
 ## Task 3: Add Browser Brief Parser Client And Brief UI
 
 **Files:**
+
 - Create: `apps/web/src/services/briefParserClient.ts`
 - Modify: `apps/web/src/features/brief/BriefPanel.tsx`
 
@@ -644,7 +650,9 @@ export function BriefPanel({ brief, parseResult, isLoading, onBriefChange, onRec
         <div>
           <p className="eyebrow">Brief input</p>
           <h1>Describe what you need</h1>
-          <p className="muted">Use natural language to get AI-ranked motion components, or browse the feed below.</p>
+          <p className="muted">
+            Use natural language to get AI-ranked motion components, or browse the feed below.
+          </p>
         </div>
         <textarea value={brief} onChange={(event) => onBriefChange(event.target.value)} rows={5} />
         <button className="ai-recommend-button" type="button" onClick={onRecommend} disabled={isLoading}>
@@ -652,7 +660,9 @@ export function BriefPanel({ brief, parseResult, isLoading, onBriefChange, onRec
         </button>
         {parseResult ? (
           <div className="status-grid" aria-label="Brief parse status">
-            <span className="status-pill">{parseResult.mode === "llm" ? "LLM parsed" : "local fallback ready"}</span>
+            <span className="status-pill">
+              {parseResult.mode === "llm" ? "LLM parsed" : "local fallback ready"}
+            </span>
             <span className="status-pill muted">{parseResult.message}</span>
             {chips.map((chip) => (
               <span className="brief-chip" key={chip}>
@@ -684,6 +694,7 @@ Do not commit this task yet if only `BriefPanel` changed and typecheck fails. Co
 ## Task 4: Split App Into Home And Editor Views
 
 **Files:**
+
 - Modify: `apps/web/src/App.tsx`
 - Modify: `apps/web/src/features/library/ComponentCandidates.tsx`
 
@@ -778,7 +789,10 @@ export function App() {
   const [suggestedParams, setSuggestedParams] = useState<MotionParam[]>([]);
   const [selectedParamIds, setSelectedParamIds] = useState<Set<string>>(new Set());
 
-  const aiMatchIds = useMemo(() => new Set(recommendations.map((item) => item.componentId)), [recommendations]);
+  const aiMatchIds = useMemo(
+    () => new Set(recommendations.map((item) => item.componentId)),
+    [recommendations]
+  );
 
   function updateParam(paramId: string, value: unknown) {
     setProject((current) => {
@@ -859,14 +873,22 @@ export function App() {
           </div>
         </header>
         <section className="editor-preview" aria-label="Motion preview">
-          <PreviewFrame source={project?.source ?? null} manifest={project?.manifest ?? null} patch={project?.patch ?? null} />
+          <PreviewFrame
+            source={project?.source ?? null}
+            manifest={project?.manifest ?? null}
+            patch={project?.patch ?? null}
+          />
         </section>
         <aside className="editor-inspector" aria-label="Parameters">
           <div className="panel-header">
             <p className="eyebrow">Inspector</p>
             <h2>Parameters</h2>
           </div>
-          <ParameterPanel manifest={project?.manifest ?? null} patch={project?.patch ?? null} onChange={updateParam} />
+          <ParameterPanel
+            manifest={project?.manifest ?? null}
+            patch={project?.patch ?? null}
+            onChange={updateParam}
+          />
         </aside>
         <footer className="transport" aria-label="Playback and export controls">
           <button type="button" onClick={() => setProject((current) => (current ? { ...current } : current))}>
@@ -893,9 +915,18 @@ export function App() {
         onBriefChange={setBrief}
         onRecommend={runRecommend}
       />
-      <ComponentCandidates recommendations={recommendations} components={components} onSelect={selectComponent} />
+      <ComponentCandidates
+        recommendations={recommendations}
+        components={components}
+        onSelect={selectComponent}
+      />
       <ImportPanel onImport={importFiles} />
-      <ConfirmParamsPanel params={suggestedParams} selected={selectedParamIds} onToggle={toggleParam} onConfirm={confirmImport} />
+      <ConfirmParamsPanel
+        params={suggestedParams}
+        selected={selectedParamIds}
+        onToggle={toggleParam}
+        onConfirm={confirmImport}
+      />
       <ComponentFeed components={components} aiMatchIds={aiMatchIds} onSelect={selectComponent} />
     </main>
   );
@@ -925,6 +956,7 @@ Do not commit until `ComponentFeed` exists and web typecheck passes.
 ## Task 5: Add Component Feed
 
 **Files:**
+
 - Create: `apps/web/src/features/library/ComponentFeed.tsx`
 
 - [ ] **Step 1: Create feed component**
@@ -972,7 +1004,10 @@ function matchesFilter(component: MotionComponent, filter: Filter): boolean {
 
 export function ComponentFeed({ components, aiMatchIds, onSelect }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
-  const visible = useMemo(() => components.filter((component) => matchesFilter(component, filter)), [components, filter]);
+  const visible = useMemo(
+    () => components.filter((component) => matchesFilter(component, filter)),
+    [components, filter]
+  );
 
   return (
     <section className="feed-panel" aria-label="Browse component feed">
@@ -1047,6 +1082,7 @@ git commit -m "feat: add discovery home and editor view"
 ## Task 6: Apply V5 Single-Column Styling
 
 **Files:**
+
 - Modify: `apps/web/src/styles.css`
 
 - [ ] **Step 1: Replace layout styles**
@@ -1347,6 +1383,7 @@ git commit -m "feat: style discovery feed layout"
 ## Task 7: Final Verification And Browser Smoke Test
 
 **Files:**
+
 - Modify only files required by verification failures.
 
 - [ ] **Step 1: Run full core test suite**

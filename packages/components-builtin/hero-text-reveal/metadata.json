@@ -1,6 +1,6 @@
 {
   "id": "hero-text-reveal",
-  "name": "Hero Text Reveal",
+  "name": "文字入场动效",
   "category": "text",
   "tags": ["hero", "text", "reveal", "saas"],
   "useCases": ["landing-page", "banner"],

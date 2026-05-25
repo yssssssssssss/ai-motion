@@ -2,11 +2,10 @@ import { scanSourceForParams } from "../../analyze/ruleScanner";
 import { confirmValidParams } from "../../analyze/validator";
 import type { MotionComponent, MotionComponentMetadata, MotionSource } from "../../library/componentLibrary";
 import type { MotionManifest } from "../../manifest/types";
+import { localizeWorkEasyCss, localizeWorkEasyHtml } from "./localizeHtml";
 import type { WorkEasyConversionInput, WorkEasySkip } from "./types";
 
-type ConvertResult =
-  | { ok: true; component: MotionComponent }
-  | { ok: false; skip: WorkEasySkip };
+type ConvertResult = { ok: true; component: MotionComponent } | { ok: false; skip: WorkEasySkip };
 
 function skip(input: WorkEasyConversionInput, issue: WorkEasySkip["issue"], message: string): ConvertResult {
   return {
@@ -15,7 +14,9 @@ function skip(input: WorkEasyConversionInput, issue: WorkEasySkip["issue"], mess
   };
 }
 
-function categoryToMotionCategory(category: WorkEasyConversionInput["category"]): MotionComponentMetadata["category"] {
+function categoryToMotionCategory(
+  category: WorkEasyConversionInput["category"]
+): MotionComponentMetadata["category"] {
   if (category === "cards") return "layout";
   if (category === "checkboxes") return "interaction";
   return "interaction";
@@ -62,16 +63,17 @@ export function convertWorkEasyComponent(input: WorkEasyConversionInput): Conver
     kind: "builtin-component",
     entry: "source/index.html",
     files: [
-      { path: "source/index.html", kind: "html", content: buildHtml(record.title, record.htmlContent) },
-      { path: "source/style.css", kind: "css", content: record.cssContent }
+      {
+        path: "source/index.html",
+        kind: "html",
+        content: buildHtml(record.title, localizeWorkEasyHtml(record.htmlContent))
+      },
+      { path: "source/style.css", kind: "css", content: localizeWorkEasyCss(record.cssContent) }
     ]
   };
 
   const detected = scanSourceForParams(source);
   const validation = confirmValidParams({ source, params: detected });
-  if (validation.confirmed.length === 0) {
-    return skip(input, "no-confirmed-params", "No safe editable parameters were detected.");
-  }
 
   const manifest: MotionManifest = {
     version: "1.0",

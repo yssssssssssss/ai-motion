@@ -21,7 +21,9 @@ describe("paramControlKind", () => {
   });
 
   it("uses option and boolean controls for select and toggle", () => {
-    expect(paramControlKind({ type: "select", constraints: { options: [{ label: "Slow", value: "slow" }] } })).toBe("select");
+    expect(
+      paramControlKind({ type: "select", constraints: { options: [{ label: "Slow", value: "slow" }] } })
+    ).toBe("select");
     expect(paramControlKind({ type: "select", constraints: {} })).toBe("unsupported");
     expect(paramControlKind({ type: "toggle" })).toBe("toggle");
   });

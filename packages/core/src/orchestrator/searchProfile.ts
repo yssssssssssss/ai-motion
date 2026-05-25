@@ -129,11 +129,18 @@ function collectMotionTraits(css: string): string[] {
 }
 
 function collectFunctionTraits(component: MotionComponent, html: string): string[] {
-  const lower = [component.name, component.category, ...component.tags, ...component.useCases, html].join(" ").toLowerCase();
+  const lower = [component.name, component.category, ...component.tags, ...component.useCases, html]
+    .join(" ")
+    .toLowerCase();
   const traits: string[] = [];
 
   if (lower.includes("button") || lower.includes("<button")) traits.push("按钮", "button");
-  if (lower.includes("cta") || lower.includes("join") || lower.includes("register") || lower.includes("submit")) {
+  if (
+    lower.includes("cta") ||
+    lower.includes("join") ||
+    lower.includes("register") ||
+    lower.includes("submit")
+  ) {
     traits.push("CTA", "转化入口", "提交");
   }
   if (lower.includes("card")) traits.push("卡片", "card", "内容展示");
@@ -146,7 +153,14 @@ function collectFunctionTraits(component: MotionComponent, html: string): string
 }
 
 function collectSceneTraits(component: MotionComponent, htmlText: string): string[] {
-  const lower = [component.name, component.category, ...component.tags, ...component.useCases, ...component.moods, htmlText]
+  const lower = [
+    component.name,
+    component.category,
+    ...component.tags,
+    ...component.useCases,
+    ...component.moods,
+    htmlText
+  ]
     .join(" ")
     .toLowerCase();
   const traits: string[] = [];
@@ -154,7 +168,7 @@ function collectSceneTraits(component: MotionComponent, htmlText: string): strin
   if (lower.includes("campaign")) traits.push("活动页", "campaign");
   if (lower.includes("landing")) traits.push("落地页", "landing-page");
   if (lower.includes("cta") || lower.includes("marketing")) traits.push("营销页", "转化场景");
-  if (lower.includes("saas") || lower.includes("hero")) traits.push("SaaS 首页", "首页");
+  if (lower.includes("saas") || lower.includes("hero")) traits.push("软件服务首页", "首页");
   if (lower.includes("form") || lower.includes("checkbox")) traits.push("表单");
   if (lower.includes("tech")) traits.push("科技感", "tech");
 
@@ -172,10 +186,30 @@ function collectEditableTraits(component: MotionComponent): string[] {
   );
 }
 
+// 仅抽取 class 名 / data-motion key 等结构信号，避免把整段 css 塞进检索文本
+function extractStructuralTokens(html: string, css: string): string[] {
+  const tokens: string[] = [];
+  for (const match of html.matchAll(/class=["']([^"']+)["']/g)) {
+    const classList = match[1];
+    if (classList) tokens.push(...classList.split(/\s+/));
+  }
+  for (const match of html.matchAll(/data-motion=["']([^"']+)["']/g)) {
+    const key = match[1];
+    if (key) tokens.push(key);
+  }
+  // 从 CSS 中提取关键字属性名（不带值）作为弱信号
+  for (const match of css.matchAll(/@keyframes\s+([A-Za-z_-][\w-]*)/g)) {
+    const keyframeName = match[1];
+    if (keyframeName) tokens.push(keyframeName);
+  }
+  return unique(tokens.filter((token) => token.length > 1 && token.length < 32));
+}
+
 export function createSearchProfile(component: MotionComponent): SearchProfile {
   const css = sourceContent(component, "css");
   const html = sourceContent(component, "html");
   const htmlText = visibleHtmlText(html);
+  const structural = extractStructuralTokens(html, css);
   const buckets: Record<TraitBucket, string[]> = {
     colorTraits: collectColorTraits(css),
     motionTraits: collectMotionTraits(css),
@@ -198,6 +232,7 @@ export function createSearchProfile(component: MotionComponent): SearchProfile {
   return {
     summary,
     ...buckets,
+    // rawText 只放语义文本 + 结构性 token，避免把整段 css/html 当作语料
     rawText: [
       component.name,
       component.category,
@@ -205,7 +240,7 @@ export function createSearchProfile(component: MotionComponent): SearchProfile {
       ...component.useCases,
       ...component.moods,
       htmlText,
-      css,
+      ...structural,
       ...buckets.editableTraits
     ].join(" ")
   };

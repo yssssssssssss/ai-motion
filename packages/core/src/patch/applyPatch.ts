@@ -11,10 +11,7 @@ function escapeRegExp(value: string): string {
 }
 
 function escapeHtmlText(value: unknown): string {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 function escapeHtmlAttribute(value: unknown): string {
@@ -28,7 +25,9 @@ function applyHtmlText(content: string, selector: string, value: unknown): strin
   const key = motionMatch[1]?.replace(/^["']|["']$/g, "");
   if (!key) return content;
 
-  const pattern = new RegExp(`(<[^>]+data-motion=["']${escapeRegExp(key)}["'][^>]*>)([\\s\\S]*?)(<\\/[^>]+>)`);
+  const pattern = new RegExp(
+    `(<[^>]+data-motion=["']${escapeRegExp(key)}["'][^>]*>)([\\s\\S]*?)(<\\/[^>]+>)`
+  );
   return content.replace(pattern, `$1${escapeHtmlText(value)}$3`);
 }
 
@@ -60,15 +59,22 @@ function applyCssVariable(content: string, name: string, value: string): string 
 }
 
 function applyCssProperty(content: string, selector: string, property: string, value: string): string {
-  const pattern = new RegExp(`(${escapeRegExp(selector)}\\s*\\{[^}]*?${escapeRegExp(property)}\\s*:\\s*)[^;]+`, "m");
+  // 重复 selector（如 WorkEasy 多份 .button { ... }）每一处都要改
+  const pattern = new RegExp(
+    `(${escapeRegExp(selector)}\\s*\\{[^}]*?${escapeRegExp(property)}\\s*:\\s*)[^;]+`,
+    "gm"
+  );
   return content.replace(pattern, `$1${value}`);
 }
 
 function applyTarget(content: string, target: MotionTarget, param: MotionParam, value: unknown): string {
   if (target.kind === "html-text") return applyHtmlText(content, target.selector, value);
-  if (target.kind === "html-attribute") return applyAttribute(content, target.selector, target.attribute, value);
-  if (target.kind === "svg-attribute") return applyAttribute(content, target.selector, target.attribute, value);
-  if (target.kind === "css-variable") return applyCssVariable(content, target.name, formatCssValue(param, value));
+  if (target.kind === "html-attribute")
+    return applyAttribute(content, target.selector, target.attribute, value);
+  if (target.kind === "svg-attribute")
+    return applyAttribute(content, target.selector, target.attribute, value);
+  if (target.kind === "css-variable")
+    return applyCssVariable(content, target.name, formatCssValue(param, value));
   if (target.kind === "css-property") {
     return applyCssProperty(content, target.selector, target.property, formatCssValue(param, value));
   }

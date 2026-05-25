@@ -1,4 +1,4 @@
-import { composeEditablePackageFiles } from "@motion-tool/core";
+import { composeStandaloneHtmlFile } from "@motion-tool/core";
 import type { MotionProject } from "../../state/projectStore";
 
 type Props = {
@@ -6,28 +6,27 @@ type Props = {
 };
 
 export function ExportPanel({ project }: Props) {
-  function exportJson() {
+  function exportHtml() {
     if (!project) return;
 
     const sourceFiles = Object.fromEntries(project.source.files.map((file) => [file.path, file.content]));
-    const files = composeEditablePackageFiles({
+    const html = composeStandaloneHtmlFile({
       sourceFiles,
       manifest: project.manifest,
-      metadata: { id: project.id, sourceId: project.source.id },
       patch: project.patch
     });
-    const blob = new Blob([JSON.stringify(files, null, 2)], { type: "application/json" });
+    const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${project.id}.motion-package.json`;
+    link.download = `${project.id}.html`;
     link.click();
     URL.revokeObjectURL(url);
   }
 
   return (
-    <button className="primary-action compact" type="button" disabled={!project} onClick={exportJson}>
-      导出可编辑包
+    <button className="primary-action compact" type="button" disabled={!project} onClick={exportHtml}>
+      导出 HTML 工程
     </button>
   );
 }

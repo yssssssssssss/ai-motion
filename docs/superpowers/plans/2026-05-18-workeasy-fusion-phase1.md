@@ -40,6 +40,7 @@
 ## Task 1: Add WorkEasy Adapter Types
 
 **Files:**
+
 - Create: `packages/core/src/adapters/workeasy/types.ts`
 - Create: `packages/core/src/adapters/workeasy/index.ts`
 - Modify: `packages/core/src/index.ts`
@@ -124,6 +125,7 @@ git commit -m "feat: add workeasy adapter types"
 ## Task 2: Convert WorkEasy Records To Motion Components
 
 **Files:**
+
 - Create: `packages/core/src/adapters/workeasy/convert.ts`
 - Modify: `packages/core/src/adapters/workeasy/index.ts`
 - Create: `packages/core/test/workeasyAdapter.test.ts`
@@ -156,7 +158,10 @@ describe("convertWorkEasyComponent", () => {
 
     expect(result.component.id).toBe("workeasy-buttons-1-button");
     expect(result.component.source.entry).toBe("source/index.html");
-    expect(result.component.source.files.map((file) => file.path)).toEqual(["source/index.html", "source/style.css"]);
+    expect(result.component.source.files.map((file) => file.path)).toEqual([
+      "source/index.html",
+      "source/style.css"
+    ]);
     expect(result.component.manifest.sourceKind).toBe("builtin-component");
     expect(result.component.manifest.params.some((param) => param.status === "confirmed")).toBe(true);
   });
@@ -202,9 +207,7 @@ import type { MotionComponent, MotionComponentMetadata, MotionSource } from "../
 import type { MotionManifest } from "../../manifest/types";
 import type { WorkEasyConversionInput, WorkEasySkip } from "./types";
 
-type ConvertResult =
-  | { ok: true; component: MotionComponent }
-  | { ok: false; skip: WorkEasySkip };
+type ConvertResult = { ok: true; component: MotionComponent } | { ok: false; skip: WorkEasySkip };
 
 function skip(input: WorkEasyConversionInput, issue: WorkEasySkip["issue"], message: string): ConvertResult {
   return {
@@ -213,7 +216,9 @@ function skip(input: WorkEasyConversionInput, issue: WorkEasySkip["issue"], mess
   };
 }
 
-function categoryToMotionCategory(category: WorkEasyConversionInput["category"]): MotionComponentMetadata["category"] {
+function categoryToMotionCategory(
+  category: WorkEasyConversionInput["category"]
+): MotionComponentMetadata["category"] {
   if (category === "cards") return "layout";
   if (category === "checkboxes") return "interaction";
   return "interaction";
@@ -322,6 +327,7 @@ git commit -m "feat: convert workeasy html components"
 ## Task 3: Improve Scanner For WorkEasy CSS
 
 **Files:**
+
 - Modify: `packages/core/src/analyze/ruleScanner.ts`
 - Modify: `packages/core/test/ruleScanner.test.ts`
 
@@ -341,7 +347,8 @@ it("detects direct WorkEasy css colors and durations", () => {
       {
         path: "source/style.css",
         kind: "css",
-        content: ".button { color: #ffffff; background-color: rgb(12,12,12); transition-duration: 0.3s; border-radius: 40px; }"
+        content:
+          ".button { color: #ffffff; background-color: rgb(12,12,12); transition-duration: 0.3s; border-radius: 40px; }"
       }
     ]
   });
@@ -398,7 +405,8 @@ function scanCssProperties(filePath: string, content: string): MotionParam[] {
     const body = rule[2];
     if (!selector || !body || selector.includes(":")) continue;
 
-    const declarationPattern = /(color|background-color|transition-duration|animation-duration|border-radius)\s*:\s*([^;]+);/g;
+    const declarationPattern =
+      /(color|background-color|transition-duration|animation-duration|border-radius)\s*:\s*([^;]+);/g;
     for (const declaration of body.matchAll(declarationPattern)) {
       const property = declaration[1];
       const value = declaration[2]?.trim();
@@ -455,6 +463,7 @@ git commit -m "feat: detect workeasy css parameters"
 ## Task 4: Patch CSS Property Targets
 
 **Files:**
+
 - Modify: `packages/core/src/patch/applyPatch.ts`
 - Modify: `packages/core/test/applyPatch.test.ts`
 
@@ -482,7 +491,9 @@ it("updates css property targets", () => {
           type: "color",
           default: "#ffffff",
           status: "confirmed",
-          targets: [{ kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }]
+          targets: [
+            { kind: "css-property", file: "source/style.css", selector: ".button", property: "color" }
+          ]
         }
       ]
     },
@@ -546,6 +557,7 @@ git commit -m "feat: patch css property targets"
 ## Task 5: Add Curated WorkEasy Selection
 
 **Files:**
+
 - Create: `packages/core/src/adapters/workeasy/selectedComponents.ts`
 - Modify: `packages/core/src/adapters/workeasy/index.ts`
 - Modify: `packages/core/test/workeasyAdapter.test.ts`
@@ -584,7 +596,18 @@ import type { WorkEasyCategory } from "./types";
 export type WorkEasySelection = Record<WorkEasyCategory, string[]>;
 
 export const selectedWorkEasyComponents: WorkEasySelection = {
-  buttons: ["1-button", "2-button", "3-button", "11-button", "12-button", "13-button", "14-button", "15-button", "20-button", "21-button"],
+  buttons: [
+    "1-button",
+    "2-button",
+    "3-button",
+    "11-button",
+    "12-button",
+    "13-button",
+    "14-button",
+    "15-button",
+    "20-button",
+    "21-button"
+  ],
   cards: ["1-cards", "2-cards", "3-cards", "4-cards", "5-cards"],
   checkboxes: ["1-checkbox", "2-checkbox", "3-checkbox", "4-checkbox", "5-checkbox"]
 };
@@ -620,6 +643,7 @@ git commit -m "feat: select curated workeasy components"
 ## Task 6: Add Browser-Bundled WorkEasy Components
 
 **Files:**
+
 - Create: `apps/web/src/data/workeasyComponents.ts`
 - Modify: `apps/web/src/App.tsx`
 
@@ -628,7 +652,11 @@ git commit -m "feat: select curated workeasy components"
 Create `apps/web/src/data/workeasyComponents.ts` with three representative records first:
 
 ```ts
-import { convertWorkEasyComponent, type MotionComponent, type WorkEasyComponentRecord } from "@motion-tool/core";
+import {
+  convertWorkEasyComponent,
+  type MotionComponent,
+  type WorkEasyComponentRecord
+} from "@motion-tool/core";
 
 const records: Array<{ category: "buttons" | "cards" | "checkboxes"; record: WorkEasyComponentRecord }> = [
   {
@@ -639,8 +667,10 @@ const records: Array<{ category: "buttons" | "cards" | "checkboxes"; record: Wor
       type: "html",
       framework: "vanilla",
       tags: ["button", "hover", "workeasy"],
-      htmlContent: '<div class="comp-1-button-container"><button class="bookmarkBtn"><span class="text">Save</span></button></div>',
-      cssContent: ".comp-1-button-container .bookmarkBtn { color: #ffffff; background-color: rgb(12,12,12); transition-duration: 0.3s; border-radius: 40px; }"
+      htmlContent:
+        '<div class="comp-1-button-container"><button class="bookmarkBtn"><span class="text">Save</span></button></div>',
+      cssContent:
+        ".comp-1-button-container .bookmarkBtn { color: #ffffff; background-color: rgb(12,12,12); transition-duration: 0.3s; border-radius: 40px; }"
     }
   },
   {
@@ -652,7 +682,8 @@ const records: Array<{ category: "buttons" | "cards" | "checkboxes"; record: Wor
       framework: "vanilla",
       tags: ["card", "hover", "workeasy"],
       htmlContent: '<div class="workeasy-card"><h3>Motion Card</h3><p>Hover to inspect.</p></div>',
-      cssContent: ".workeasy-card { color: #111827; background-color: #ffffff; transition-duration: 0.25s; border-radius: 18px; } .workeasy-card:hover { transform: translateY(-6px); }"
+      cssContent:
+        ".workeasy-card { color: #111827; background-color: #ffffff; transition-duration: 0.25s; border-radius: 18px; } .workeasy-card:hover { transform: translateY(-6px); }"
     }
   },
   {
@@ -663,8 +694,10 @@ const records: Array<{ category: "buttons" | "cards" | "checkboxes"; record: Wor
       type: "html",
       framework: "vanilla",
       tags: ["checkbox", "form", "workeasy"],
-      htmlContent: '<label class="workeasy-checkbox"><input type="checkbox" /><span>Enable motion</span></label>',
-      cssContent: ".workeasy-checkbox { color: #0f172a; transition-duration: 0.2s; } .workeasy-checkbox span { border-radius: 8px; background-color: #e2e8f0; }"
+      htmlContent:
+        '<label class="workeasy-checkbox"><input type="checkbox" /><span>Enable motion</span></label>',
+      cssContent:
+        ".workeasy-checkbox { color: #0f172a; transition-duration: 0.2s; } .workeasy-checkbox span { border-radius: 8px; background-color: #e2e8f0; }"
     }
   }
 ];
@@ -717,6 +750,7 @@ git commit -m "feat: add workeasy components to web library"
 ## Task 7: Improve Candidate UI Metadata
 
 **Files:**
+
 - Modify: `apps/web/src/features/library/ComponentCandidates.tsx`
 - Modify: `apps/web/src/App.tsx`
 - Modify: `apps/web/src/styles.css`
@@ -740,16 +774,24 @@ export function ComponentCandidates({ recommendations, components, onSelect }: P
   return (
     <section className="tool-section">
       <h2>Candidates</h2>
-      {recommendations.length === 0 ? <p className="muted">Run recommendation to see built-in components.</p> : null}
+      {recommendations.length === 0 ? (
+        <p className="muted">Run recommendation to see built-in components.</p>
+      ) : null}
       <div className="candidate-list">
         {recommendations.map((item) => {
           const component = componentById.get(item.componentId);
           return (
-            <button className="candidate" key={item.componentId} type="button" onClick={() => onSelect(item.componentId)}>
+            <button
+              className="candidate"
+              key={item.componentId}
+              type="button"
+              onClick={() => onSelect(item.componentId)}
+            >
               <strong>{component?.name ?? item.componentId}</strong>
               <span>{item.reason}</span>
               <small>
-                {component?.tags.includes("workeasy") ? "WorkEasy" : "Native"} · {component?.category ?? "component"} · {component?.manifest.params.length ?? 0} params
+                {component?.tags.includes("workeasy") ? "WorkEasy" : "Native"} ·{" "}
+                {component?.category ?? "component"} · {component?.manifest.params.length ?? 0} params
               </small>
             </button>
           );
@@ -802,6 +844,7 @@ git commit -m "feat: show workeasy candidate metadata"
 ## Task 8: Generate Browser Data For 20 Curated Components
 
 **Files:**
+
 - Create: `scripts/generate-workeasy-components.mjs`
 - Create: `apps/web/src/data/workeasyComponents.generated.ts`
 - Modify: `apps/web/src/data/workeasyComponents.ts`
@@ -818,7 +861,18 @@ import { dirname, resolve } from "node:path";
 const repoRoot = resolve(import.meta.dirname, "..");
 const workEasyRoot = "/Users/heyunshen/work/PROJECT/jdc/jdc-WorkEasy";
 const selection = {
-  buttons: ["1-button", "2-button", "3-button", "11-button", "12-button", "13-button", "14-button", "15-button", "20-button", "21-button"],
+  buttons: [
+    "1-button",
+    "2-button",
+    "3-button",
+    "11-button",
+    "12-button",
+    "13-button",
+    "14-button",
+    "15-button",
+    "20-button",
+    "21-button"
+  ],
   cards: ["1-cards", "2-cards", "3-cards", "4-cards", "5-cards"],
   checkboxes: ["1-checkbox", "2-checkbox", "3-checkbox", "4-checkbox", "5-checkbox"]
 };
@@ -830,8 +884,10 @@ async function readCategory(category) {
   return selection[category].map((id) => {
     const record = byId.get(id);
     if (!record) throw new Error(`Missing WorkEasy component ${category}/${id}`);
-    if (record.type !== "html") throw new Error(`Unsupported WorkEasy component ${category}/${id}: ${record.type}`);
-    if (!record.htmlContent || !record.cssContent) throw new Error(`Incomplete WorkEasy component ${category}/${id}`);
+    if (record.type !== "html")
+      throw new Error(`Unsupported WorkEasy component ${category}/${id}: ${record.type}`);
+    if (!record.htmlContent || !record.cssContent)
+      throw new Error(`Incomplete WorkEasy component ${category}/${id}`);
     return { category, record };
   });
 }
@@ -902,6 +958,7 @@ git commit -m "feat: expand workeasy curated library"
 ## Task 9: Final Verification
 
 **Files:**
+
 - Modify only files required by verification failures.
 
 - [ ] **Step 1: Run core tests**

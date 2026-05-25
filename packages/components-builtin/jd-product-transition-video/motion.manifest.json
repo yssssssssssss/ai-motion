@@ -1,0 +1,122 @@
+{
+  "version": "1.0",
+  "id": "jd-product-transition-video",
+  "name": "商品详情转场代码动效",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "transitionDuration",
+      "label": "转场速度",
+      "type": "duration",
+      "default": 620,
+      "constraints": { "min": 220, "max": 1400, "step": 20, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--motion-duration"
+        }
+      ]
+    },
+    {
+      "id": "startDelay",
+      "label": "点击停顿",
+      "type": "duration",
+      "default": 110,
+      "constraints": { "min": 0, "max": 300, "step": 10, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--start-delay" }
+      ]
+    },
+    {
+      "id": "midX",
+      "label": "轨迹中点 X",
+      "type": "range",
+      "default": 72,
+      "constraints": { "min": 0, "max": 180, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-x" }]
+    },
+    {
+      "id": "midY",
+      "label": "轨迹中点 Y",
+      "type": "range",
+      "default": 402,
+      "constraints": { "min": 180, "max": 760, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-y" }]
+    },
+    {
+      "id": "midScale",
+      "label": "中途缩放",
+      "type": "range",
+      "default": 0.94,
+      "constraints": { "min": 0.7, "max": 1.25, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-scale" }
+      ]
+    },
+    {
+      "id": "endWidth",
+      "label": "终态宽度",
+      "type": "range",
+      "default": 612,
+      "constraints": { "min": 520, "max": 660, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-width" }
+      ]
+    },
+    {
+      "id": "endHeight",
+      "label": "终态高度",
+      "type": "range",
+      "default": 775,
+      "constraints": { "min": 650, "max": 860, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-height" }
+      ]
+    },
+    {
+      "id": "endX",
+      "label": "终态 X",
+      "type": "range",
+      "default": 54,
+      "constraints": { "min": 20, "max": 100, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-x" }]
+    },
+    {
+      "id": "endY",
+      "label": "终态 Y",
+      "type": "range",
+      "default": 217,
+      "constraints": { "min": 120, "max": 360, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-y" }]
+    },
+    {
+      "id": "dimOpacity",
+      "label": "压暗强度",
+      "type": "range",
+      "default": 0.72,
+      "constraints": { "min": 0, "max": 0.9, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--dim-opacity" }
+      ]
+    }
+  ],
+  "groups": [
+    { "id": "timing", "label": "速度", "params": ["transitionDuration", "startDelay"] },
+    { "id": "trajectory", "label": "轨迹", "params": ["midX", "midY", "midScale", "endX", "endY"] },
+    { "id": "shape", "label": "形变", "params": ["endWidth", "endHeight", "dimOpacity"] }
+  ]
+}

@@ -1,10 +1,11 @@
-import type { BriefParseResult } from "@motion-tool/core";
+import { displayLabels, type BriefParseResult } from "@motion-tool/core";
 
 type Props = {
   brief: string;
   parseResult: BriefParseResult | null;
   isLoading: boolean;
   onBriefChange: (brief: string) => void;
+  onBriefFocus?: () => void;
   onRecommend: () => void;
 };
 
@@ -19,10 +20,10 @@ export function parsedChips(parseResult: BriefParseResult | null): string[] {
     ...parseResult.intent.hardConstraints
   ];
 
-  return [...new Set(terms.filter(Boolean))].slice(0, 8);
+  return displayLabels(terms).slice(0, 8);
 }
 
-export function BriefPanel({ brief, parseResult, isLoading, onBriefChange, onRecommend }: Props) {
+export function BriefPanel({ brief, parseResult, isLoading, onBriefChange, onBriefFocus, onRecommend }: Props) {
   const chips = parsedChips(parseResult);
 
   return (
@@ -35,9 +36,10 @@ export function BriefPanel({ brief, parseResult, isLoading, onBriefChange, onRec
         </div>
         <textarea
           aria-label="动效需求"
-          placeholder="例如：我想要一个适合活动页的紫色按钮 hover 动效"
+          placeholder="例如：我想要一个适合活动页的紫色按钮悬停动效"
           value={brief}
           onChange={(event) => onBriefChange(event.target.value)}
+          onFocus={onBriefFocus}
           rows={5}
         />
         <button className="ai-recommend-button" type="button" onClick={onRecommend} disabled={isLoading}>
@@ -45,7 +47,9 @@ export function BriefPanel({ brief, parseResult, isLoading, onBriefChange, onRec
         </button>
         {parseResult ? (
           <div className="status-grid" aria-label="需求解析状态">
-            <span className="status-pill">{parseResult.mode === "llm" ? "LLM 解析完成" : "本地规则兜底"}</span>
+            <span className="status-pill">
+              {parseResult.mode === "llm" ? "模型解析完成" : "本地规则兜底"}
+            </span>
             <span className="status-pill muted">{parseResult.message}</span>
             {chips.map((chip) => (
               <span className="brief-chip" key={chip}>

@@ -1,9 +1,4 @@
-export type SourceKind =
-  | "builtin-component"
-  | "single-html"
-  | "html-package"
-  | "css-svg"
-  | "component-lite";
+export type SourceKind = "builtin-component" | "single-html" | "html-package" | "css-svg" | "component-lite";
 
 export type MotionRuntime = {
   engine: "html";

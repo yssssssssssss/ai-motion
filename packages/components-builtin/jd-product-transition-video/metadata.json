@@ -1,0 +1,8 @@
+{
+  "id": "jd-product-transition-video",
+  "name": "商品详情转场代码动效",
+  "category": "media",
+  "tags": ["ecommerce", "product", "transition", "video", "jd"],
+  "useCases": ["product-detail-transition", "app-prototype", "motion-reference"],
+  "moods": ["precise", "commercial", "mobile"]
+}

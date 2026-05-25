@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import type { MotionComponent } from "@motion-tool/core";
 import { renderPreviewHtml } from "../editor/previewHtml";
 import { createEmptyPatch } from "../../state/projectStore";
@@ -8,20 +8,22 @@ type Filter = "all" | "workeasy" | "native" | "buttons" | "cards" | "checkboxes"
 type Props = {
   components: MotionComponent[];
   aiMatchIds: Set<string>;
+  restoreComponentId?: string | null | undefined;
   onSelect: (componentId: string) => void;
+  onRestoreComplete?: (() => void) | undefined;
 };
 
 const filters: Array<{ id: Filter; label: string }> = [
   { id: "all", label: "全部" },
-  { id: "workeasy", label: "WorkEasy" },
+  { id: "workeasy", label: "工作易" },
   { id: "native", label: "内置" },
   { id: "buttons", label: "按钮" },
   { id: "cards", label: "卡片" },
   { id: "checkboxes", label: "选择控件" }
 ];
 
-function sourceLabel(component: MotionComponent): "WorkEasy" | "内置" {
-  return component.tags.includes("workeasy") ? "WorkEasy" : "内置";
+function sourceLabel(component: MotionComponent): "工作易" | "内置" {
+  return component.tags.includes("workeasy") ? "工作易" : "内置";
 }
 
 function categoryLabel(category: string): string {
@@ -40,7 +42,7 @@ function componentKind(component: MotionComponent): string {
 
 function matchesFilter(component: MotionComponent, filter: Filter): boolean {
   if (filter === "all") return true;
-  if (filter === "workeasy") return sourceLabel(component) === "WorkEasy";
+  if (filter === "workeasy") return sourceLabel(component) === "工作易";
   if (filter === "native") return sourceLabel(component) === "内置";
   return component.tags.includes(filter);
 }
@@ -54,9 +56,41 @@ function componentPreviewHtml(component: MotionComponent): string {
   });
 }
 
-export function ComponentFeed({ components, aiMatchIds, onSelect }: Props) {
+// 同一组件的 thumbnail HTML 是稳定的，缓存到模块层避免重渲时重新拼装
+const thumbnailCache = new WeakMap<MotionComponent, string>();
+
+function getCachedThumbnail(component: MotionComponent): string {
+  const cached = thumbnailCache.get(component);
+  if (cached) return cached;
+  const html = componentPreviewHtml(component);
+  thumbnailCache.set(component, html);
+  return html;
+}
+
+export function ComponentFeed({
+  components,
+  aiMatchIds,
+  restoreComponentId,
+  onSelect,
+  onRestoreComplete
+}: Props) {
   const [filter, setFilter] = useState<Filter>("all");
-  const visible = useMemo(() => components.filter((component) => matchesFilter(component, filter)), [components, filter]);
+  const visible = useMemo(
+    () => components.filter((component) => matchesFilter(component, filter)),
+    [components, filter]
+  );
+
+  useLayoutEffect(() => {
+    if (!restoreComponentId) return;
+
+    const target = Array.from(document.querySelectorAll<HTMLElement>("[data-component-id]")).find(
+      (element) => element.dataset.componentId === restoreComponentId
+    );
+    if (target) {
+      target.scrollIntoView({ block: "center" });
+    }
+    onRestoreComplete?.();
+  }, [restoreComponentId, onRestoreComplete]);
 
   return (
     <section className="feed-panel" id="feed" aria-label="浏览组件库">
@@ -64,7 +98,7 @@ export function ComponentFeed({ components, aiMatchIds, onSelect }: Props) {
         <div>
           <p className="eyebrow">组件库</p>
           <h2>浏览所有动效组件</h2>
-          <p className="muted">你可以直接浏览组件，也可以先输入需求，让 AI 帮你高亮匹配项。</p>
+          <p className="muted">你可以直接浏览组件，也可以先输入需求，让智能推荐帮你高亮匹配项。</p>
         </div>
         <div className="feed-filters" aria-label="组件筛选">
           {filters.map((item) => (
@@ -85,6 +119,7 @@ export function ComponentFeed({ components, aiMatchIds, onSelect }: Props) {
           return (
             <article
               className={isAiMatch ? "feed-card is-ai-match" : "feed-card"}
+              data-component-id={component.id}
               key={component.id}
               role="button"
               tabIndex={0}
@@ -101,16 +136,17 @@ export function ComponentFeed({ components, aiMatchIds, onSelect }: Props) {
                   className="feed-preview-frame"
                   loading="lazy"
                   sandbox="allow-scripts"
-                  srcDoc={componentPreviewHtml(component)}
+                  srcDoc={getCachedThumbnail(component)}
                   title={`${component.name} 预览`}
                 />
               </span>
               <span className="feed-body">
                 <strong>{component.name}</strong>
                 <small>
-                  {sourceLabel(component)} · {categoryLabel(component.category)} · {component.manifest.params.length} 个参数
+                  {sourceLabel(component)} · {categoryLabel(component.category)} ·{" "}
+                  {component.manifest.params.length} 个参数
                 </small>
-                {isAiMatch ? <em>AI 匹配</em> : null}
+                {isAiMatch ? <em>智能匹配</em> : null}
                 <span>打开参数编辑器 -&gt;</span>
               </span>
             </article>

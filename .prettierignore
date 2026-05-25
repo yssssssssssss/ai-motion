@@ -1,0 +1,5 @@
+**/node_modules
+**/dist
+**/*.generated.ts
+apps/web/src/data/workeasyComponents.generated.ts
+pnpm-lock.yaml

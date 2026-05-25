@@ -87,6 +87,7 @@ ai-motion-tool/
 ## Task 1: Scaffold The Workspace
 
 **Files:**
+
 - Create: `ai-motion-tool/package.json`
 - Create: `ai-motion-tool/pnpm-workspace.yaml`
 - Create: `ai-motion-tool/tsconfig.base.json`
@@ -213,6 +214,7 @@ Expected: no package has source yet or TypeScript reports missing config. If it 
 ## Task 2: Define Core Manifest Types And Runtime Schema
 
 **Files:**
+
 - Create: `packages/core/src/manifest/types.ts`
 - Create: `packages/core/src/manifest/schema.ts`
 - Create: `packages/core/src/index.ts`
@@ -302,12 +304,7 @@ Create `packages/core/tsconfig.json`:
 Create `packages/core/src/manifest/types.ts`:
 
 ```ts
-export type SourceKind =
-  | "builtin-component"
-  | "single-html"
-  | "html-package"
-  | "css-svg"
-  | "component-lite";
+export type SourceKind = "builtin-component" | "single-html" | "html-package" | "css-svg" | "component-lite";
 
 export type MotionRuntime = {
   engine: "html";
@@ -424,8 +421,18 @@ const targetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("css-variable"), file: z.string(), selector: z.string(), name: z.string() }),
   z.object({ kind: z.literal("css-property"), file: z.string(), selector: z.string(), property: z.string() }),
   z.object({ kind: z.literal("html-text"), file: z.string(), selector: z.string() }),
-  z.object({ kind: z.literal("html-attribute"), file: z.string(), selector: z.string(), attribute: z.string() }),
-  z.object({ kind: z.literal("svg-attribute"), file: z.string(), selector: z.string(), attribute: z.string() }),
+  z.object({
+    kind: z.literal("html-attribute"),
+    file: z.string(),
+    selector: z.string(),
+    attribute: z.string()
+  }),
+  z.object({
+    kind: z.literal("svg-attribute"),
+    file: z.string(),
+    selector: z.string(),
+    attribute: z.string()
+  }),
   z.object({ kind: z.literal("js-config"), file: z.string(), path: z.string() }),
   z.object({ kind: z.literal("component-prop"), component: z.string(), prop: z.string() })
 ]);
@@ -434,26 +441,44 @@ export const motionParamSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   description: z.string().optional(),
-  type: z.enum(["color", "number", "range", "text", "image", "toggle", "select", "easing", "duration", "position", "transform"]),
+  type: z.enum([
+    "color",
+    "number",
+    "range",
+    "text",
+    "image",
+    "toggle",
+    "select",
+    "easing",
+    "duration",
+    "position",
+    "transform"
+  ]),
   default: z.unknown(),
   value: z.unknown().optional(),
   status: z.enum(["detected", "suggested", "confirmed", "rejected"]),
   confidence: z.number().min(0).max(1).optional(),
-  constraints: z.object({
-    min: z.number().optional(),
-    max: z.number().optional(),
-    step: z.number().optional(),
-    unit: z.enum(["px", "%", "ms", "s", "deg", "rem", "vh", "vw"]).optional(),
-    options: z.array(z.object({ label: z.string(), value: z.union([z.string(), z.number(), z.boolean()]) })).optional(),
-    allowedFileTypes: z.array(z.string()).optional(),
-    maxLength: z.number().int().positive().optional()
-  }).optional(),
+  constraints: z
+    .object({
+      min: z.number().optional(),
+      max: z.number().optional(),
+      step: z.number().optional(),
+      unit: z.enum(["px", "%", "ms", "s", "deg", "rem", "vh", "vw"]).optional(),
+      options: z
+        .array(z.object({ label: z.string(), value: z.union([z.string(), z.number(), z.boolean()]) }))
+        .optional(),
+      allowedFileTypes: z.array(z.string()).optional(),
+      maxLength: z.number().int().positive().optional()
+    })
+    .optional(),
   targets: z.array(targetSchema),
-  ui: z.object({
-    group: z.string().optional(),
-    order: z.number().optional(),
-    helperText: z.string().optional()
-  }).optional()
+  ui: z
+    .object({
+      group: z.string().optional(),
+      order: z.number().optional(),
+      helperText: z.string().optional()
+    })
+    .optional()
 });
 
 export const motionManifestSchema = z.object({
@@ -469,11 +494,15 @@ export const motionManifestSchema = z.object({
   }),
   params: z.array(motionParamSchema),
   groups: z.array(z.object({ id: z.string(), label: z.string(), params: z.array(z.string()) })).optional(),
-  presets: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    patch: z.object({ id: z.string(), sourceManifestId: z.string(), values: z.record(z.unknown()) })
-  })).optional(),
+  presets: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        patch: z.object({ id: z.string(), sourceManifestId: z.string(), values: z.record(z.unknown()) })
+      })
+    )
+    .optional(),
   capabilities: z.array(z.enum(["editable", "export-html", "imported", "builtin"])).optional()
 });
 ```
@@ -507,6 +536,7 @@ git commit -m "feat: define motion manifest schema"
 ## Task 3: Add Built-In Component Package Format And Loader
 
 **Files:**
+
 - Create: `motion-components/hero-text-reveal/source/index.html`
 - Create: `motion-components/hero-text-reveal/source/style.css`
 - Create: `motion-components/hero-text-reveal/source/script.js`
@@ -765,7 +795,9 @@ Create `motion-components/hero-text-reveal/motion.manifest.json`:
       "type": "color",
       "default": "#38bdf8",
       "status": "confirmed",
-      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--accent-color" }]
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--accent-color" }
+      ]
     },
     {
       "id": "duration",
@@ -774,7 +806,14 @@ Create `motion-components/hero-text-reveal/motion.manifest.json`:
       "default": 800,
       "constraints": { "min": 200, "max": 2000, "step": 50, "unit": "ms" },
       "status": "confirmed",
-      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--reveal-duration" }]
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--reveal-duration"
+        }
+      ]
     }
   ],
   "groups": [
@@ -807,6 +846,7 @@ git commit -m "feat: add built-in motion component format"
 ## Task 4: Implement Patch Engine
 
 **Files:**
+
 - Create: `packages/core/src/patch/applyPatch.ts`
 - Create: `packages/core/test/applyPatch.test.ts`
 
@@ -855,7 +895,7 @@ describe("applyPatchToFiles", () => {
 
     const files = applyPatchToFiles({
       files: {
-        "source/index.html": "<h1 data-motion=\"headline\">Original</h1>",
+        "source/index.html": '<h1 data-motion="headline">Original</h1>',
         "source/style.css": ":root { --accent-color: #000000; }"
       },
       manifest,
@@ -900,7 +940,9 @@ function applyHtmlText(content: string, selector: string, value: unknown): strin
   if (!motionMatch) return content;
 
   const key = motionMatch[1].replace(/^["']|["']$/g, "");
-  const pattern = new RegExp(`(<[^>]+data-motion=["']${escapeRegExp(key)}["'][^>]*>)([\\s\\S]*?)(<\\/[^>]+>)`);
+  const pattern = new RegExp(
+    `(<[^>]+data-motion=["']${escapeRegExp(key)}["'][^>]*>)([\\s\\S]*?)(<\\/[^>]+>)`
+  );
   return content.replace(pattern, `$1${String(value)}$3`);
 }
 
@@ -956,6 +998,7 @@ git commit -m "feat: apply manifest patches to source files"
 ## Task 5: Implement Built-In Component Recommendation
 
 **Files:**
+
 - Create: `packages/core/src/orchestrator/recommend.ts`
 - Create: `packages/core/test/recommend.test.ts`
 
@@ -969,8 +1012,24 @@ import { recommendComponents } from "../src/orchestrator/recommend";
 import type { MotionComponent } from "../src/library/componentLibrary";
 
 const components = [
-  { id: "hero-text-reveal", name: "Hero Text Reveal", category: "text", tags: ["hero", "text", "saas"], useCases: ["landing-page"], moods: ["subtle"], manifest: { id: "hero-text-reveal", presets: [] } },
-  { id: "magnetic-button", name: "Magnetic Button", category: "interaction", tags: ["button", "hover"], useCases: ["cta"], moods: ["expressive"], manifest: { id: "magnetic-button", presets: [] } }
+  {
+    id: "hero-text-reveal",
+    name: "Hero Text Reveal",
+    category: "text",
+    tags: ["hero", "text", "saas"],
+    useCases: ["landing-page"],
+    moods: ["subtle"],
+    manifest: { id: "hero-text-reveal", presets: [] }
+  },
+  {
+    id: "magnetic-button",
+    name: "Magnetic Button",
+    category: "interaction",
+    tags: ["button", "hover"],
+    useCases: ["cta"],
+    moods: ["expressive"],
+    manifest: { id: "magnetic-button", presets: [] }
+  }
 ] as unknown as MotionComponent[];
 
 describe("recommendComponents", () => {
@@ -1023,7 +1082,9 @@ export function recommendComponents(input: {
         ...component.tags,
         ...component.useCases,
         ...component.moods
-      ].join(" ").toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
 
       const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
 
@@ -1065,6 +1126,7 @@ git commit -m "feat: recommend built-in motion components"
 ## Task 6: Implement Source Importer
 
 **Files:**
+
 - Create: `packages/core/src/import/sourceImporter.ts`
 - Create: `packages/core/test/sourceImporter.test.ts`
 
@@ -1089,7 +1151,7 @@ describe("importMotionSourceFromFiles", () => {
 
   it("detects html package with css and js", () => {
     const result = importMotionSourceFromFiles({
-      "index.html": "<link rel=\"stylesheet\" href=\"style.css\"><script src=\"script.js\"></script>",
+      "index.html": '<link rel="stylesheet" href="style.css"><script src="script.js"></script>',
       "style.css": "body{}",
       "script.js": "console.log('ok')"
     });
@@ -1146,7 +1208,8 @@ export function importMotionSourceFromFiles(files: Record<string, string>): Impo
   }
 
   const hasCssOrJs = paths.some((path) => path.endsWith(".css") || path.endsWith(".js"));
-  const hasSvgOnly = paths.length > 0 && paths.every((path) => path.endsWith(".svg") || path.endsWith(".css"));
+  const hasSvgOnly =
+    paths.length > 0 && paths.every((path) => path.endsWith(".svg") || path.endsWith(".css"));
 
   const kind = hasSvgOnly ? "css-svg" : hasCssOrJs ? "html-package" : "single-html";
 
@@ -1185,6 +1248,7 @@ git commit -m "feat: import web motion sources"
 ## Task 7: Implement Rule Scanner
 
 **Files:**
+
 - Create: `packages/core/src/analyze/ruleScanner.ts`
 - Create: `packages/core/test/ruleScanner.test.ts`
 
@@ -1203,7 +1267,7 @@ const source: MotionSource = {
   kind: "html-package",
   entry: "index.html",
   files: [
-    { path: "index.html", kind: "html", content: "<h1 data-motion=\"headline\">Hello</h1>" },
+    { path: "index.html", kind: "html", content: '<h1 data-motion="headline">Hello</h1>' },
     { path: "style.css", kind: "css", content: ":root { --primary-color: #ff3366; --duration: 800ms; }" }
   ]
 };
@@ -1239,9 +1303,7 @@ import type { MotionParam } from "../manifest/types";
 import type { MotionSource } from "../library/componentLibrary";
 
 function toParamId(name: string): string {
-  return name
-    .replace(/^--/, "")
-    .replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+  return name.replace(/^--/, "").replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
 }
 
 function cssVariableType(value: string): MotionParam["type"] {
@@ -1315,6 +1377,7 @@ git commit -m "feat: scan imported motion parameters"
 ## Task 8: Implement Param Advisor And Validator
 
 **Files:**
+
 - Create: `packages/core/src/analyze/paramAdvisor.ts`
 - Create: `packages/core/src/analyze/validator.ts`
 - Create: `packages/core/test/validator.test.ts`
@@ -1334,7 +1397,7 @@ const source: MotionSource = {
   origin: "imported",
   kind: "single-html",
   entry: "index.html",
-  files: [{ path: "index.html", kind: "html", content: "<h1 data-motion=\"headline\">Hello</h1>" }]
+  files: [{ path: "index.html", kind: "html", content: '<h1 data-motion="headline">Hello</h1>' }]
 };
 
 describe("confirmValidParams", () => {
@@ -1375,14 +1438,12 @@ Create `packages/core/src/analyze/paramAdvisor.ts`:
 import type { MotionParam } from "../manifest/types";
 
 export function suggestParams(detected: MotionParam[], maxParams = 10): MotionParam[] {
-  return detected
-    .slice(0, maxParams)
-    .map((param) => ({
-      ...param,
-      label: param.label.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase()),
-      status: "suggested" as const,
-      confidence: Math.min(1, param.confidence ?? 0.7)
-    }));
+  return detected.slice(0, maxParams).map((param) => ({
+    ...param,
+    label: param.label.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase()),
+    status: "suggested" as const,
+    confidence: Math.min(1, param.confidence ?? 0.7)
+  }));
 }
 ```
 
@@ -1411,7 +1472,10 @@ function targetExists(source: MotionSource, param: MotionParam): boolean {
     if (target.kind === "css-variable") return file.content.includes(target.name);
     if (target.kind === "html-text") {
       const dataMotion = target.selector.match(/^\[data-motion=([^\]]+)\]$/)?.[1];
-      return dataMotion ? file.content.includes(`data-motion="${dataMotion}"`) || file.content.includes(`data-motion='${dataMotion}'`) : fileExists(source, target.file);
+      return dataMotion
+        ? file.content.includes(`data-motion="${dataMotion}"`) ||
+            file.content.includes(`data-motion='${dataMotion}'`)
+        : fileExists(source, target.file);
     }
 
     return fileExists(source, target.file);
@@ -1458,6 +1522,7 @@ git commit -m "feat: validate suggested motion params"
 ## Task 9: Implement Export Package Composer
 
 **Files:**
+
 - Create: `packages/core/src/export/exportPackage.ts`
 - Create: `packages/core/test/exportPackage.test.ts`
 
@@ -1489,8 +1554,8 @@ describe("composeEditablePackageFiles", () => {
       patch
     });
 
-    expect(files["motion.manifest.json"]).toContain("\"id\": \"hero\"");
-    expect(files["motion.patch.json"]).toContain("\"sourceManifestId\": \"hero\"");
+    expect(files["motion.manifest.json"]).toContain('"id": "hero"');
+    expect(files["motion.patch.json"]).toContain('"sourceManifestId": "hero"');
     expect(files["source/index.html"]).toBe("<h1>Hello</h1>");
   });
 });
@@ -1550,6 +1615,7 @@ git commit -m "feat: compose editable motion packages"
 ## Task 10: Build Web App Shell And Project State
 
 **Files:**
+
 - Create: `apps/web/index.html`
 - Create: `apps/web/src/main.tsx`
 - Create: `apps/web/src/App.tsx`
@@ -1705,6 +1771,7 @@ git commit -m "feat: add web editor shell"
 ## Task 11: Build Parameter Panel And Preview Frame
 
 **Files:**
+
 - Create: `apps/web/src/features/editor/ParameterPanel.tsx`
 - Create: `apps/web/src/features/editor/PreviewFrame.tsx`
 - Modify: `apps/web/src/App.tsx`
@@ -1737,7 +1804,11 @@ export function ParameterPanel({ manifest, patch, onChange }: Props) {
           return (
             <label key={param.id}>
               {param.label}
-              <input type="color" value={String(value)} onChange={(event) => onChange(param.id, event.target.value)} />
+              <input
+                type="color"
+                value={String(value)}
+                onChange={(event) => onChange(param.id, event.target.value)}
+              />
             </label>
           );
         }
@@ -1826,10 +1897,18 @@ export function App() {
     <main className="app-shell">
       <aside className="sidebar">Library and import</aside>
       <section className="preview">
-        <PreviewFrame source={project?.source ?? null} manifest={project?.manifest ?? null} patch={project?.patch ?? null} />
+        <PreviewFrame
+          source={project?.source ?? null}
+          manifest={project?.manifest ?? null}
+          patch={project?.patch ?? null}
+        />
       </section>
       <aside className="parameters">
-        <ParameterPanel manifest={project?.manifest ?? null} patch={project?.patch ?? null} onChange={updateParam} />
+        <ParameterPanel
+          manifest={project?.manifest ?? null}
+          patch={project?.patch ?? null}
+          onChange={updateParam}
+        />
       </aside>
       <footer className="transport">Replay Pause Viewport Export</footer>
     </main>
@@ -1879,6 +1958,7 @@ git commit -m "feat: render motion parameters and preview"
 ## Task 12: Build Library Candidate UI
 
 **Files:**
+
 - Create: `apps/web/src/features/brief/BriefPanel.tsx`
 - Create: `apps/web/src/features/library/ComponentCandidates.tsx`
 - Modify: `apps/web/src/App.tsx`
@@ -1899,7 +1979,9 @@ export function BriefPanel({ brief, onBriefChange, onRecommend }: Props) {
     <section>
       <h2>Brief</h2>
       <textarea value={brief} onChange={(event) => onBriefChange(event.target.value)} rows={5} />
-      <button type="button" onClick={onRecommend}>Recommend</button>
+      <button type="button" onClick={onRecommend}>
+        Recommend
+      </button>
     </section>
   );
 }
@@ -1966,7 +2048,13 @@ const demoComponent = {
     origin: "builtin",
     kind: "builtin-component",
     entry: "source/index.html",
-    files: [{ path: "source/index.html", kind: "html", content: "<h1 data-motion=\"headline\">Build motion faster</h1>" }]
+    files: [
+      {
+        path: "source/index.html",
+        kind: "html",
+        content: '<h1 data-motion="headline">Build motion faster</h1>'
+      }
+    ]
   }
 } as const;
 
@@ -1976,7 +2064,11 @@ export function App() {
   const [project, setProject] = useState<MotionProject | null>(null);
 
   function updateParam(paramId: string, value: unknown) {
-    setProject((current) => current ? { ...current, patch: { ...current.patch, values: { ...current.patch.values, [paramId]: value } } } : current);
+    setProject((current) =>
+      current
+        ? { ...current, patch: { ...current.patch, values: { ...current.patch.values, [paramId]: value } } }
+        : current
+    );
   }
 
   function runRecommend() {
@@ -1999,10 +2091,18 @@ export function App() {
         <ComponentCandidates recommendations={recommendations} onSelect={selectComponent} />
       </aside>
       <section className="preview">
-        <PreviewFrame source={project?.source ?? null} manifest={project?.manifest ?? null} patch={project?.patch ?? null} />
+        <PreviewFrame
+          source={project?.source ?? null}
+          manifest={project?.manifest ?? null}
+          patch={project?.patch ?? null}
+        />
       </section>
       <aside className="parameters">
-        <ParameterPanel manifest={project?.manifest ?? null} patch={project?.patch ?? null} onChange={updateParam} />
+        <ParameterPanel
+          manifest={project?.manifest ?? null}
+          patch={project?.patch ?? null}
+          onChange={updateParam}
+        />
       </aside>
       <footer className="transport">Replay Pause Viewport Export</footer>
     </main>
@@ -2032,6 +2132,7 @@ git commit -m "feat: add built-in recommendation flow"
 ## Task 13: Build Import And Confirm Params UI
 
 **Files:**
+
 - Create: `apps/web/src/features/import/ImportPanel.tsx`
 - Create: `apps/web/src/features/import/ConfirmParamsPanel.tsx`
 - Modify: `apps/web/src/App.tsx`
@@ -2092,7 +2193,9 @@ export function ConfirmParamsPanel({ params, selected, onToggle, onConfirm }: Pr
           {param.label} ({param.type})
         </label>
       ))}
-      <button type="button" onClick={onConfirm}>Use selected parameters</button>
+      <button type="button" onClick={onConfirm}>
+        Use selected parameters
+      </button>
     </section>
   );
 }
@@ -2184,6 +2287,7 @@ git commit -m "feat: add imported motion confirmation flow"
 ## Task 14: Add Export UI
 
 **Files:**
+
 - Create: `apps/web/src/features/export/ExportPanel.tsx`
 - Modify: `apps/web/src/App.tsx`
 
@@ -2218,7 +2322,11 @@ export function ExportPanel({ project }: Props) {
     URL.revokeObjectURL(url);
   }
 
-  return <button type="button" disabled={!project} onClick={exportJson}>Export editable package</button>;
+  return (
+    <button type="button" disabled={!project} onClick={exportJson}>
+      Export editable package
+    </button>
+  );
 }
 ```
 
@@ -2232,7 +2340,7 @@ import { ExportPanel } from "./features/export/ExportPanel";
 // inside return
 <footer className="transport">
   <ExportPanel project={project} />
-</footer>
+</footer>;
 ```
 
 - [ ] **Step 3: Run typecheck**
@@ -2257,6 +2365,7 @@ git commit -m "feat: export editable motion package"
 ## Task 15: Verification And Browser Smoke Test
 
 **Files:**
+
 - Modify only files required by failures found during verification.
 
 - [ ] **Step 1: Run core tests**
@@ -2361,4 +2470,3 @@ Type consistency:
 
 - `MotionManifest`, `MotionPatch`, `MotionParam`, `MotionSource`, and `MotionComponent` names are consistent across tasks.
 - Direct deep imports from `@motion-tool/core/src/...` are acceptable for the first internal monorepo iteration. A later cleanup can add package export maps once the module boundaries settle.
-
