@@ -1,0 +1,8 @@
+{
+  "id": "jd-popup-feedback-eased",
+  "name": "弹窗反馈-缓动代码动效",
+  "category": "media",
+  "tags": ["ecommerce", "jd", "popup", "feedback", "eased"],
+  "useCases": ["coupon-popup-enter", "app-prototype", "motion-reference"],
+  "moods": ["commercial", "mobile", "smooth"]
+}

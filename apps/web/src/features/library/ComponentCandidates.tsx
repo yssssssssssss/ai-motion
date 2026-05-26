@@ -1,4 +1,7 @@
+import { useMemo } from "react";
 import type { MotionComponent, Recommendation } from "@motion-tool/core";
+import { renderPreviewHtml } from "../editor/previewHtml";
+import { createEmptyPatch } from "../../state/projectStore";
 
 type Props = {
   recommendations: Recommendation[];
@@ -14,11 +17,34 @@ function categoryLabel(category: string | undefined): string {
 }
 
 function sourceLabel(component: MotionComponent | undefined): string {
+  if (component?.source.origin === "imported") return "上传";
   return component?.tags.includes("workeasy") ? "工作易" : "内置";
 }
 
+function componentKind(component: MotionComponent | undefined): string {
+  if (!component) return "unknown";
+  if (component.tags.includes("buttons")) return "button";
+  if (component.tags.includes("cards")) return "card";
+  if (component.tags.includes("checkboxes")) return "checkbox";
+  if (component.tags.includes("read-only")) return "read-only";
+  return component.category;
+}
+
+function isReadOnly(component: MotionComponent | undefined): boolean {
+  return Boolean(component && (component.tags.includes("read-only") || component.manifest.params.length === 0));
+}
+
+function componentPreviewHtml(component: MotionComponent): string {
+  return renderPreviewHtml({
+    source: component.source,
+    manifest: component.manifest,
+    patch: createEmptyPatch(component.manifest),
+    mode: "thumbnail"
+  });
+}
+
 export function ComponentCandidates({ recommendations, components, onSelect }: Props) {
-  const componentById = new Map(components.map((component) => [component.id, component]));
+  const componentById = useMemo(() => new Map(components.map((component) => [component.id, component])), [components]);
   if (recommendations.length === 0) return null;
 
   return (
@@ -33,32 +59,49 @@ export function ComponentCandidates({ recommendations, components, onSelect }: P
           const component = componentById.get(item.componentId);
           const source = sourceLabel(component);
           return (
-            <button
+            <article
               className={index === 0 ? "recommendation-card is-top" : "recommendation-card"}
               key={item.componentId}
-              type="button"
-              onClick={() => onSelect(item.componentId)}
             >
-              <strong>{component?.name ?? item.componentId}</strong>
-              <span>{item.reason}</span>
-              {item.matches.length > 0 ? (
-                <div className="match-chip-row" aria-label="命中需求">
-                  {item.matches.slice(0, 5).map((match) => (
-                    <small className="match-chip" key={match}>
-                      {match}
-                    </small>
-                  ))}
+              {component ? (
+                <div className={`recommendation-preview ${componentKind(component)}`}>
+                  <iframe
+                    className="recommendation-preview-frame"
+                    loading="lazy"
+                    sandbox="allow-scripts"
+                    srcDoc={componentPreviewHtml(component)}
+                    title={`${component.name} 搜索结果预览`}
+                  />
                 </div>
               ) : null}
-              <div className="score-bar">
-                <span style={{ width: `${Math.min(100, item.score * 24)}%` }} />
+              <div className="recommendation-body">
+                <strong>{component?.name ?? item.componentId}</strong>
+                <span className="recommendation-reason">{item.reason}</span>
+                {item.matches.length > 0 ? (
+                  <div className="match-chip-row" aria-label="命中需求">
+                    {item.matches.slice(0, 5).map((match) => (
+                      <small className="match-chip" key={match}>
+                        {match}
+                      </small>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="score-bar">
+                  <span style={{ width: `${Math.min(100, item.score * 24)}%` }} />
+                </div>
+                <small>
+                  {source} · {categoryLabel(component?.category)} ·{" "}
+                  {isReadOnly(component) ? "只读" : `${component?.manifest.params.length ?? 0} 个参数`}
+                </small>
+                <button
+                  className="recommendation-open-button"
+                  type="button"
+                  onClick={() => onSelect(item.componentId)}
+                >
+                  {isReadOnly(component) ? "查看代码预览" : "打开参数编辑器"}
+                </button>
               </div>
-              <small>
-                {source} · {categoryLabel(component?.category)} · {component?.manifest.params.length ?? 0}{" "}
-                个参数
-              </small>
-              <em>打开参数编辑器 -&gt;</em>
-            </button>
+            </article>
           );
         })}
       </div>

@@ -1,0 +1,240 @@
+:root {
+  --stage-width: 1545px;
+  --stage-height: 2868px;
+  --window-x: 213px;
+  --window-y: 222px;
+  --window-width: 1118px;
+  --window-height: 2417px;
+  --window-radius: 92px;
+  --cycle-duration: 4040ms;
+  --popup-x: 120px;
+  --popup-y: 548px;
+  --popup-width: 874px;
+  --popup-height: 1134px;
+  --popup-radius: 32px;
+  --close-x: 566px;
+  --close-y: 1823px;
+  --close-size: 74px;
+  --ripple-x: 610px;
+  --ripple-y: 1829px;
+  --ripple-size: 152px;
+  --ripple-stroke: 8px;
+  --dim-opacity: 0.68;
+  --dismiss-scale: 0.96;
+  --motion-easing: cubic-bezier(0.18, 0.82, 0.22, 1);
+  --page-background: #fff8f9;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--page-background);
+}
+
+.jd-popup-feedback-fast {
+  width: min(100vw, var(--stage-width));
+  aspect-ratio: 1545 / 2868;
+  position: relative;
+  overflow: hidden;
+  background: var(--page-background);
+}
+
+.shell-frame,
+.screen-window,
+.product-screen,
+.screen-dim,
+.coupon-popup,
+.close-button,
+.feedback-ripple {
+  position: absolute;
+}
+
+.shell-frame {
+  inset: 0;
+  background-image: var(--shell-frame);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.screen-window {
+  left: var(--window-x);
+  top: var(--window-y);
+  width: var(--window-width);
+  height: var(--window-height);
+  overflow: hidden;
+  border-radius: var(--window-radius);
+  isolation: isolate;
+}
+
+.product-screen,
+.screen-dim {
+  inset: 0;
+}
+
+.product-screen {
+  background-image: var(--product-screen);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.screen-dim {
+  opacity: var(--dim-opacity);
+  background: #000000;
+  will-change: opacity;
+}
+
+.coupon-popup {
+  left: var(--popup-x);
+  top: var(--popup-y);
+  width: var(--popup-width);
+  height: var(--popup-height);
+  overflow: hidden;
+  border-radius: var(--popup-radius);
+  background-image: var(--coupon-popup);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transform-origin: center center;
+  will-change: opacity, transform;
+}
+
+.close-button {
+  left: calc(var(--close-x) - (var(--close-size) / 2));
+  top: calc(var(--close-y) - (var(--close-size) / 2));
+  width: var(--close-size);
+  height: var(--close-size);
+  border: 4px solid rgb(255 255 255 / 0.92);
+  border-radius: 999px;
+  box-sizing: border-box;
+  opacity: 1;
+  will-change: opacity, transform;
+}
+
+.close-button::before,
+.close-button::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 42px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.92);
+  transform-origin: center;
+}
+
+.close-button::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.close-button::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.feedback-ripple {
+  left: calc(var(--ripple-x) - (var(--ripple-size) / 2));
+  top: calc(var(--ripple-y) - (var(--ripple-size) / 2));
+  width: var(--ripple-size);
+  height: var(--ripple-size);
+  border: var(--ripple-stroke) solid rgb(255 255 255 / 0.86);
+  border-radius: 999px;
+  box-sizing: border-box;
+  opacity: 0;
+  transform: scale(0.28);
+  will-change: opacity, transform;
+}
+
+.is-playing .screen-dim {
+  animation: dim-dismiss var(--cycle-duration) linear infinite;
+}
+
+.is-playing .coupon-popup {
+  animation: popup-dismiss var(--cycle-duration) var(--motion-easing) infinite;
+}
+
+.is-playing .close-button {
+  animation: close-dismiss var(--cycle-duration) var(--motion-easing) infinite;
+}
+
+.is-playing .feedback-ripple {
+  animation: feedback-ripple-pulse var(--cycle-duration) linear infinite;
+}
+
+@keyframes dim-dismiss {
+  0%,
+  40% {
+    opacity: var(--dim-opacity);
+  }
+
+  43%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes popup-dismiss {
+  0%,
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  43%,
+  100% {
+    opacity: 0;
+    transform: scale(var(--dismiss-scale));
+  }
+}
+
+@keyframes close-dismiss {
+  0%,
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  43%,
+  100% {
+    opacity: 0;
+    transform: scale(var(--dismiss-scale));
+  }
+}
+
+@keyframes feedback-ripple-pulse {
+  0%,
+  19% {
+    opacity: 0;
+    transform: scale(0.28);
+  }
+
+  26% {
+    opacity: 0.45;
+    transform: scale(0.72);
+  }
+
+  33% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  40% {
+    opacity: 0.15;
+    transform: scale(1.16);
+  }
+
+  43%,
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}

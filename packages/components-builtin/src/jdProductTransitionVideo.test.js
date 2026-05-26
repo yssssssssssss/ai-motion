@@ -43,4 +43,35 @@ describe("jd product transition code component", () => {
       )
     ).toBe(true);
   });
+
+  it("matches the replacement split-layer artboard and editable geometry", () => {
+    const style = readComponentFile("source/style.css");
+    const assets = readComponentFile("source/assets.css");
+    const manifest = JSON.parse(readComponentFile("motion.manifest.json"));
+    const paramById = Object.fromEntries(manifest.params.map((param) => [param.id, param]));
+
+    expect(style).toContain("--stage-width: 750px;");
+    expect(style).toContain("--stage-height: 1630px;");
+    expect(style).toContain("aspect-ratio: 750 / 1630;");
+    expect(style).toContain("--start-x: 16px;");
+    expect(style).toContain("--start-y: 854px;");
+    expect(style).toContain("--start-width: 352px;");
+    expect(style).toContain("--start-height: 510px;");
+    expect(style).toContain("--end-x: 20px;");
+    expect(style).toContain("--end-y: 88px;");
+    expect(style).toContain("--end-width: 708px;");
+    expect(style).toContain("--end-height: 1020px;");
+
+    expect(assets).toContain("--home-frame: url(\"data:image/jpeg;base64,");
+    expect(assets).toContain("--home-card: url(\"data:image/png;base64,");
+    expect(assets).toContain("--detail-frame: url(\"data:image/png;base64,");
+    expect(assets).toContain("--detail-card: url(\"data:image/png;base64,");
+
+    expect(paramById.endWidth.default).toBe(708);
+    expect(paramById.endWidth.constraints.max).toBeGreaterThanOrEqual(708);
+    expect(paramById.endHeight.default).toBe(1020);
+    expect(paramById.endHeight.constraints.max).toBeGreaterThanOrEqual(1020);
+    expect(paramById.endY.default).toBe(88);
+    expect(paramById.endY.constraints.min).toBeLessThanOrEqual(88);
+  });
 });

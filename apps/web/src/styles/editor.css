@@ -1,4 +1,4 @@
-/* 编辑器路由：预览 / 参数面板 / 顶部导航 / 底部传输栏。 */
+/* 编辑器路由：预览 / 参数面板 / 顶部导航。 */
 
 .preview-empty {
   display: grid;
@@ -19,7 +19,7 @@
   display: grid;
   /* 右侧面板：在小屏到中屏之间收窄到约 28vw，最低 300px，最高 380px */
   grid-template-columns: minmax(0, 1fr) clamp(300px, 28vw, 380px);
-  grid-template-rows: auto minmax(0, 1fr) 58px;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 100vh;
   background: #f5f5f7;
 }
@@ -41,6 +41,8 @@
 
 .editor-preview {
   display: grid;
+  align-content: start;
+  gap: 12px;
   min-width: 0;
   padding: 24px;
 }
@@ -63,15 +65,11 @@
   margin-bottom: 18px;
 }
 
-.transport {
-  grid-column: 1 / -1;
+.preview-controls {
   display: flex;
   align-items: center;
   gap: 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(251, 251, 253, 0.86);
-  padding: 10px 14px;
-  backdrop-filter: blur(18px);
+  width: 100%;
 }
 
 .primary-action {
@@ -127,4 +125,21 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #6e6e73;
+}
+
+.read-only-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.read-only-notice h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.read-only-notice p {
+  color: #6e6e73;
+  line-height: 1.55;
+  margin: 0;
 }

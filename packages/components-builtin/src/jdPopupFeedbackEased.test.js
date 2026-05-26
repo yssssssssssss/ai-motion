@@ -1,0 +1,88 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const componentDir = resolve(currentDir, "../jd-popup-feedback-eased");
+
+function readComponentFile(path) {
+  return readFileSync(resolve(componentDir, path), "utf8");
+}
+
+describe("jd popup feedback eased component", () => {
+  it("rebuilds the APNG as coded layers instead of a media wrapper", () => {
+    const html = readComponentFile("source/index.html");
+    const script = readComponentFile("source/script.js");
+    const assets = readComponentFile("source/assets.css");
+
+    expect(html).not.toContain("<video");
+    expect(html).not.toContain("<img");
+    expect(script).not.toContain("HTMLVideoElement");
+    expect(html).toContain("data-motion-root");
+    expect(html).toContain("coupon-popup");
+    expect(html).toContain("close-button");
+    expect(assets).toContain("--shell-frame: url(\"data:image/webp;base64,");
+    expect(assets).toContain("--product-screen: url(\"data:image/webp;base64,");
+    expect(assets).toContain("--coupon-popup: url(\"data:image/webp;base64,");
+    expect(assets).toContain("product-screen-source: frame_0001_crop_213_222_1118_2417");
+    expect(assets).toContain("coupon-popup-source: frame_0075_crop_333_770_874_1134");
+  });
+
+  it("uses the APNG canvas, product screen, and eased popup timing", () => {
+    const style = readComponentFile("source/style.css");
+
+    expect(style).toContain("--stage-width: 1545px;");
+    expect(style).toContain("--stage-height: 2868px;");
+    expect(style).toContain("aspect-ratio: 1545 / 2868;");
+    expect(style).toContain("--window-x: 213px;");
+    expect(style).toContain("--window-y: 222px;");
+    expect(style).toContain("--window-width: 1118px;");
+    expect(style).toContain("--window-height: 2417px;");
+    expect(style).toContain("--cycle-duration: 3000ms;");
+    expect(style).toContain("--start-delay: 270ms;");
+    expect(style).toContain("--enter-duration: 540ms;");
+    expect(style).toContain("--popup-x: 120px;");
+    expect(style).toContain("--popup-y: 548px;");
+
+    const script = readComponentFile("source/script.js");
+    expect(script).toContain("element.animate");
+    expect(script).toContain("--start-delay");
+    expect(script).toContain("--enter-duration");
+    expect(script).toContain("window.motionReplay");
+    expect(script).toContain("window.motionPause");
+    expect(script).toContain("window.motionPlay");
+  });
+
+  it("exposes timing, layout, feedback, and visual controls", () => {
+    const manifest = JSON.parse(readComponentFile("motion.manifest.json"));
+    const paramById = Object.fromEntries(manifest.params.map((param) => [param.id, param]));
+
+    expect(paramById.cycleDuration.default).toBe(3000);
+    expect(paramById.startDelay.default).toBe(270);
+    expect(paramById.enterDuration.default).toBe(540);
+    expect(paramById.dimOpacity.default).toBe(0.68);
+    expect(paramById.startScale.default).toBe(1.08);
+    expect(paramById.popupWidth.default).toBe(874);
+    expect(paramById.popupHeight.default).toBe(1134);
+    expect(paramById.couponPopupImage.type).toBe("image");
+    expect(paramById.couponPopupImage.default).toBe(null);
+    expect(paramById.couponPopupImage.constraints.allowedFileTypes).toEqual([
+      "image/png",
+      "image/jpeg",
+      "image/webp"
+    ]);
+    expect(paramById.couponPopupImage.targets[0]).toMatchObject({
+      file: "source/assets.css",
+      name: "--coupon-popup"
+    });
+    expect(paramById.closeX.default).toBe(566);
+    expect(paramById.closeY.default).toBe(1823);
+    expect(paramById.windowRadius.default).toBe(92);
+    expect(
+      manifest.params.every((param) =>
+        param.targets.some((target) => target.kind === "css-variable" && target.name?.startsWith("--"))
+      )
+    ).toBe(true);
+  });
+});

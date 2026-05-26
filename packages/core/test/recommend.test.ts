@@ -131,4 +131,136 @@ describe("recommendComponents", () => {
     );
     expect(results[0]?.matches).not.toEqual(expect.arrayContaining(["CTA", "hover"]));
   });
+
+  it("honors source and kind filters before scoring broad text matches", () => {
+    const importedCard = {
+      id: "uploaded-card",
+      name: "Uploaded Product Card",
+      category: "layout",
+      tags: ["card"],
+      useCases: ["landing-page"],
+      moods: ["subtle"],
+      manifest: { id: "uploaded-card", params: [], presets: [] },
+      source: {
+        origin: "imported",
+        files: [
+          { kind: "html", content: '<article class="card">商品信息</article>' },
+          { kind: "css", content: ".card { background: #ffffff; transition: transform 200ms; }" }
+        ]
+      }
+    } as unknown as MotionComponent;
+    const nativeCard = {
+      ...importedCard,
+      id: "native-card",
+      name: "Native Product Card",
+      source: { origin: "builtin", files: importedCard.source.files }
+    } as unknown as MotionComponent;
+
+    const results = recommendComponents({
+      intent: {
+        query: "上传的卡片动效",
+        semanticQuery: "uploaded card motion",
+        categories: ["layout"],
+        componentKinds: ["card"],
+        motionStyles: [],
+        sources: ["uploaded"],
+        keywords: [],
+        softPreferences: ["上传", "卡片"],
+        hardConstraints: [],
+        negativePreferences: [],
+        reasoningHints: [],
+        confidence: 0.9
+      },
+      components: [nativeCard, importedCard],
+      limit: 2
+    });
+
+    expect(results[0]?.componentId).toBe("uploaded-card");
+  });
+
+  it("keeps hard constraints ahead of generic keyword score", () => {
+    const purpleButton = components[1] as MotionComponent;
+    const plainButton = {
+      ...purpleButton,
+      id: "plain-button",
+      name: "Plain Button",
+      source: {
+        files: [
+          {
+            kind: "css",
+            content: ".button { background: #111827; transition: transform 300ms; } .button:hover { transform: scale(1.03); }"
+          },
+          { kind: "html", content: "<button>Start campaign</button>" }
+        ]
+      }
+    } as unknown as MotionComponent;
+
+    const results = recommendComponents({
+      intent: {
+        query: "紫色按钮",
+        semanticQuery: "purple button",
+        categories: ["interaction"],
+        componentKinds: ["button"],
+        motionStyles: [],
+        sources: [],
+        keywords: [],
+        softPreferences: ["按钮"],
+        hardConstraints: ["紫色"],
+        negativePreferences: [],
+        reasoningHints: [],
+        confidence: 0.9
+      },
+      components: [plainButton, purpleButton],
+      limit: 2
+    });
+
+    expect(results[0]?.componentId).toBe("magnetic-button");
+    expect(results[0]?.missing).toBeUndefined();
+  });
+
+  it("does not fall back to the wrong component role when the requested role is explicit", () => {
+    const results = recommendComponents({
+      intent: {
+        query: "我需要一个活动页卡片动效",
+        semanticQuery: "campaign card motion",
+        categories: ["layout"],
+        componentKinds: ["card"],
+        motionStyles: [],
+        sources: [],
+        keywords: [],
+        softPreferences: ["活动页"],
+        hardConstraints: ["卡片"],
+        negativePreferences: [],
+        reasoningHints: [],
+        confidence: 0.9
+      },
+      components,
+      limit: 2
+    });
+
+    expect(results).toEqual([]);
+  });
+
+  it("returns no result when strict visual and scene requirements are absent", () => {
+    const results = recommendComponents({
+      intent: {
+        query: "直播间礼物雨粒子爆炸背景",
+        semanticQuery: "live streaming gift rain particle explosion background",
+        categories: ["background"],
+        componentKinds: [],
+        motionStyles: [],
+        sources: [],
+        keywords: [],
+        softPreferences: ["直播间", "礼物雨", "粒子", "爆炸"],
+        hardConstraints: ["背景", "粒子"],
+        negativePreferences: [],
+        reasoningHints: [],
+        confidence: 0.9
+      },
+      components,
+      limit: 2
+    });
+
+    expect(results).toEqual([]);
+  });
 });

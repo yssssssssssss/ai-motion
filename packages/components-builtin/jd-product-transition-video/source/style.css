@@ -1,25 +1,25 @@
 :root {
-  --stage-width: 720px;
-  --stage-height: 1468px;
+  --stage-width: 750px;
+  --stage-height: 1630px;
   --page-background: #fff6f6;
   --motion-duration: 620ms;
   --start-delay: 110ms;
   --motion-easing: cubic-bezier(0.19, 0.86, 0.22, 1);
-  --start-x: 52px;
-  --start-y: 756px;
-  --start-width: 313px;
-  --start-height: 508px;
+  --start-x: 16px;
+  --start-y: 854px;
+  --start-width: 352px;
+  --start-height: 510px;
   --start-scale: 1;
-  --mid-x: 72px;
-  --mid-y: 402px;
-  --mid-scale: 0.94;
-  --end-x: 54px;
-  --end-y: 217px;
-  --end-width: 612px;
-  --end-height: 775px;
+  --mid-x: 24px;
+  --mid-y: 365px;
+  --mid-scale: 0.96;
+  --end-x: 20px;
+  --end-y: 88px;
+  --end-width: 708px;
+  --end-height: 1020px;
   --end-scale: 1;
   --start-radius: 12px;
-  --end-radius: 15px;
+  --end-radius: 22px;
   --dim-opacity: 0.72;
 }
 
@@ -39,7 +39,7 @@ body {
 
 .jd-code-transition {
   width: min(100vw, var(--stage-width));
-  aspect-ratio: 720 / 1468;
+  aspect-ratio: 750 / 1630;
   position: relative;
   overflow: hidden;
   background: var(--page-background);

@@ -74,6 +74,8 @@ export function convertWorkEasyComponent(input: WorkEasyConversionInput): Conver
 
   const detected = scanSourceForParams(source);
   const validation = confirmValidParams({ source, params: detected });
+  const capabilities: MotionManifest["capabilities"] =
+    validation.confirmed.length > 0 ? ["builtin", "editable", "export-html"] : ["builtin", "export-html"];
 
   const manifest: MotionManifest = {
     version: "1.0",
@@ -82,7 +84,7 @@ export function convertWorkEasyComponent(input: WorkEasyConversionInput): Conver
     sourceKind: "builtin-component",
     runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
     params: validation.confirmed,
-    capabilities: ["builtin", "editable", "export-html"]
+    capabilities
   };
 
   return {

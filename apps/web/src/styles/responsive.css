@@ -52,7 +52,7 @@
 
   .editor-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(320px, 60vh) auto auto;
+    grid-template-rows: auto auto auto;
   }
 
   .editor-preview .preview-frame {
@@ -64,7 +64,7 @@
     border-top: 1px solid rgba(0, 0, 0, 0.08);
   }
 
-  .transport {
+  .preview-controls {
     flex-wrap: wrap;
   }
 }

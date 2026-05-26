@@ -18,10 +18,11 @@ export function numericParamValue(value: unknown): number {
   return 0;
 }
 
-export type ParamControlKind = "color" | "range" | "text" | "select" | "toggle" | "unsupported";
+export type ParamControlKind = "color" | "image" | "range" | "text" | "select" | "toggle" | "unsupported";
 
 export function paramControlKind(param: Pick<MotionParam, "type" | "constraints">): ParamControlKind {
   if (param.type === "color") return "color";
+  if (param.type === "image") return "image";
   if (
     param.type === "text" ||
     param.type === "easing" ||
@@ -40,6 +41,22 @@ export function paramControlKind(param: Pick<MotionParam, "type" | "constraints"
       : "unsupported";
   }
   return "unsupported";
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Image file could not be read as a data URL."));
+    });
+    reader.addEventListener("error", () => reject(reader.error ?? new Error("Image file read failed.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function hasCustomImage(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 type GroupedSection = { id: string; label: string | null; params: MotionParam[] };
@@ -115,6 +132,28 @@ function ParamControl({
           value={String(value)}
           onChange={(event) => onChange(param.id, event.target.value)}
         />
+      </label>
+    );
+  }
+
+  if (control === "image") {
+    const accept = param.constraints?.allowedFileTypes?.join(",") || "image/*";
+
+    return (
+      <label className="field">
+        <span>{param.label}</span>
+        <input
+          type="file"
+          accept={accept}
+          onChange={(event) => {
+            const input = event.currentTarget;
+            const file = input.files?.[0];
+            input.value = "";
+            if (!file) return;
+            void readFileAsDataUrl(file).then((dataUrl) => onChange(param.id, dataUrl));
+          }}
+        />
+        <output>{hasCustomImage(value) ? "已替换图片" : "使用默认图层"}</output>
       </label>
     );
   }

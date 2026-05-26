@@ -39,8 +39,12 @@ export { createFallbackBriefIntent, isParsedBriefIntent } from "./orchestrator/b
 export { displayLabels } from "./orchestrator/displayLabels";
 export type { Recommendation } from "./orchestrator/recommend";
 export { recommendComponents } from "./orchestrator/recommend";
+export type { SearchProfile } from "./orchestrator/searchProfile";
+export { createSearchProfile } from "./orchestrator/searchProfile";
+export type { ColorFacet } from "./orchestrator/colorAnalysis";
 
 // ---- import / analyze / export ----
+export type { ImportWarning, ImportResult } from "./import/sourceImporter";
 export { importMotionSourceFromFiles } from "./import/sourceImporter";
 export { scanSourceForParams } from "./analyze/ruleScanner";
 export { suggestParams } from "./analyze/paramAdvisor";

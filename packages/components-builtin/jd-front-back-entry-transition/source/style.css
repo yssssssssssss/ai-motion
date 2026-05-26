@@ -1,0 +1,157 @@
+:root {
+  --stage-width: 1545px;
+  --stage-height: 2868px;
+  --window-x: 213px;
+  --window-y: 222px;
+  --window-width: 1118px;
+  --window-height: 2417px;
+  --window-radius: 92px;
+  --cycle-duration: 2640ms;
+  --enter-distance: 520px;
+  --exit-distance: -520px;
+  --transition-opacity: 0.72;
+  --motion-easing: cubic-bezier(0.18, 0.86, 0.22, 1);
+  --page-background: #fff8f9;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--page-background);
+}
+
+.jd-front-back-entry {
+  width: min(100vw, var(--stage-width));
+  aspect-ratio: 1545 / 2868;
+  position: relative;
+  overflow: hidden;
+  background: var(--page-background);
+}
+
+.shell-frame,
+.screen-window,
+.screen-layer,
+.screen-wash {
+  position: absolute;
+}
+
+.shell-frame {
+  inset: 0;
+  background-image: var(--shell-frame);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.screen-window {
+  left: var(--window-x);
+  top: var(--window-y);
+  width: var(--window-width);
+  height: var(--window-height);
+  overflow: hidden;
+  border-radius: var(--window-radius);
+  isolation: isolate;
+}
+
+.screen-layer,
+.screen-wash {
+  inset: 0;
+}
+
+.screen-layer {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  will-change: opacity, transform;
+}
+
+.mine-content {
+  background-image: var(--mine-content);
+}
+
+.orders-content {
+  opacity: 0;
+  background-image: var(--orders-content);
+  transform: translate3d(var(--enter-distance), 0, 0);
+}
+
+.screen-wash {
+  opacity: 0;
+  background: #f7f9fc;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.is-playing .mine-content {
+  animation: mine-exit var(--cycle-duration) var(--motion-easing) infinite;
+}
+
+.is-playing .orders-content {
+  animation: orders-enter var(--cycle-duration) var(--motion-easing) infinite;
+}
+
+.is-playing .screen-wash {
+  animation: transition-wash var(--cycle-duration) linear infinite;
+}
+
+@keyframes mine-exit {
+  0%,
+  39% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  46% {
+    opacity: 0.42;
+    transform: translate3d(calc(var(--exit-distance) * 0.55), 0, 0);
+  }
+
+  53%,
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--exit-distance), 0, 0);
+  }
+}
+
+@keyframes orders-enter {
+  0%,
+  39% {
+    opacity: 0;
+    transform: translate3d(var(--enter-distance), 0, 0);
+  }
+
+  46% {
+    opacity: 0.34;
+    transform: translate3d(calc(var(--enter-distance) * 0.4), 0, 0);
+  }
+
+  53%,
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes transition-wash {
+  0%,
+  39% {
+    opacity: 0;
+  }
+
+  46% {
+    opacity: var(--transition-opacity);
+  }
+
+  54%,
+  100% {
+    opacity: 0;
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "version": "1.0",
+  "id": "jd-popup-feedback-fast",
+  "name": "弹窗反馈-迅速代码动效",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "cycleDuration",
+      "label": "循环时长",
+      "type": "duration",
+      "default": 4040,
+      "constraints": { "min": 1800, "max": 7000, "step": 40, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--cycle-duration"
+        }
+      ]
+    },
+    {
+      "id": "dimOpacity",
+      "label": "遮罩强度",
+      "type": "range",
+      "default": 0.68,
+      "constraints": { "min": 0, "max": 0.9, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--dim-opacity" }
+      ]
+    },
+    {
+      "id": "dismissScale",
+      "label": "消失缩放",
+      "type": "range",
+      "default": 0.96,
+      "constraints": { "min": 0.75, "max": 1.1, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--dismiss-scale" }
+      ]
+    },
+    {
+      "id": "popupX",
+      "label": "弹窗 X",
+      "type": "range",
+      "default": 120,
+      "constraints": { "min": 0, "max": 260, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-x" }
+      ]
+    },
+    {
+      "id": "popupY",
+      "label": "弹窗 Y",
+      "type": "range",
+      "default": 548,
+      "constraints": { "min": 360, "max": 760, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-y" }
+      ]
+    },
+    {
+      "id": "popupWidth",
+      "label": "弹窗宽度",
+      "type": "range",
+      "default": 874,
+      "constraints": { "min": 640, "max": 1000, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-width" }
+      ]
+    },
+    {
+      "id": "popupHeight",
+      "label": "弹窗高度",
+      "type": "range",
+      "default": 1134,
+      "constraints": { "min": 820, "max": 1320, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-height" }
+      ]
+    },
+    {
+      "id": "rippleX",
+      "label": "反馈 X",
+      "type": "range",
+      "default": 610,
+      "constraints": { "min": 400, "max": 760, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--ripple-x" }
+      ]
+    },
+    {
+      "id": "rippleY",
+      "label": "反馈 Y",
+      "type": "range",
+      "default": 1829,
+      "constraints": { "min": 1600, "max": 2040, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--ripple-y" }
+      ]
+    },
+    {
+      "id": "rippleSize",
+      "label": "反馈范围",
+      "type": "range",
+      "default": 152,
+      "constraints": { "min": 72, "max": 240, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--ripple-size" }
+      ]
+    },
+    {
+      "id": "windowRadius",
+      "label": "屏幕圆角",
+      "type": "range",
+      "default": 92,
+      "constraints": { "min": 0, "max": 160, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--window-radius"
+        }
+      ]
+    },
+    {
+      "id": "easing",
+      "label": "消失缓动",
+      "type": "easing",
+      "default": "cubic-bezier(0.18, 0.82, 0.22, 1)",
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--motion-easing"
+        }
+      ]
+    }
+  ],
+  "groups": [
+    { "id": "timing", "label": "速度", "params": ["cycleDuration", "easing"] },
+    { "id": "layout", "label": "布局", "params": ["popupX", "popupY", "popupWidth", "popupHeight"] },
+    { "id": "feedback", "label": "反馈", "params": ["rippleX", "rippleY", "rippleSize"] },
+    { "id": "visual", "label": "视觉", "params": ["dimOpacity", "dismissScale", "windowRadius"] }
+  ]
+}

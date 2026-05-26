@@ -37,7 +37,7 @@
       "id": "midX",
       "label": "轨迹中点 X",
       "type": "range",
-      "default": 72,
+      "default": 24,
       "constraints": { "min": 0, "max": 180, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-x" }]
@@ -46,7 +46,7 @@
       "id": "midY",
       "label": "轨迹中点 Y",
       "type": "range",
-      "default": 402,
+      "default": 365,
       "constraints": { "min": 180, "max": 760, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-y" }]
@@ -55,7 +55,7 @@
       "id": "midScale",
       "label": "中途缩放",
       "type": "range",
-      "default": 0.94,
+      "default": 0.96,
       "constraints": { "min": 0.7, "max": 1.25, "step": 0.01 },
       "status": "confirmed",
       "targets": [
@@ -66,8 +66,8 @@
       "id": "endWidth",
       "label": "终态宽度",
       "type": "range",
-      "default": 612,
-      "constraints": { "min": 520, "max": 660, "step": 1, "unit": "px" },
+      "default": 708,
+      "constraints": { "min": 520, "max": 740, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [
         { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-width" }
@@ -77,8 +77,8 @@
       "id": "endHeight",
       "label": "终态高度",
       "type": "range",
-      "default": 775,
-      "constraints": { "min": 650, "max": 860, "step": 1, "unit": "px" },
+      "default": 1020,
+      "constraints": { "min": 650, "max": 1100, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [
         { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-height" }
@@ -88,8 +88,8 @@
       "id": "endX",
       "label": "终态 X",
       "type": "range",
-      "default": 54,
-      "constraints": { "min": 20, "max": 100, "step": 1, "unit": "px" },
+      "default": 20,
+      "constraints": { "min": 0, "max": 100, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-x" }]
     },
@@ -97,8 +97,8 @@
       "id": "endY",
       "label": "终态 Y",
       "type": "range",
-      "default": 217,
-      "constraints": { "min": 120, "max": 360, "step": 1, "unit": "px" },
+      "default": 88,
+      "constraints": { "min": 40, "max": 360, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-y" }]
     },

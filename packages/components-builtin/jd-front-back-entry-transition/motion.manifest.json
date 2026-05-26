@@ -1,0 +1,110 @@
+{
+  "version": "1.0",
+  "id": "jd-front-back-entry-transition",
+  "name": "前后进场代码动效",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "cycleDuration",
+      "label": "循环时长",
+      "type": "duration",
+      "default": 2640,
+      "constraints": { "min": 1400, "max": 5000, "step": 40, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--cycle-duration"
+        }
+      ]
+    },
+    {
+      "id": "enterDistance",
+      "label": "进入距离",
+      "type": "range",
+      "default": 520,
+      "constraints": { "min": 0, "max": 1118, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--enter-distance"
+        }
+      ]
+    },
+    {
+      "id": "exitDistance",
+      "label": "退出距离",
+      "type": "range",
+      "default": -520,
+      "constraints": { "min": -1118, "max": 0, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--exit-distance"
+        }
+      ]
+    },
+    {
+      "id": "transitionOpacity",
+      "label": "过渡泛白",
+      "type": "range",
+      "default": 0.72,
+      "constraints": { "min": 0, "max": 0.9, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--transition-opacity"
+        }
+      ]
+    },
+    {
+      "id": "windowRadius",
+      "label": "屏幕圆角",
+      "type": "range",
+      "default": 92,
+      "constraints": { "min": 0, "max": 160, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--window-radius"
+        }
+      ]
+    },
+    {
+      "id": "easing",
+      "label": "缓动曲线",
+      "type": "easing",
+      "default": "cubic-bezier(0.18, 0.86, 0.22, 1)",
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--motion-easing"
+        }
+      ]
+    }
+  ],
+  "groups": [
+    { "id": "timing", "label": "速度", "params": ["cycleDuration", "easing"] },
+    { "id": "trajectory", "label": "轨迹", "params": ["enterDistance", "exitDistance"] },
+    { "id": "visual", "label": "视觉", "params": ["transitionOpacity", "windowRadius"] }
+  ]
+}

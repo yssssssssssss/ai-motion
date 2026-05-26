@@ -77,6 +77,42 @@ describe("applyPatchToFiles", () => {
     expect(files["source/style.css"]).toContain("--duration: 1200ms");
   });
 
+  it("updates image css variables without truncating data urls", () => {
+    const dataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB";
+    const files = applyPatchToFiles({
+      files: {
+        "source/index.html": '<div class="hero"></div>',
+        "source/style.css":
+          ':root { --hero-image: url("data:image/webp;base64,OLDPAYLOAD"); --accent-color: #000000; }'
+      },
+      manifest: {
+        version: "1.0",
+        id: "image-layer",
+        name: "Image layer",
+        sourceKind: "builtin-component",
+        runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+        params: [
+          {
+            id: "heroImage",
+            label: "Hero image",
+            type: "image",
+            default: null,
+            status: "confirmed",
+            constraints: { allowedFileTypes: ["image/png", "image/jpeg", "image/webp"] },
+            targets: [
+              { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--hero-image" }
+            ]
+          }
+        ]
+      },
+      patch: { id: "patch-image", sourceManifestId: "image-layer", values: { heroImage: dataUrl } }
+    });
+
+    expect(files["source/style.css"]).toContain(`--hero-image: url("${dataUrl}");`);
+    expect(files["source/style.css"]).toContain("--accent-color: #000000");
+    expect(files["source/style.css"]).not.toContain("OLDPAYLOAD");
+  });
+
   it("updates css property targets", () => {
     const files = applyPatchToFiles({
       files: {

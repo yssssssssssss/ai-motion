@@ -1,0 +1,8 @@
+{
+  "id": "jd-front-back-entry-transition",
+  "name": "前后进场代码动效",
+  "category": "interaction",
+  "tags": ["jd", "mobile", "page-transition", "apng"],
+  "useCases": ["mobile-ui", "page-transition", "app-prototype"],
+  "moods": ["clean", "soft", "retail"]
+}

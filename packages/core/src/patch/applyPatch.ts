@@ -46,6 +46,13 @@ function applyAttribute(content: string, selector: string, attribute: string, va
 }
 
 function formatCssValue(param: MotionParam, value: unknown): string {
+  if (param.type === "image") {
+    const rawValue = String(value).trim();
+    if (!rawValue) return "";
+    if (/^url\(/i.test(rawValue)) return rawValue;
+    return `url("${rawValue.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}")`;
+  }
+
   if (typeof value === "number" && param.constraints?.unit) {
     return `${value}${param.constraints.unit}`;
   }
@@ -53,9 +60,50 @@ function formatCssValue(param: MotionParam, value: unknown): string {
   return String(value);
 }
 
+function findCssDeclarationEnd(content: string, start: number): number {
+  let quote: string | null = null;
+  let parenthesisDepth = 0;
+
+  for (let index = start; index < content.length; index += 1) {
+    const char = content[index];
+
+    if (quote) {
+      if (char === "\\") index += 1;
+      else if (char === quote) quote = null;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === "(") {
+      parenthesisDepth += 1;
+      continue;
+    }
+
+    if (char === ")") {
+      parenthesisDepth = Math.max(0, parenthesisDepth - 1);
+      continue;
+    }
+
+    if (char === ";" && parenthesisDepth === 0) return index;
+  }
+
+  return -1;
+}
+
 function applyCssVariable(content: string, name: string, value: string): string {
-  const pattern = new RegExp(`(${escapeRegExp(name)}\\s*:\\s*)[^;]+`);
-  return content.replace(pattern, `$1${value}`);
+  const pattern = new RegExp(`${escapeRegExp(name)}\\s*:\\s*`);
+  const match = pattern.exec(content);
+  if (!match) return content;
+
+  const valueStart = match.index + match[0].length;
+  const valueEnd = findCssDeclarationEnd(content, valueStart);
+  if (valueEnd === -1) return content;
+
+  return `${content.slice(0, valueStart)}${value}${content.slice(valueEnd)}`;
 }
 
 function applyCssProperty(content: string, selector: string, property: string, value: string): string {

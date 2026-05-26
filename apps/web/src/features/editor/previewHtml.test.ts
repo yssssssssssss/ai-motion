@@ -61,8 +61,16 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain('data-motion-preview="thumbnail"');
     expect(html).toContain("motion-preview-stage");
     expect(html).toContain("requestAnimationFrame(fitThumbnail)");
-    expect(html).toContain("place-items: center");
+    expect(html).toContain("position: absolute");
+    expect(html).toContain("translate(-50%, -50%) scale(");
     expect(html).toContain("width: fit-content");
+    expect(html).toContain('style.getPropertyValue("--stage-width")');
+    expect(html).toContain('style.getPropertyValue("--stage-height")');
+    expect(html).toContain("fixElementSize(content, declaredSize)");
+    expect(html).toContain("fitThumbnail();");
+    expect(html).toContain("window.setTimeout(fitThumbnail, 80)");
+    expect(html).not.toContain("animation-play-state: paused !important");
+    expect(html).not.toContain("transition: none !important");
   });
 
   it("keeps full previews free of thumbnail layout styles", () => {
@@ -72,7 +80,7 @@ describe("renderPreviewHtml", () => {
     expect(html).not.toContain('data-motion-preview="editor"');
     expect(html).not.toContain("motion-preview-stage");
     expect(html).not.toContain("motion-editor-stage");
-    expect(html).not.toContain("place-items: center");
+    expect(html).not.toContain("translate(-50%, -50%) scale(");
   });
 
   it("adds editor centering layout when requested", () => {
@@ -103,5 +111,18 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain("availableHeight / contentSize.height");
     expect(html).toContain("stage.style.transform = `translate(-50%, -50%) scale(");
     expect(html).toContain("ResizeObserver");
+  });
+
+  it("adds editor playback controls inside the preview iframe", () => {
+    const html = renderPreviewHtml({ source, manifest, patch, mode: "editor" });
+
+    expect(html).toContain('data.type !== "motion-preview:playback"');
+    expect(html).toContain("function schedulePlaybackLoop()");
+    expect(html).toContain("function applyPlaybackState(playState)");
+    expect(html).toContain("animation.pause()");
+    expect(html).toContain("animation.play()");
+    expect(html).toContain('data.action === "pause"');
+    expect(html).toContain('data.action === "play"');
+    expect(html).toContain("requestAnimationFrame(() => requestAnimationFrame(schedulePlaybackLoop))");
   });
 });

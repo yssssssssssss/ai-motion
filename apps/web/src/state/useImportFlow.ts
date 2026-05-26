@@ -4,26 +4,33 @@ import {
   importMotionSourceFromFiles,
   scanSourceForParams,
   suggestParams,
+  type MotionComponent,
+  type MotionComponentMetadata,
   type MotionManifest,
   type MotionParam,
   type MotionSource
 } from "@motion-tool/core";
 
-type ConfirmResult = { source: MotionSource; manifest: MotionManifest } | null;
+// 导入流程分为三阶段：上传 → 确认参数 → 补充元数据
+type ImportPhase = "idle" | "confirm-params" | "fill-metadata";
 
-// 导入用户提供的本地文件 → 扫描参数 → 用户勾选 → 生成可编辑项目。
-// 该 hook 内部状态相互绑定，从 App.tsx 抽出独立维护以便测试与复用。
 export function useImportFlow() {
+  const [phase, setPhase] = useState<ImportPhase>("idle");
   const [pendingImport, setPendingImport] = useState<MotionSource | null>(null);
+  const [importWarnings, setImportWarnings] = useState<import("@motion-tool/core").ImportWarning[]>([]);
   const [suggestedParams, setSuggestedParams] = useState<MotionParam[]>([]);
   const [selectedParamIds, setSelectedParamIds] = useState<Set<string>>(new Set());
+  const [pendingManifest, setPendingManifest] = useState<MotionManifest | null>(null);
 
+  // 阶段 1：上传文件 → 解析 → 自动扫描参数 → 进入确认参数阶段
   const importFiles = useCallback((files: Record<string, string>) => {
     const result = importMotionSourceFromFiles(files);
     const suggested = suggestParams(scanSourceForParams(result.source));
     setPendingImport(result.source);
+    setImportWarnings(result.warnings);
     setSuggestedParams(suggested);
     setSelectedParamIds(new Set(suggested.map((param) => param.id)));
+    setPhase("confirm-params");
   }, []);
 
   const toggleParam = useCallback((id: string) => {
@@ -35,9 +42,9 @@ export function useImportFlow() {
     });
   }, []);
 
-  // 确认勾选后构造 manifest；返回 null 表示当前没有待确认的导入。
-  const confirmImport = useCallback((): ConfirmResult => {
-    if (!pendingImport) return null;
+  // 阶段 2：确认参数勾选 → 生成 manifest → 进入元数据阶段
+  const confirmParams = useCallback(() => {
+    if (!pendingImport) return;
     const selected = suggestedParams.filter((param) => selectedParamIds.has(param.id));
     const validation = confirmValidParams({ source: pendingImport, params: selected });
     const manifest: MotionManifest = {
@@ -49,14 +56,54 @@ export function useImportFlow() {
       params: validation.confirmed,
       capabilities: ["imported", "editable", "export-html"]
     };
-    return { source: pendingImport, manifest };
+    setPendingManifest(manifest);
+    setPhase("fill-metadata");
   }, [pendingImport, suggestedParams, selectedParamIds]);
 
+  // 阶段 3：提交元数据 → 生成完整 MotionComponent，重置流程
+  const submitMetadata = useCallback(
+    (metadata: MotionComponentMetadata): MotionComponent | null => {
+      if (!pendingImport || !pendingManifest) return null;
+
+      const component: MotionComponent = {
+        ...metadata,
+        source: { ...pendingImport, id: metadata.id },
+        manifest: { ...pendingManifest, id: `${metadata.id}-manifest`, name: metadata.name }
+      };
+
+      // 重置状态
+      setPendingImport(null);
+      setImportWarnings([]);
+      setSuggestedParams([]);
+      setSelectedParamIds(new Set());
+      setPendingManifest(null);
+      setPhase("idle");
+
+      return component;
+    },
+    [pendingImport, pendingManifest]
+  );
+
+  // 取消导入流程
+  const cancelImport = useCallback(() => {
+    setPendingImport(null);
+    setImportWarnings([]);
+    setSuggestedParams([]);
+    setSelectedParamIds(new Set());
+    setPendingManifest(null);
+    setPhase("idle");
+  }, []);
+
   return {
+    phase,
+    pendingImport,
+    importWarnings,
     suggestedParams,
     selectedParamIds,
     importFiles,
     toggleParam,
-    confirmImport
+    confirmParams,
+    submitMetadata,
+    cancelImport
   };
 }

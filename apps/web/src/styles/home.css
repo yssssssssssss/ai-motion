@@ -84,9 +84,9 @@
   align-content: center;
   justify-items: center;
   gap: 20px;
-  min-height: calc(100svh - 96px);
+  min-height: clamp(430px, 62svh, 560px);
   overflow: hidden;
-  padding: 36px 22px 40px;
+  padding: 28px 22px 32px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 34%),
     linear-gradient(110deg, rgba(0, 113, 227, 0.2), rgba(20, 184, 255, 0) 42%), var(--hero-bg);
@@ -228,7 +228,7 @@
 .feed-panel {
   display: grid;
   gap: 24px;
-  padding: 74px 0 18px;
+  padding: 58px 0 18px;
 }
 
 .recommendation-strip > div:first-child,
@@ -248,23 +248,26 @@
 
 .recommendation-list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .recommendation-card {
   display: grid;
   height: auto;
-  min-height: 190px;
-  gap: 10px;
-  justify-items: start;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.78);
-  padding: 16px;
   text-align: left;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(18px);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .recommendation-card:hover {
@@ -282,11 +285,39 @@
   font-size: 15px;
 }
 
-.recommendation-card span,
+.recommendation-reason,
 .recommendation-card small {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.recommendation-preview {
+  display: grid;
+  place-items: center;
+  min-height: 154px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(238, 239, 243, 0.78)), #ffffff;
+}
+
+.recommendation-preview.card,
+.recommendation-preview.checkbox {
+  background: #ffffff;
+}
+
+.recommendation-preview-frame {
+  width: 100%;
+  height: 154px;
+  border: 0;
+  background: #ffffff;
+  pointer-events: auto;
+}
+
+.recommendation-body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
 }
 
 .match-chip-row {
@@ -304,13 +335,25 @@
   padding: 6px 8px;
 }
 
-.recommendation-card em,
+.recommendation-open-button,
 .feed-card em,
 .feed-body > span:last-child {
   color: var(--accent);
   font-size: 12px;
-  font-style: normal;
   font-weight: 720;
+}
+
+.recommendation-open-button {
+  justify-self: start;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.recommendation-open-button:hover {
+  color: var(--accent-strong);
+  transform: none;
 }
 
 .score-bar {
@@ -470,4 +513,88 @@
 
 .check-field small {
   color: var(--muted);
+}
+
+/* 上传区域 */
+
+.import-drop-zone {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  border: 2px dashed rgba(0, 0, 0, 0.14);
+  border-radius: 12px;
+  background: rgba(245, 245, 247, 0.52);
+  padding: 32px 18px;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.import-drop-zone.is-dragging {
+  border-color: var(--accent);
+  background: rgba(0, 113, 227, 0.06);
+}
+
+.import-drop-hint {
+  text-align: center;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.import-drop-hint small {
+  color: rgba(110, 110, 115, 0.72);
+}
+
+.import-summary {
+  margin: 8px 0 0;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.import-warnings {
+  display: grid;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 204, 0, 0.08);
+  border: 1px solid rgba(255, 204, 0, 0.22);
+}
+
+.warning-text {
+  margin: 0;
+  color: #8a6d00;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* 元数据表单 */
+
+.text-field,
+.select-field {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.text-field input,
+.select-field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.text-field input:focus,
+.select-field select:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgba(0, 113, 227, 0.18);
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
 }

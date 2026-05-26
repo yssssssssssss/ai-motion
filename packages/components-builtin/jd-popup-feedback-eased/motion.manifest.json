@@ -1,0 +1,185 @@
+{
+  "version": "1.0",
+  "id": "jd-popup-feedback-eased",
+  "name": "弹窗反馈-缓动代码动效",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "cycleDuration",
+      "label": "循环时长",
+      "type": "duration",
+      "default": 3000,
+      "constraints": { "min": 1600, "max": 6000, "step": 40, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--cycle-duration"
+        }
+      ]
+    },
+    {
+      "id": "startDelay",
+      "label": "入场延迟",
+      "type": "duration",
+      "default": 270,
+      "constraints": { "min": 0, "max": 900, "step": 40, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--start-delay" }
+      ]
+    },
+    {
+      "id": "enterDuration",
+      "label": "入场时长",
+      "type": "duration",
+      "default": 540,
+      "constraints": { "min": 240, "max": 1400, "step": 40, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--enter-duration" }
+      ]
+    },
+    {
+      "id": "dimOpacity",
+      "label": "遮罩强度",
+      "type": "range",
+      "default": 0.68,
+      "constraints": { "min": 0, "max": 0.9, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--dim-opacity" }
+      ]
+    },
+    {
+      "id": "startScale",
+      "label": "起始缩放",
+      "type": "range",
+      "default": 1.08,
+      "constraints": { "min": 0.8, "max": 1.25, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--start-scale" }
+      ]
+    },
+    {
+      "id": "popupX",
+      "label": "弹窗 X",
+      "type": "range",
+      "default": 120,
+      "constraints": { "min": 0, "max": 260, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-x" }
+      ]
+    },
+    {
+      "id": "popupY",
+      "label": "弹窗 Y",
+      "type": "range",
+      "default": 548,
+      "constraints": { "min": 360, "max": 760, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-y" }
+      ]
+    },
+    {
+      "id": "popupWidth",
+      "label": "弹窗宽度",
+      "type": "range",
+      "default": 874,
+      "constraints": { "min": 640, "max": 1000, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-width" }
+      ]
+    },
+    {
+      "id": "popupHeight",
+      "label": "弹窗高度",
+      "type": "range",
+      "default": 1134,
+      "constraints": { "min": 820, "max": 1320, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-height" }
+      ]
+    },
+    {
+      "id": "couponPopupImage",
+      "label": "弹窗图片",
+      "type": "image",
+      "default": null,
+      "constraints": { "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"] },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/assets.css", "selector": ":root", "name": "--coupon-popup" }
+      ]
+    },
+    {
+      "id": "closeX",
+      "label": "关闭 X",
+      "type": "range",
+      "default": 566,
+      "constraints": { "min": 400, "max": 760, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--close-x" }
+      ]
+    },
+    {
+      "id": "closeY",
+      "label": "关闭 Y",
+      "type": "range",
+      "default": 1823,
+      "constraints": { "min": 1600, "max": 2040, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--close-y" }
+      ]
+    },
+    {
+      "id": "windowRadius",
+      "label": "屏幕圆角",
+      "type": "range",
+      "default": 92,
+      "constraints": { "min": 0, "max": 160, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--window-radius"
+        }
+      ]
+    },
+    {
+      "id": "easing",
+      "label": "入场缓动",
+      "type": "easing",
+      "default": "cubic-bezier(0.16, 0.9, 0.2, 1)",
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--motion-easing"
+        }
+      ]
+    }
+  ],
+  "groups": [
+    { "id": "timing", "label": "速度", "params": ["cycleDuration", "startDelay", "enterDuration", "easing"] },
+    { "id": "layout", "label": "布局", "params": ["popupX", "popupY", "popupWidth", "popupHeight"] },
+    { "id": "assets", "label": "素材", "params": ["couponPopupImage"] },
+    { "id": "feedback", "label": "反馈", "params": ["closeX", "closeY"] },
+    { "id": "visual", "label": "视觉", "params": ["dimOpacity", "startScale", "windowRadius"] }
+  ]
+}

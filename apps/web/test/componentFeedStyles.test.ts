@@ -18,11 +18,17 @@ describe("ComponentFeed styles", () => {
 
   it("lets iframe previews receive pointer events for hover animations", () => {
     expect(styles).toMatch(/\.feed-preview-frame\s*{[^}]*pointer-events:\s*auto/s);
+    expect(styles).toMatch(/\.recommendation-preview-frame\s*{[^}]*pointer-events:\s*auto/s);
   });
 
   it("uses a larger thumbnail stage for complete component previews", () => {
     expect(styles).toMatch(/\.feed-grid\s*{[^}]*minmax\(220px,\s*1fr\)/s);
     expect(styles).toMatch(/\.feed-thumb\s*{[^}]*min-height:\s*180px/s);
     expect(styles).toMatch(/\.feed-preview-frame\s*{[^}]*height:\s*180px/s);
+  });
+
+  it("keeps the hero short enough for the feed to peek into the first viewport", () => {
+    expect(styles).toMatch(/\.discovery-panel\s*{[^}]*min-height:\s*clamp\(430px,\s*62svh,\s*560px\)/s);
+    expect(styles).toMatch(/\.recommendation-strip,\s*\.feed-panel\s*{[^}]*padding:\s*58px 0 18px/s);
   });
 });

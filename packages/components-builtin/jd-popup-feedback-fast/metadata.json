@@ -1,0 +1,8 @@
+{
+  "id": "jd-popup-feedback-fast",
+  "name": "弹窗反馈-迅速代码动效",
+  "category": "media",
+  "tags": ["ecommerce", "jd", "popup", "feedback", "fast"],
+  "useCases": ["coupon-popup-dismiss", "app-prototype", "motion-reference"],
+  "moods": ["commercial", "mobile", "precise"]
+}

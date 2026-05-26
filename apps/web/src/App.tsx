@@ -5,13 +5,16 @@ import { HomeRoute } from "./routes/HomeRoute";
 import { EditorRoute } from "./routes/EditorRoute";
 import { useProject } from "./state/useProject";
 import { useImportFlow } from "./state/useImportFlow";
+import type { MotionComponent } from "@motion-tool/core";
 
-const components = [...builtinComponents, ...workEasyComponents];
+// 初始组件库：内置 + WorkEasy
+const initialComponents: MotionComponent[] = [...builtinComponents, ...workEasyComponents];
 
 type View = "home" | "editor";
 
 export function App() {
   const [view, setView] = useState<View>("home");
+  const [components, setComponents] = useState<MotionComponent[]>(initialComponents);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [restoreComponentId, setRestoreComponentId] = useState<string | null>(null);
   const { project, startProject, updateParam, replay, resetParams } = useProject();
@@ -35,12 +38,12 @@ export function App() {
     setRestoreComponentId(null);
   }, []);
 
-  function confirmImport() {
-    const result = importFlow.confirmImport();
-    if (!result) return;
-    setSelectedComponentId(null);
+  // 上传组件入库：追加到组件库 + 进入编辑
+  function handleComponentAdded(component: MotionComponent) {
+    setComponents((prev) => [...prev, component]);
+    setSelectedComponentId(component.id);
     setRestoreComponentId(null);
-    startProject(result.source, result.manifest);
+    startProject(component.source, component.manifest);
     setView("editor");
   }
 
@@ -63,7 +66,7 @@ export function App() {
       onSelectComponent={selectComponent}
       onRestoreComplete={clearRestoreComponentId}
       importFlow={importFlow}
-      onConfirmImport={confirmImport}
+      onComponentAdded={handleComponentAdded}
     />
   );
 }

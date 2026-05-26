@@ -1,23 +1,19 @@
 import type { MotionComponent } from "../library/componentLibrary";
+import { analyzeColors, type ColorFacet } from "./colorAnalysis";
 
 export type SearchProfile = {
   summary: string;
+  colorFacet: ColorFacet;
   colorTraits: string[];
   motionTraits: string[];
   functionTraits: string[];
   sceneTraits: string[];
+  structuralTags: string[];
   editableTraits: string[];
   rawText: string;
 };
 
-type TraitBucket = keyof Omit<SearchProfile, "summary" | "rawText">;
-
-const COLOR_NAMES: Record<string, string[]> = {
-  black: ["黑色", "深色", "black", "dark"],
-  white: ["白色", "white"],
-  gold: ["金色", "gold"],
-  transparent: ["透明", "transparent"]
-};
+type TraitBucket = keyof Omit<SearchProfile, "summary" | "rawText" | "colorFacet">;
 
 function unique(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
@@ -37,76 +33,6 @@ function visibleHtmlText(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const normalized = hex.replace("#", "");
-  if (normalized.length !== 3 && normalized.length !== 6) return null;
-
-  const value =
-    normalized.length === 3
-      ? normalized
-          .split("")
-          .map((part) => part + part)
-          .join("")
-      : normalized;
-  const intValue = Number.parseInt(value, 16);
-  if (!Number.isFinite(intValue)) return null;
-
-  return {
-    r: (intValue >> 16) & 255,
-    g: (intValue >> 8) & 255,
-    b: intValue & 255
-  };
-}
-
-function rgbToHue({ r, g, b }: { r: number; g: number; b: number }): number {
-  const red = r / 255;
-  const green = g / 255;
-  const blue = b / 255;
-  const max = Math.max(red, green, blue);
-  const min = Math.min(red, green, blue);
-  const delta = max - min;
-
-  if (delta === 0) return 0;
-  if (max === red) return ((green - blue) / delta + (green < blue ? 6 : 0)) * 60;
-  if (max === green) return ((blue - red) / delta + 2) * 60;
-  return ((red - green) / delta + 4) * 60;
-}
-
-function colorTraitsFromHex(hex: string): string[] {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return [];
-
-  const hue = rgbToHue(rgb);
-  const brightness = (rgb.r + rgb.g + rgb.b) / 3;
-  const traits: string[] = [];
-
-  if (brightness < 48) traits.push("黑色", "深色", "dark");
-  if (brightness > 228) traits.push("白色", "white");
-  if (hue >= 250 && hue <= 315) traits.push("紫色", "purple", "violet");
-  if (hue >= 190 && hue < 250) traits.push("蓝色", "blue");
-  if (hue >= 330 || hue < 20) traits.push("红色", "red");
-  if (hue >= 20 && hue < 55) traits.push("橙色", "orange");
-  if (hue >= 55 && hue < 80) traits.push("黄色", "yellow");
-  if (hue >= 80 && hue < 170) traits.push("绿色", "green");
-
-  return traits;
-}
-
-function collectColorTraits(css: string): string[] {
-  const traits: string[] = [];
-  const lower = css.toLowerCase();
-
-  if (lower.includes("gradient")) traits.push("渐变", "gradient");
-  for (const [name, values] of Object.entries(COLOR_NAMES)) {
-    if (lower.includes(name)) traits.push(...values);
-  }
-  for (const match of lower.matchAll(/#[0-9a-f]{3,8}\b/g)) {
-    traits.push(...colorTraitsFromHex(match[0]));
-  }
-
-  return unique(traits);
 }
 
 function collectMotionTraits(css: string): string[] {
@@ -186,6 +112,26 @@ function collectEditableTraits(component: MotionComponent): string[] {
   );
 }
 
+function inferStructuralTags(css: string): string[] {
+  const tags: string[] = [];
+  if (/\bborder-radius:\s*(50%|9999px)\b/i.test(css)) tags.push("圆形", "circle");
+  else if (/\bborder-radius:\s*(\d+)px\b/i.test(css)) {
+    const r = Number(css.match(/\bborder-radius:\s*(\d+)px\b/i)?.[1]);
+    if (r >= 20) tags.push("胶囊", "pill");
+  }
+  if (/\btransform:\s*skew\b/i.test(css)) tags.push("倾斜", "skewed");
+  if (/\bbox-shadow[^;]*inset/i.test(css) && (css.match(/\bbox-shadow\b/g) || []).length > 1) tags.push("立体", "3d");
+  if (/\bbackdrop-filter:\s*blur\b/i.test(css)) tags.push("毛玻璃", "glass");
+  if (/\blinear-gradient\b/i.test(css)) tags.push("渐变", "gradient");
+  if (/\bborder:\s*none\b/i.test(css) && !/\bbackground:\s*transparent\b/i.test(css)) tags.push("扁平", "flat");
+  if (/\bbackground:\s*(transparent|none)\b/i.test(css) && /\bborder:\s*\d+px\b/i.test(css)) tags.push("描边", "outline");
+  if (/:hover[^}]*\btransform:[^}]*scale\b/i.test(css)) tags.push("悬停放大", "hover-grow");
+  if (/:hover[^}]*\b(width|height)\b/i.test(css)) tags.push("悬停展开", "hover-expand");
+  if (/:active[^}]*\bscale\s*\(\s*0\./i.test(css)) tags.push("按下收缩", "press-shrink");
+  if (/::(before|after)[^}]*\banimation\b/i.test(css)) tags.push("伪元素动画", "pseudo-animate");
+  return unique(tags);
+}
+
 // 仅抽取 class 名 / data-motion key 等结构信号，避免把整段 css 塞进检索文本
 function extractStructuralTokens(html: string, css: string): string[] {
   const tokens: string[] = [];
@@ -210,11 +156,13 @@ export function createSearchProfile(component: MotionComponent): SearchProfile {
   const html = sourceContent(component, "html");
   const htmlText = visibleHtmlText(html);
   const structural = extractStructuralTokens(html, css);
+  const colorFacet = analyzeColors(css);
   const buckets: Record<TraitBucket, string[]> = {
-    colorTraits: collectColorTraits(css),
+    colorTraits: colorFacet.traits,
     motionTraits: collectMotionTraits(css),
     functionTraits: collectFunctionTraits(component, html),
     sceneTraits: collectSceneTraits(component, htmlText),
+    structuralTags: inferStructuralTags(css),
     editableTraits: collectEditableTraits(component)
   };
   const summary = unique([
@@ -231,8 +179,8 @@ export function createSearchProfile(component: MotionComponent): SearchProfile {
 
   return {
     summary,
+    colorFacet,
     ...buckets,
-    // rawText 只放语义文本 + 结构性 token，避免把整段 css/html 当作语料
     rawText: [
       component.name,
       component.category,

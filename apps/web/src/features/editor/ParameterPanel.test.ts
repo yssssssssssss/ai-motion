@@ -26,5 +26,6 @@ describe("paramControlKind", () => {
     ).toBe("select");
     expect(paramControlKind({ type: "select", constraints: {} })).toBe("unsupported");
     expect(paramControlKind({ type: "toggle" })).toBe("toggle");
+    expect(paramControlKind({ type: "image" })).toBe("image");
   });
 });
