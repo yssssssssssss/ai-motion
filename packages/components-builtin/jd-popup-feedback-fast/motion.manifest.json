@@ -89,6 +89,17 @@
       ]
     },
     {
+      "id": "couponPopupImage",
+      "label": "弹窗图片",
+      "type": "image",
+      "default": null,
+      "constraints": { "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"] },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/assets.css", "selector": ":root", "name": "--coupon-popup" }
+      ]
+    },
+    {
       "id": "rippleX",
       "label": "反馈 X",
       "type": "range",
@@ -156,6 +167,7 @@
   "groups": [
     { "id": "timing", "label": "速度", "params": ["cycleDuration", "easing"] },
     { "id": "layout", "label": "布局", "params": ["popupX", "popupY", "popupWidth", "popupHeight"] },
+    { "id": "assets", "label": "素材", "params": ["couponPopupImage"] },
     { "id": "feedback", "label": "反馈", "params": ["rippleX", "rippleY", "rippleSize"] },
     { "id": "visual", "label": "视觉", "params": ["dimOpacity", "dismissScale", "windowRadius"] }
   ]

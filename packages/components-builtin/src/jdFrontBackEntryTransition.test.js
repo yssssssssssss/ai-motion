@@ -52,6 +52,17 @@ describe("jd front back entry transition component", () => {
     expect(paramById.cycleDuration.default).toBe(2640);
     expect(paramById.enterDistance.default).toBe(520);
     expect(paramById.exitDistance.default).toBe(-520);
+    expect(paramById.ordersContentImage.type).toBe("image");
+    expect(paramById.ordersContentImage.default).toBe(null);
+    expect(paramById.ordersContentImage.constraints.allowedFileTypes).toEqual([
+      "image/png",
+      "image/jpeg",
+      "image/webp"
+    ]);
+    expect(paramById.ordersContentImage.targets[0]).toMatchObject({
+      file: "source/assets.css",
+      name: "--orders-content"
+    });
     expect(paramById.transitionOpacity.default).toBe(0.72);
     expect(paramById.windowRadius.default).toBe(92);
     expect(

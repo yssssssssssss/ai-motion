@@ -55,6 +55,17 @@
       ]
     },
     {
+      "id": "ordersContentImage",
+      "label": "目标页图片",
+      "type": "image",
+      "default": null,
+      "constraints": { "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"] },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/assets.css", "selector": ":root", "name": "--orders-content" }
+      ]
+    },
+    {
       "id": "transitionOpacity",
       "label": "过渡泛白",
       "type": "range",
@@ -105,6 +116,7 @@
   "groups": [
     { "id": "timing", "label": "速度", "params": ["cycleDuration", "easing"] },
     { "id": "trajectory", "label": "轨迹", "params": ["enterDistance", "exitDistance"] },
+    { "id": "assets", "label": "素材", "params": ["ordersContentImage"] },
     { "id": "visual", "label": "视觉", "params": ["transitionOpacity", "windowRadius"] }
   ]
 }

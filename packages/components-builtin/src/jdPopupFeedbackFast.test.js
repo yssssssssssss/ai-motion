@@ -57,6 +57,17 @@ describe("jd popup feedback fast component", () => {
     expect(paramById.dismissScale.default).toBe(0.96);
     expect(paramById.popupWidth.default).toBe(874);
     expect(paramById.popupHeight.default).toBe(1134);
+    expect(paramById.couponPopupImage.type).toBe("image");
+    expect(paramById.couponPopupImage.default).toBe(null);
+    expect(paramById.couponPopupImage.constraints.allowedFileTypes).toEqual([
+      "image/png",
+      "image/jpeg",
+      "image/webp"
+    ]);
+    expect(paramById.couponPopupImage.targets[0]).toMatchObject({
+      file: "source/assets.css",
+      name: "--coupon-popup"
+    });
     expect(paramById.rippleX.default).toBe(610);
     expect(paramById.rippleY.default).toBe(1829);
     expect(paramById.rippleSize.default).toBe(152);
