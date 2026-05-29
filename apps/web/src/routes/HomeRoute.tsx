@@ -50,6 +50,7 @@ export function HomeRoute({
   const [parseResult, setParseResult] = useState<BriefParseResult | null>(null);
   const [isRecommending, setIsRecommending] = useState(false);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   const aiMatchIds = useMemo(
     () => new Set(recommendations.map((item) => item.componentId)),
@@ -77,7 +78,19 @@ export function HomeRoute({
 
   function handleMetadataSubmit(metadata: MotionComponentMetadata) {
     const component = importFlow.submitMetadata(metadata);
-    if (component) onComponentAdded(component);
+    if (component) {
+      setIsUploadOpen(false);
+      onComponentAdded(component);
+    }
+  }
+
+  function openUploadDialog() {
+    setIsUploadOpen(true);
+  }
+
+  function closeUploadDialog() {
+    importFlow.cancelImport();
+    setIsUploadOpen(false);
   }
 
   return (
@@ -87,11 +100,9 @@ export function HomeRoute({
           <p className="brand-mark">智能动效</p>
           <h1>智能动效组件工作台</h1>
         </div>
-        <nav className="home-nav" aria-label="首页导航">
-          <a href="#recommend">智能推荐</a>
-          <a href="#feed">组件库</a>
-          <a href="#import">上传</a>
-        </nav>
+        <button className="home-upload-button" type="button" onClick={openUploadDialog}>
+          上传组件
+        </button>
       </div>
       <BriefPanel
         brief={brief}
@@ -113,34 +124,51 @@ export function HomeRoute({
         onSelect={onSelectComponent}
         onRestoreComplete={onRestoreComplete}
       />
-      <ImportPanel
-        onImport={importFlow.importFiles}
-        disabled={importFlow.phase !== "idle"}
-      />
-      {importFlow.phase === "confirm-params" && (
-        <>
-          {importFlow.importWarnings.length > 0 && (
-            <div className="import-warnings">
-              {importFlow.importWarnings.map((warning, index) => (
-                <p key={index} className="warning-text">
-                  {warning.message}
-                </p>
-              ))}
+      {isUploadOpen && (
+        <div className="upload-modal-backdrop" role="presentation" onMouseDown={closeUploadDialog}>
+          <div
+            className="upload-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="upload-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="upload-modal-header">
+              <div>
+                <p className="eyebrow">上传组件</p>
+                <h2 id="upload-modal-title">导入动效案例</h2>
+              </div>
+              <button className="upload-modal-close" type="button" aria-label="关闭上传弹窗" onClick={closeUploadDialog}>
+                关闭
+              </button>
             </div>
-          )}
-          <ConfirmParamsPanel
-            params={importFlow.suggestedParams}
-            selected={importFlow.selectedParamIds}
-            onToggle={importFlow.toggleParam}
-            onConfirm={importFlow.confirmParams}
-          />
-        </>
-      )}
-      {importFlow.phase === "fill-metadata" && (
-        <UploadMetadataPanel
-          onSubmit={handleMetadataSubmit}
-          onCancel={importFlow.cancelImport}
-        />
+            {importFlow.phase === "idle" && (
+              <ImportPanel onImport={importFlow.importFiles} disabled={false} compact />
+            )}
+            {importFlow.phase === "confirm-params" && (
+              <>
+                {importFlow.importWarnings.length > 0 && (
+                  <div className="import-warnings">
+                    {importFlow.importWarnings.map((warning, index) => (
+                      <p key={index} className="warning-text">
+                        {warning.message}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <ConfirmParamsPanel
+                  params={importFlow.suggestedParams}
+                  selected={importFlow.selectedParamIds}
+                  onToggle={importFlow.toggleParam}
+                  onConfirm={importFlow.confirmParams}
+                />
+              </>
+            )}
+            {importFlow.phase === "fill-metadata" && (
+              <UploadMetadataPanel onSubmit={handleMetadataSubmit} onCancel={closeUploadDialog} />
+            )}
+          </div>
+        </div>
       )}
     </main>
   );

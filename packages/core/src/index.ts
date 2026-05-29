@@ -42,6 +42,16 @@ export { recommendComponents } from "./orchestrator/recommend";
 export type { SearchProfile } from "./orchestrator/searchProfile";
 export { createSearchProfile } from "./orchestrator/searchProfile";
 export type { ColorFacet } from "./orchestrator/colorAnalysis";
+export type {
+  CompilePlusPatchInput,
+  CompilePlusPatchResult,
+  PlusControl,
+  PlusControlKind,
+  PlusControlOption,
+  PlusControlValue,
+  PlusPatchValues
+} from "./orchestrator/plusControls";
+export { compilePlusPatch, derivePlusControls } from "./orchestrator/plusControls";
 
 // ---- import / analyze / export ----
 export type { ImportWarning, ImportResult } from "./import/sourceImporter";

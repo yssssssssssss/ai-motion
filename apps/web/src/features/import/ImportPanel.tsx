@@ -4,6 +4,7 @@ import JSZip from "jszip";
 type Props = {
   onImport: (files: Record<string, string>) => void;
   disabled?: boolean;
+  compact?: boolean;
 };
 
 // 从 zip 包解压所有文件为 path→content 映射
@@ -31,7 +32,7 @@ async function readFiles(fileList: FileList): Promise<Record<string, string>> {
   return entries;
 }
 
-export function ImportPanel({ onImport, disabled }: Props) {
+export function ImportPanel({ onImport, disabled, compact = false }: Props) {
   const inputId = "motion-source-file-input";
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -84,8 +85,12 @@ export function ImportPanel({ onImport, disabled }: Props) {
   }
 
   return (
-    <section className="tool-section" id="import">
-      <h2>上传案例</h2>
+    <section
+      className={compact ? "import-panel" : "tool-section"}
+      id={compact ? undefined : "import"}
+      aria-label={compact ? "上传案例" : undefined}
+    >
+      {!compact && <h2>上传案例</h2>}
       <div
         className={isDragging ? "import-drop-zone is-dragging" : "import-drop-zone"}
         onDragOver={handleDragOver}

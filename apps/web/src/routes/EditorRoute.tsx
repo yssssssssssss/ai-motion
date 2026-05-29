@@ -1,5 +1,14 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+  compilePlusPatch,
+  derivePlusControls,
+  type PlusControlKind,
+  type PlusControlValue,
+  type PlusPatchValues
+} from "@motion-tool/core";
 import { ParameterPanel } from "../features/editor/ParameterPanel";
+import { ParameterModeTabs, type ParameterMode } from "../features/editor/ParameterModeTabs";
+import { PlusControlPanel } from "../features/editor/PlusControlPanel";
 import { PreviewFrame, type PreviewPlaybackState } from "../features/editor/PreviewFrame";
 import { ExportPanel } from "../features/export/ExportPanel";
 import type { MotionProject } from "../state/projectStore";
@@ -14,7 +23,23 @@ type EditorRouteProps = {
 
 export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetParams }: EditorRouteProps) {
   const [playbackState, setPlaybackState] = useState<PreviewPlaybackState>("playing");
+  const [parameterMode, setParameterMode] = useState<ParameterMode>("plus");
+  const [plusValues, setPlusValues] = useState<PlusPatchValues>({});
   const isReadOnly = Boolean(project && project.manifest.params.length === 0);
+  const plusControls = useMemo(() => (project ? derivePlusControls(project.manifest) : []), [project]);
+  const plusPatchResult = useMemo(
+    () =>
+      project
+        ? compilePlusPatch({
+            manifest: project.manifest,
+            plusValues,
+            baseValues: project.patch.values
+          })
+        : { values: {}, affectedParamIds: [] },
+    [plusValues, project]
+  );
+  const activeParameterMode: ParameterMode =
+    parameterMode === "plus" && plusControls.length === 0 ? "pro" : parameterMode;
 
   useLayoutEffect(() => {
     window.scrollTo({ left: 0, top: 0 });
@@ -22,11 +47,39 @@ export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetP
 
   useEffect(() => {
     setPlaybackState("playing");
+    setParameterMode("plus");
+    setPlusValues({});
   }, [project?.id]);
 
   function replayFromStart() {
     setPlaybackState("playing");
     onReplay();
+  }
+
+  function updatePlusControl(controlId: PlusControlKind, value: PlusControlValue) {
+    if (!project) return;
+
+    const nextPlusValues = { ...plusValues, [controlId]: value };
+    const compiled = compilePlusPatch({
+      manifest: project.manifest,
+      plusValues: nextPlusValues,
+      baseValues: project.patch.values
+    });
+
+    setPlusValues(nextPlusValues);
+    for (const paramId of compiled.affectedParamIds) {
+      onParamChange(paramId, compiled.values[paramId]);
+    }
+  }
+
+  function updateProParam(paramId: string, value: unknown) {
+    setPlusValues({});
+    onParamChange(paramId, value);
+  }
+
+  function resetAllParams() {
+    setPlusValues({});
+    onResetParams?.();
   }
 
   return (
@@ -71,14 +124,29 @@ export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetP
           <>
             <div className="panel-header">
               <p className="eyebrow">参数调节</p>
-              <h2>可调参数</h2>
+              <h2>{activeParameterMode === "plus" ? "简化控制" : "可调参数"}</h2>
             </div>
-            <ParameterPanel
-              manifest={project?.manifest ?? null}
-              patch={project?.patch ?? null}
-              onChange={onParamChange}
-              {...(onResetParams ? { onReset: onResetParams } : {})}
+            <ParameterModeTabs
+              mode={activeParameterMode}
+              plusDisabled={plusControls.length === 0}
+              onChange={setParameterMode}
             />
+            {activeParameterMode === "plus" ? (
+              <PlusControlPanel
+                controls={plusControls}
+                values={plusValues}
+                affectedParamIds={plusPatchResult.affectedParamIds}
+                onChange={updatePlusControl}
+                {...(onResetParams ? { onReset: resetAllParams } : {})}
+              />
+            ) : (
+              <ParameterPanel
+                manifest={project?.manifest ?? null}
+                patch={project?.patch ?? null}
+                onChange={updateProParam}
+                {...(onResetParams ? { onReset: resetAllParams } : {})}
+              />
+            )}
           </>
         )}
       </aside>
