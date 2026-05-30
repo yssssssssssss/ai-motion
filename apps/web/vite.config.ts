@@ -1,6 +1,9 @@
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
+const DEV_HOST = "127.0.0.1";
+const DEV_PORT = 5173;
+
 function readBody(req: import("node:http").IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -54,11 +57,43 @@ function briefParserApiPlugin(env: Record<string, string>): Plugin {
   };
 }
 
+function videoAnalyzerApiPlugin(): Plugin {
+  return {
+    name: "video-analyzer-api",
+    configureServer(server) {
+      server.middlewares.use("/api/video/analyze", async (req, res) => {
+        const { createVideoAnalyzeHandler } = await server.ssrLoadModule<
+          typeof import("./src/dev-api/videoAnalyzeRoute")
+        >("/src/dev-api/videoAnalyzeRoute.ts");
+        await createVideoAnalyzeHandler()(req, res);
+      });
+    },
+    async configurePreviewServer(server) {
+      const { createVideoAnalyzeHandler } = await import("./src/dev-api/videoAnalyzeRoute");
+      const handler = createVideoAnalyzeHandler();
+
+      server.middlewares.use("/api/video/analyze", (req, res) => {
+        void handler(req, res);
+      });
+    }
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
-    plugins: [react(), briefParserApiPlugin(env)],
+    plugins: [react(), briefParserApiPlugin(env), videoAnalyzerApiPlugin()],
+    server: {
+      host: DEV_HOST,
+      port: DEV_PORT,
+      strictPort: true
+    },
+    preview: {
+      host: DEV_HOST,
+      port: DEV_PORT,
+      strictPort: true
+    },
     build: {
       // 大资源 inline 在 builtin 组件中（如 jd-product-transition-video/assets.css 含 base64 图片）
       // 主 chunk 阈值放宽到 3MB，避免误告警

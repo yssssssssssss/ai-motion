@@ -61,6 +61,20 @@ export { suggestParams } from "./analyze/paramAdvisor";
 export { confirmValidParams } from "./analyze/validator";
 export { composeEditablePackageFiles, composeStandaloneHtmlFile } from "./export/exportPackage";
 
+// ---- video conversion ----
+export type {
+  VideoConversionStatus,
+  UploadedVideoInput,
+  VideoMotionDirection,
+  VideoMotionHints,
+  VideoConversionJob,
+  MotionPlan,
+  VerificationCheck,
+  VerificationReport,
+  VideoMotionComponentDraft
+} from "./video/types";
+export { createVideoMotionComponentDraft } from "./video/createVideoMotionComponentDraft";
+
 // ---- adapters/workeasy ----
 export type { WorkEasyCategory, WorkEasyComponentRecord, WorkEasySkip } from "./adapters/workeasy/types";
 export { convertWorkEasyComponent } from "./adapters/workeasy/convert";

@@ -7,7 +7,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --filter @motion-tool/web dev",
+    "dev": "node scripts/dev-server.mjs start",
+    "dev:status": "node scripts/dev-server.mjs status",
+    "dev:stop": "node scripts/dev-server.mjs stop",
+    "dev:restart": "node scripts/dev-server.mjs restart",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",

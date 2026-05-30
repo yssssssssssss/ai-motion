@@ -100,7 +100,7 @@ export function ImportPanel({ onImport, disabled, compact = false }: Props) {
         <p className="import-drop-hint">
           拖拽文件到此处，或点击选择
           <br />
-          <small>支持 HTML / CSS / JS / ZIP 包</small>
+          <small>支持 HTML / CSS / JS / JSON / SVG / ZIP 包</small>
         </p>
         <input
           ref={inputRef}

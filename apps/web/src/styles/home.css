@@ -3,9 +3,7 @@
 .home-shell {
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    linear-gradient(180deg, #ffffff 0, #f7f7f5 560px, var(--surface) 100%),
-    var(--surface);
+  background: linear-gradient(180deg, #ffffff 0, #f7f7f5 560px, var(--surface) 100%), var(--surface);
 }
 
 .home-header {
@@ -580,6 +578,32 @@
   padding: 0;
 }
 
+.upload-options {
+  display: grid;
+  gap: 18px;
+}
+
+.upload-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.video-motion-panel {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+}
+
+.video-motion-panel h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.video-motion-button:hover {
+  color: #ffffff;
+}
+
 .field-list {
   display: grid;
   gap: 12px;
@@ -624,7 +648,9 @@
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
   padding: 32px 18px;
-  transition: border-color 180ms ease, background 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease;
 }
 
 .import-drop-zone.is-dragging {

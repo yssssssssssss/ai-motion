@@ -12,6 +12,7 @@ import { ComponentFeed } from "../features/library/ComponentFeed";
 import { ImportPanel } from "../features/import/ImportPanel";
 import { ConfirmParamsPanel } from "../features/import/ConfirmParamsPanel";
 import { UploadMetadataPanel } from "../features/import/UploadMetadataPanel";
+import { VideoMotionPanel } from "../features/import/VideoMotionPanel";
 import { parseBrief } from "../services/briefParserClient";
 
 type ImportPhase = "idle" | "confirm-params" | "fill-metadata";
@@ -84,6 +85,11 @@ export function HomeRoute({
     }
   }
 
+  function handleVideoComponentReady(component: MotionComponent) {
+    setIsUploadOpen(false);
+    onComponentAdded(component);
+  }
+
   function openUploadDialog() {
     setIsUploadOpen(true);
   }
@@ -138,12 +144,21 @@ export function HomeRoute({
                 <p className="eyebrow">上传组件</p>
                 <h2 id="upload-modal-title">导入动效案例</h2>
               </div>
-              <button className="upload-modal-close" type="button" aria-label="关闭上传弹窗" onClick={closeUploadDialog}>
+              <button
+                className="upload-modal-close"
+                type="button"
+                aria-label="关闭上传弹窗"
+                onClick={closeUploadDialog}
+              >
                 关闭
               </button>
             </div>
             {importFlow.phase === "idle" && (
-              <ImportPanel onImport={importFlow.importFiles} disabled={false} compact />
+              <div className="upload-options">
+                <VideoMotionPanel onComponentReady={handleVideoComponentReady} />
+                <div className="upload-divider" />
+                <ImportPanel onImport={importFlow.importFiles} disabled={false} compact />
+              </div>
             )}
             {importFlow.phase === "confirm-params" && (
               <>
