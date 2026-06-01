@@ -1,4 +1,5 @@
 import type { MotionManifest, MotionParam, MotionPatch } from "../manifest/types";
+import { paramsForConcept } from "./paramConcepts";
 
 export type PlusControlKind = "speed" | "easing" | "intensity" | "trajectory" | "rhythm";
 
@@ -57,42 +58,32 @@ const INTENSITY_OPTIONS: PlusControlOption[] = [
   { id: "expressive", label: "强表现", value: "expressive" }
 ];
 
-function normalize(value: string): string {
-  return value.trim().toLowerCase();
-}
+const TRAJECTORY_OPTIONS: PlusControlOption[] = [
+  { id: "short", label: "短轨迹", value: "short" },
+  { id: "normal", label: "标准", value: "normal" },
+  { id: "long", label: "长轨迹", value: "long" }
+];
+
+const RHYTHM_OPTIONS: PlusControlOption[] = [
+  { id: "tight", label: "紧凑", value: "tight" },
+  { id: "normal", label: "标准", value: "normal" },
+  { id: "relaxed", label: "舒缓", value: "relaxed" }
+];
 
 function confirmedParams(manifest: MotionManifest): MotionParam[] {
   return manifest.params.filter((param) => param.status === "confirmed");
 }
 
-function paramText(param: MotionParam): string {
-  return normalize(`${param.id} ${param.label} ${param.type}`);
-}
-
 function isSpeedParam(param: MotionParam): boolean {
-  const text = paramText(param);
-  return (
-    param.type === "duration" &&
-    /(duration|transitionduration|cycleduration|animationduration|时长|速度)/.test(text) &&
-    !/(delay|startdelay|loopdelay|repeatdelay|停顿|延迟)/.test(text)
-  );
+  return paramsForConcept([param], "speed").length > 0;
 }
 
 function isEasingParam(param: MotionParam): boolean {
-  if (param.type === "easing") return true;
-  if (param.type !== "select") return false;
-
-  return Boolean(
-    param.constraints?.options?.some((option) => /ease|spring|bezier/.test(normalize(String(option.value))))
-  );
+  return paramsForConcept([param], "easing").length > 0;
 }
 
 function isIntensityParam(param: MotionParam): boolean {
-  const text = paramText(param);
-  if (!["range", "number"].includes(param.type)) return false;
-  if (/(width|height|x$|y$|popup|endwidth|endheight|宽度|高度)/.test(text)) return false;
-
-  return /(scale|opacity|dimopacity|blur|glow|强度|透明度|缩放)/.test(text);
+  return paramsForConcept([param], "intensity").length > 0;
 }
 
 function buildControl(
@@ -120,8 +111,22 @@ function buildControl(
 export function derivePlusControls(manifest: MotionManifest): PlusControl[] {
   const params = confirmedParams(manifest);
   const controls = [
-    buildControl("speed", "速度", SPEED_OPTIONS, "速度感", params.filter(isSpeedParam).map((param) => param.id), 0.85),
-    buildControl("easing", "进出效果", EASING_OPTIONS, "曲线强度", params.filter(isEasingParam).map((param) => param.id), 0.85),
+    buildControl(
+      "speed",
+      "速度",
+      SPEED_OPTIONS,
+      "速度感",
+      params.filter(isSpeedParam).map((param) => param.id),
+      0.85
+    ),
+    buildControl(
+      "easing",
+      "进出效果",
+      EASING_OPTIONS,
+      "曲线强度",
+      params.filter(isEasingParam).map((param) => param.id),
+      0.85
+    ),
     buildControl(
       "intensity",
       "动效强度",
@@ -129,6 +134,22 @@ export function derivePlusControls(manifest: MotionManifest): PlusControl[] {
       "表现强度",
       params.filter(isIntensityParam).map((param) => param.id),
       0.75
+    ),
+    buildControl(
+      "trajectory",
+      "运动轨迹",
+      TRAJECTORY_OPTIONS,
+      "轨迹幅度",
+      paramsForConcept(params, "trajectory").map((param) => param.id),
+      0.72
+    ),
+    buildControl(
+      "rhythm",
+      "节奏",
+      RHYTHM_OPTIONS,
+      "节奏微调",
+      paramsForConcept(params, "rhythm").map((param) => param.id),
+      0.7
     )
   ];
 
@@ -168,6 +189,18 @@ function speedFactor(value: PlusControlValue): number {
 function intensityFactor(value: PlusControlValue): number {
   const optionFactor = value.option === "expressive" ? 1.25 : value.option === "subtle" ? 0.72 : 1;
   const fineTune = 1 + ((value.amount - 50) / 50) * 0.2;
+  return optionFactor * fineTune;
+}
+
+function trajectoryFactor(value: PlusControlValue): number {
+  const optionFactor = value.option === "long" ? 1.22 : value.option === "short" ? 0.78 : 1;
+  const fineTune = 1 + ((value.amount - 50) / 50) * 0.18;
+  return optionFactor * fineTune;
+}
+
+function rhythmFactor(value: PlusControlValue): number {
+  const optionFactor = value.option === "relaxed" ? 1.2 : value.option === "tight" ? 0.76 : 1;
+  const fineTune = 1 + ((value.amount - 50) / 50) * 0.16;
   return optionFactor * fineTune;
 }
 
@@ -215,6 +248,16 @@ export function compilePlusPatch(input: CompilePlusPatchInput): CompilePlusPatch
 
       if (control.id === "intensity") {
         values[param.id] = clamp(defaultNumber(param) * intensityFactor(plusValue), param);
+        affectedParamIds.push(param.id);
+      }
+
+      if (control.id === "trajectory") {
+        values[param.id] = clamp(defaultNumber(param) * trajectoryFactor(plusValue), param);
+        affectedParamIds.push(param.id);
+      }
+
+      if (control.id === "rhythm") {
+        values[param.id] = clamp(defaultNumber(param) * rhythmFactor(plusValue), param);
         affectedParamIds.push(param.id);
       }
     }

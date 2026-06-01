@@ -44,6 +44,7 @@ body {
 const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
 (() => {
   const stageClass = "motion-preview-stage";
+  let loopTimer = 0;
 
   function ensureStage() {
     if (!document.body) return null;
@@ -164,12 +165,113 @@ const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
     })\`;
   }
 
+  function parseCssTime(value) {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+
+    const parsed = Number.parseFloat(trimmed);
+    if (!Number.isFinite(parsed)) return 0;
+    return trimmed.endsWith("ms") ? parsed : parsed * 1000;
+  }
+
+  function maxTimePair(durations, delays) {
+    const durationItems = durations.split(",");
+    const delayItems = delays.split(",");
+    let maxTime = 0;
+
+    for (let index = 0; index < durationItems.length; index += 1) {
+      const duration = parseCssTime(durationItems[index] ?? "0s");
+      const delay = parseCssTime(delayItems[index] ?? delayItems[0] ?? "0s");
+      maxTime = Math.max(maxTime, duration + delay);
+    }
+
+    return maxTime;
+  }
+
+  function thumbnailPlaybackDuration() {
+    const candidates = [document.documentElement, document.body, ...document.querySelectorAll("*")].filter(Boolean);
+    let maxDuration = 0;
+
+    for (const element of candidates) {
+      const style = getComputedStyle(element);
+      maxDuration = Math.max(
+        maxDuration,
+        parseCssTime(style.getPropertyValue("--motion-duration")),
+        parseCssTime(style.getPropertyValue("--reveal-duration")) + parseCssTime(style.getPropertyValue("--start-delay")),
+        maxTimePair(style.animationDuration, style.animationDelay),
+        maxTimePair(style.transitionDuration, style.transitionDelay)
+      );
+    }
+
+    return Math.min(Math.max(maxDuration, 800), 10000);
+  }
+
+  function restartCssAnimations() {
+    const elements = Array.from(document.querySelectorAll("*"));
+    const previousAnimations = elements.map((element) => element.style.animation);
+
+    for (const element of elements) element.style.animation = "none";
+    void document.documentElement.offsetWidth;
+    elements.forEach((element, index) => {
+      element.style.animation = previousAnimations[index] ?? "";
+    });
+  }
+
+  function fallbackReplay() {
+    const root = document.querySelector("[data-motion-root]");
+    if (root instanceof HTMLElement) {
+      root.classList.remove("is-playing");
+      void root.offsetWidth;
+      root.classList.add("is-playing");
+    }
+    restartCssAnimations();
+  }
+
+  function fallbackPause() {
+    if (document.getAnimations) {
+      for (const animation of document.getAnimations({ subtree: true })) animation.pause();
+    }
+  }
+
+  function fallbackSeek(progress) {
+    if (!document.getAnimations) return;
+    const nextProgress = Math.min(1, Math.max(0, Number(progress) || 0));
+    for (const animation of document.getAnimations({ subtree: true })) {
+      if (animation.effect) {
+        const timing = animation.effect.getComputedTiming();
+        if (Number.isFinite(timing.duration)) animation.currentTime = timing.duration * nextProgress;
+      }
+    }
+  }
+
+  function ensureMotionPreviewProtocol() {
+    if (typeof window.motionReplay !== "function") window.motionReplay = fallbackReplay;
+    if (typeof window.motionPause !== "function") window.motionPause = fallbackPause;
+    if (typeof window.motionSeek !== "function") window.motionSeek = fallbackSeek;
+  }
+
+  function replayThumbnailMotion() {
+    ensureMotionPreviewProtocol();
+    window.motionReplay();
+    scheduleFit();
+  }
+
+  function scheduleThumbnailLoop() {
+    window.clearTimeout(loopTimer);
+    loopTimer = window.setTimeout(() => {
+      replayThumbnailMotion();
+      scheduleThumbnailLoop();
+    }, thumbnailPlaybackDuration() + 320);
+  }
+
   window.addEventListener("load", scheduleFit);
   window.addEventListener("resize", scheduleFit);
   if (document.fonts) document.fonts.ready.then(scheduleFit).catch(() => {});
   fitThumbnail();
   scheduleFit();
   window.setTimeout(fitThumbnail, 80);
+  ensureMotionPreviewProtocol();
+  requestAnimationFrame(() => requestAnimationFrame(scheduleThumbnailLoop));
 
   function scheduleFit() {
     // 双 rAF 后再测量，等动画首帧的 transform 落地，避免初始状态测出过小尺寸
@@ -391,19 +493,42 @@ const EDITOR_SCRIPT = `<script data-motion-preview="editor">
     });
   }
 
-  function replayMotion() {
-    if (typeof window.motionReplay === "function") {
-      window.motionReplay();
-    }
-
+  function fallbackReplay() {
     const root = document.querySelector("[data-motion-root]");
     if (root instanceof HTMLElement) {
       root.classList.remove("is-playing");
       void root.offsetWidth;
       root.classList.add("is-playing");
     }
-
     restartCssAnimations();
+    applyPlaybackState(isPreviewPlaying ? "running" : "paused");
+  }
+
+  function fallbackPause() {
+    isPreviewPlaying = false;
+    applyPlaybackState("paused");
+  }
+
+  function fallbackSeek(progress) {
+    if (!document.getAnimations) return;
+    const nextProgress = Math.min(1, Math.max(0, Number(progress) || 0));
+    for (const animation of document.getAnimations({ subtree: true })) {
+      if (animation.effect) {
+        const timing = animation.effect.getComputedTiming();
+        if (Number.isFinite(timing.duration)) animation.currentTime = timing.duration * nextProgress;
+      }
+    }
+  }
+
+  function ensureMotionPreviewProtocol() {
+    if (typeof window.motionReplay !== "function") window.motionReplay = fallbackReplay;
+    if (typeof window.motionPause !== "function") window.motionPause = fallbackPause;
+    if (typeof window.motionSeek !== "function") window.motionSeek = fallbackSeek;
+  }
+
+  function replayMotion() {
+    ensureMotionPreviewProtocol();
+    window.motionReplay();
     applyPlaybackState(isPreviewPlaying ? "running" : "paused");
   }
 
@@ -426,11 +551,81 @@ const EDITOR_SCRIPT = `<script data-motion-preview="editor">
     else window.clearTimeout(loopTimer);
   }
 
+  function formatCssValue(param, value) {
+    if (param.type === "image") {
+      const rawValue = String(value ?? "").trim();
+      if (!rawValue) return "";
+      if (/^url\\(/i.test(rawValue)) return rawValue;
+      return \`url("\${rawValue.replaceAll("\\\\", "\\\\\\\\").replaceAll('"', '\\\\"')}")\`;
+    }
+
+    if (typeof value === "number" && param.constraints && param.constraints.unit) {
+      return \`\${value}\${param.constraints.unit}\`;
+    }
+
+    return String(value ?? "");
+  }
+
+  function forEachTargetElement(selector, callback) {
+    try {
+      for (const element of document.querySelectorAll(selector)) {
+        if (element instanceof HTMLElement || element instanceof SVGElement) callback(element);
+      }
+    } catch {
+      // Ignore unsupported selectors from imported or generated sources.
+    }
+  }
+
+  function applyMotionPreviewPatch(values, params) {
+    if (!values || !params) return;
+
+    for (const param of params) {
+      if (!Object.prototype.hasOwnProperty.call(values, param.id)) continue;
+
+      const value = values[param.id];
+      const cssValue = formatCssValue(param, value);
+      for (const target of param.targets || []) {
+        if (target.kind === "css-variable") {
+          forEachTargetElement(target.selector, (styleTarget) => {
+            styleTarget.style.setProperty(target.name, cssValue);
+          });
+        }
+
+        if (target.kind === "css-property") {
+          forEachTargetElement(target.selector, (styleTarget) => {
+            styleTarget.style.setProperty(target.property, cssValue);
+          });
+        }
+
+        if (target.kind === "html-text") {
+          forEachTargetElement(target.selector, (element) => {
+            element.textContent = String(value ?? "");
+          });
+        }
+
+        if (target.kind === "html-attribute" || target.kind === "svg-attribute") {
+          forEachTargetElement(target.selector, (element) => {
+            element.setAttribute(target.attribute, String(value ?? ""));
+          });
+        }
+      }
+    }
+
+    scheduleFit();
+  }
+
   window.addEventListener("message", (event) => {
     const data = event.data;
-    if (!data || data.type !== "motion-preview:playback") return;
+    if (!data) return;
+    if (data.type === "motion-preview:patch") applyMotionPreviewPatch(data.values, data.params);
+    if (data.type !== "motion-preview:playback") return;
     if (data.action === "play") setPreviewPlayback("playing");
     if (data.action === "pause") setPreviewPlayback("paused");
+    if (data.action === "replay") {
+      isPreviewPlaying = true;
+      replayMotion();
+      schedulePlaybackLoop();
+    }
   });
 
   function scheduleFit() {
@@ -452,6 +647,7 @@ const EDITOR_SCRIPT = `<script data-motion-preview="editor">
     if (document.body) resizeObserver.observe(document.body);
   }
 
+  ensureMotionPreviewProtocol();
   requestAnimationFrame(() => requestAnimationFrame(schedulePlaybackLoop));
 })();
 </script>`;
@@ -465,6 +661,9 @@ function inlineLocalAssets(html: string, files: Record<string, string>): string 
       if (!href) return tag;
 
       const content = files[`source/${href}`] ?? files[href] ?? "";
+      if (/^(?:\/|https?:\/\/)/.test(content)) {
+        return tag.replace(/\bhref=["'][^"']+["']/, `href="${content}"`);
+      }
       return `<style>${content}</style>`;
     })
     .replace(/<script\b[^>]*\bsrc=["']\.?\/?([^"']+)["'][^>]*><\/script>/g, (_match, src: string) => {

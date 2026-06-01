@@ -70,6 +70,22 @@ export const motionParamSchema = z.object({
     .optional()
 });
 
+const designSpecBindingSchema = z.object({
+  id: z.string().min(1),
+  confidence: z.number().min(0).max(1).optional(),
+  required: z.boolean().optional()
+});
+
+const layerSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  kind: z.enum(["image", "text", "structure"]),
+  replaceable: z.boolean(),
+  required: z.boolean().optional(),
+  paramId: z.string().min(1).optional(),
+  targets: z.array(targetSchema)
+});
+
 export const motionManifestSchema = z.object({
   version: z.literal("1.0"),
   id: z.string().min(1),
@@ -83,6 +99,8 @@ export const motionManifestSchema = z.object({
   }),
   params: z.array(motionParamSchema),
   groups: z.array(z.object({ id: z.string(), label: z.string(), params: z.array(z.string()) })).optional(),
+  designSpecs: z.array(designSpecBindingSchema).optional(),
+  layers: z.array(layerSchema).optional(),
   presets: z
     .array(
       z.object({

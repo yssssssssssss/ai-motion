@@ -63,7 +63,9 @@ type GroupedSection = { id: string; label: string | null; params: MotionParam[] 
 
 // 把参数按 manifest.groups 或 param.ui.group 分块；没有任何分组信息时返回单段
 export function groupParameters(manifest: MotionManifest): GroupedSection[] {
-  const confirmed = manifest.params.filter((p) => p.status === "confirmed");
+  const confirmed = manifest.params.filter(
+    (p) => p.status === "confirmed" && p.type !== "image" && p.type !== "text"
+  );
   if (confirmed.length === 0) return [];
 
   const byId = new Map(confirmed.map((p) => [p.id, p]));

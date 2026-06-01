@@ -40,7 +40,9 @@
       "default": 24,
       "constraints": { "min": 0, "max": 180, "step": 1, "unit": "px" },
       "status": "confirmed",
-      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-x" }]
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-x" }
+      ]
     },
     {
       "id": "midY",
@@ -49,7 +51,9 @@
       "default": 365,
       "constraints": { "min": 180, "max": 760, "step": 1, "unit": "px" },
       "status": "confirmed",
-      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-y" }]
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-y" }
+      ]
     },
     {
       "id": "midScale",
@@ -91,7 +95,9 @@
       "default": 20,
       "constraints": { "min": 0, "max": 100, "step": 1, "unit": "px" },
       "status": "confirmed",
-      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-x" }]
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-x" }
+      ]
     },
     {
       "id": "endY",
@@ -100,7 +106,9 @@
       "default": 88,
       "constraints": { "min": 40, "max": 360, "step": 1, "unit": "px" },
       "status": "confirmed",
-      "targets": [{ "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-y" }]
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-y" }
+      ]
     },
     {
       "id": "dimOpacity",
@@ -118,5 +126,62 @@
     { "id": "timing", "label": "速度", "params": ["transitionDuration", "startDelay"] },
     { "id": "trajectory", "label": "轨迹", "params": ["midX", "midY", "midScale", "endX", "endY"] },
     { "id": "shape", "label": "形变", "params": ["endWidth", "endHeight", "dimOpacity"] }
+  ],
+  "designSpecs": [
+    {
+      "id": "ecommerce-transition-motion-skill",
+      "confidence": 0.95,
+      "required": true
+    }
+  ],
+  "layers": [
+    {
+      "id": "home-frame",
+      "label": "首页屏幕",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "detail-frame",
+      "label": "详情屏幕",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "screen-dim",
+      "label": "压暗遮罩",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "shared-card",
+      "label": "共享商品卡片",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "home-card",
+      "label": "首页商品卡片",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "detail-card",
+      "label": "详情商品卡片",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    }
   ]
 }

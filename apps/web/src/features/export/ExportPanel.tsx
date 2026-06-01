@@ -1,21 +1,18 @@
 import JSZip from "jszip";
 import { composeEditablePackageFiles, composeStandaloneHtmlFile } from "@motion-tool/core";
 import type { MotionProject } from "../../state/projectStore";
+import { sourceFilesForExport } from "./exportAssets";
 
 type Props = {
   project: MotionProject | null;
 };
 
 export function ExportPanel({ project }: Props) {
-  function sourceFilesForProject(project: MotionProject): Record<string, string> {
-    return Object.fromEntries(project.source.files.map((file) => [file.path, file.content]));
-  }
-
-  function exportSingleHtml() {
+  async function exportSingleHtml() {
     if (!project) return;
 
     const html = composeStandaloneHtmlFile({
-      sourceFiles: sourceFilesForProject(project),
+      sourceFiles: await sourceFilesForExport(project),
       manifest: project.manifest,
       patch: project.patch
     });
@@ -32,7 +29,7 @@ export function ExportPanel({ project }: Props) {
     if (!project) return;
 
     const files = composeEditablePackageFiles({
-      sourceFiles: sourceFilesForProject(project),
+      sourceFiles: await sourceFilesForExport(project),
       manifest: project.manifest,
       metadata: {
         id: project.id,
@@ -58,10 +55,20 @@ export function ExportPanel({ project }: Props) {
 
   return (
     <div className="export-actions compact" aria-label="导出选项">
-      <button className="secondary-action" type="button" disabled={!project} onClick={exportSingleHtml}>
+      <button
+        className="secondary-action"
+        type="button"
+        disabled={!project}
+        onClick={() => void exportSingleHtml()}
+      >
         导出 HTML
       </button>
-      <button className="primary-action" type="button" disabled={!project} onClick={() => void exportProjectZip()}>
+      <button
+        className="primary-action"
+        type="button"
+        disabled={!project}
+        onClick={() => void exportProjectZip()}
+      >
         导出 ZIP 工程
       </button>
     </div>

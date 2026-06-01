@@ -73,6 +73,24 @@ export type MotionParamGroup = {
   params: string[];
 };
 
+export type MotionDesignSpecBinding = {
+  id: string;
+  confidence?: number;
+  required?: boolean;
+};
+
+export type MotionLayerKind = "image" | "text" | "structure";
+
+export type MotionLayer = {
+  id: string;
+  label: string;
+  kind: MotionLayerKind;
+  replaceable: boolean;
+  required?: boolean;
+  paramId?: string;
+  targets: MotionTarget[];
+};
+
 export type MotionPatch = {
   id: string;
   sourceManifestId: string;
@@ -95,6 +113,8 @@ export type MotionManifest = {
   runtime: MotionRuntime;
   params: MotionParam[];
   groups?: MotionParamGroup[];
+  designSpecs?: MotionDesignSpecBinding[];
+  layers?: MotionLayer[];
   presets?: MotionPreset[];
   capabilities?: MotionCapability[];
 };

@@ -14,6 +14,9 @@ export type {
   MotionParamUI,
   MotionParam,
   MotionParamGroup,
+  MotionDesignSpecBinding,
+  MotionLayerKind,
+  MotionLayer,
   MotionPatch,
   MotionPreset,
   MotionCapability,
@@ -29,6 +32,30 @@ export type {
   MotionComponent
 } from "./library/componentLibrary";
 export { loadMotionComponentFromFiles } from "./library/componentLibrary";
+export type {
+  ComponentHealthCheck,
+  ComponentHealthReport,
+  ComponentHealthStatus
+} from "./library/componentHealth";
+export { analyzeComponentHealth } from "./library/componentHealth";
+export type {
+  DesignSpecBinding,
+  GenerationLayer,
+  GenerationLayerKind,
+  GenerationLayerProfile,
+  GenerationGateResult,
+  GenerationReadinessCheck,
+  GenerationReadinessReport,
+  GenerationReadinessStatus
+} from "./library/generationReadiness";
+export {
+  analyzeGenerationReadiness,
+  analyzeLayerProfile,
+  canGenerateFromComponent,
+  inferDesignSpecBindings
+} from "./library/generationReadiness";
+export type { DesignSpecSkill } from "./library/designSpecs";
+export { designSpecSkills, findDesignSpecSkill } from "./library/designSpecs";
 
 // ---- patch ----
 export { applyPatchToFiles } from "./patch/applyPatch";
@@ -52,11 +79,43 @@ export type {
   PlusPatchValues
 } from "./orchestrator/plusControls";
 export { compilePlusPatch, derivePlusControls } from "./orchestrator/plusControls";
+export type { ParamConcept, ParamConceptId } from "./orchestrator/paramConcepts";
+export { describeParamConcepts, paramConceptIds } from "./orchestrator/paramConcepts";
+export type {
+  GenerationAllowedChangeSet,
+  GenerationAcceptanceRule,
+  GenerationPlan,
+  GenerationPlanCandidate
+} from "./orchestrator/generationPlan";
+export { createGenerationPlan } from "./orchestrator/generationPlan";
+export type {
+  GenerationAllowedDiff,
+  GenerationDiffViolation,
+  GenerationDiffViolationCode,
+  ValidateGenerationDiffInput,
+  ValidateGenerationDiffResult
+} from "./orchestrator/generationDiff";
+export { validateGenerationDiff } from "./orchestrator/generationDiff";
+export type { ConversionProtocol, ConversionSourceKind } from "./generation/conversionProtocols";
+export { conversionProtocols } from "./generation/conversionProtocols";
+export type {
+  GeneratedComponentEvaluation,
+  GeneratedComponentEvaluationItem,
+  GeneratedComponentValidationResult,
+  SandboxCheck,
+  SandboxCheckStatus
+} from "./generation/sandbox";
+export {
+  evaluateGeneratedComponent,
+  generationFailureFallback,
+  validateGeneratedComponent
+} from "./generation/sandbox";
 
 // ---- import / analyze / export ----
 export type { ImportWarning, ImportResult } from "./import/sourceImporter";
 export { importMotionSourceFromFiles } from "./import/sourceImporter";
 export { scanSourceForParams } from "./analyze/ruleScanner";
+export { scanSourceForLayers } from "./analyze/layerScanner";
 export { suggestParams } from "./analyze/paramAdvisor";
 export { confirmValidParams } from "./analyze/validator";
 export { composeEditablePackageFiles, composeStandaloneHtmlFile } from "./export/exportPackage";

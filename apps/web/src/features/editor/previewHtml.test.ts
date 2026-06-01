@@ -69,6 +69,12 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain("fixElementSize(content, declaredSize)");
     expect(html).toContain("fitThumbnail();");
     expect(html).toContain("window.setTimeout(fitThumbnail, 80)");
+    expect(html).toContain("function replayThumbnailMotion()");
+    expect(html).toContain("function ensureMotionPreviewProtocol()");
+    expect(html).toContain("window.motionReplay = fallbackReplay");
+    expect(html).toContain("function scheduleThumbnailLoop()");
+    expect(html).toContain('root.classList.remove("is-playing")');
+    expect(html).toContain('root.classList.add("is-playing")');
     expect(html).not.toContain("animation-play-state: paused !important");
     expect(html).not.toContain("transition: none !important");
   });
@@ -118,11 +124,54 @@ describe("renderPreviewHtml", () => {
 
     expect(html).toContain('data.type !== "motion-preview:playback"');
     expect(html).toContain("function schedulePlaybackLoop()");
+    expect(html).toContain("function ensureMotionPreviewProtocol()");
+    expect(html).toContain("window.motionPause = fallbackPause");
+    expect(html).toContain("window.motionSeek = fallbackSeek");
+    expect(html).toContain("window.motionReplay();");
     expect(html).toContain("function applyPlaybackState(playState)");
     expect(html).toContain("animation.pause()");
     expect(html).toContain("animation.play()");
     expect(html).toContain('data.action === "pause"');
     expect(html).toContain('data.action === "play"');
     expect(html).toContain("requestAnimationFrame(() => requestAnimationFrame(schedulePlaybackLoop))");
+    expect(html).toContain('data.action === "replay"');
+    expect(html).toContain("replayMotion();");
+  });
+
+  it("adds editor patch updates inside the preview iframe", () => {
+    const html = renderPreviewHtml({ source, manifest, patch, mode: "editor" });
+
+    expect(html).toContain('data.type === "motion-preview:patch"');
+    expect(html).toContain("function applyMotionPreviewPatch(values, params)");
+    expect(html).toContain("style.setProperty(target.name, cssValue)");
+    expect(html).toContain('target.kind === "css-property"');
+    expect(html).toContain('target.kind === "html-text"');
+  });
+
+  it("keeps externalized builtin stylesheets as links", () => {
+    const externalSource: MotionSource = {
+      ...source,
+      files: [
+        {
+          ...source.files[0]!,
+          content:
+            '<!doctype html><html><head><link rel="stylesheet" href="./assets.css" /><link rel="stylesheet" href="./style.css" /></head><body><button class="button">Save</button></body></html>'
+        },
+        source.files[1]!,
+        {
+          path: "source/assets.css",
+          kind: "css",
+          content: "/assets/jd-product-transition-video/assets.css"
+        }
+      ]
+    };
+    const html = renderPreviewHtml({
+      source: externalSource,
+      manifest,
+      patch
+    });
+
+    expect(html).toContain('<link rel="stylesheet" href="/assets/jd-product-transition-video/assets.css" />');
+    expect(html).not.toContain("<style>/assets/jd-product-transition-video/assets.css</style>");
   });
 });

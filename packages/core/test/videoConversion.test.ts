@@ -59,6 +59,18 @@ describe("createVideoMotionComponentDraft", () => {
       "cornerRadius",
       "posterImage"
     ]);
+    expect(result.component.manifest.layers).toEqual([
+      {
+        id: "posterImage",
+        label: "视频画面",
+        kind: "image",
+        replaceable: true,
+        paramId: "posterImage",
+        targets: [
+          { kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--video-poster" }
+        ]
+      }
+    ]);
     const assets =
       result.component.source.files.find((file) => file.path === "source/assets.css")?.content ?? "";
     expect(assets).toContain("data:image/png;base64,POSTER");

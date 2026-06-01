@@ -220,6 +220,7 @@
 /* 推荐 / 组件库栏目 */
 
 .recommendation-strip,
+.recommendation-empty,
 .feed-panel,
 .tool-section {
   width: min(1180px, calc(100% - 44px));
@@ -233,6 +234,12 @@
   padding: 62px 0 18px;
 }
 
+.recommendation-empty {
+  display: grid;
+  gap: 10px;
+  padding: 62px 0 0;
+}
+
 .recommendation-strip > div:first-child,
 .feed-header,
 .tool-section {
@@ -241,6 +248,7 @@
 }
 
 .recommendation-strip h2,
+.recommendation-empty h2,
 .feed-header h2,
 .tool-section h2 {
   font-size: 34px;
@@ -340,7 +348,7 @@
 
 .recommendation-open-button,
 .feed-card em,
-.feed-body > span:last-child {
+.feed-card-action {
   color: var(--accent);
   font-size: 12px;
   font-weight: 720;
@@ -407,6 +415,23 @@
   gap: 16px;
 }
 
+.feed-loading {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.feed-loading-card {
+  min-height: 282px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.82), transparent), #ebebe8;
+  background-size:
+    180px 100%,
+    100% 100%;
+  animation: preview-placeholder-sheen 1.4s ease-in-out infinite;
+}
+
 .feed-card {
   display: grid;
   height: auto;
@@ -461,10 +486,34 @@
   pointer-events: auto;
 }
 
+.feed-preview-placeholder {
+  width: 100%;
+  height: 180px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent), #e8e8e4;
+  background-size:
+    180px 100%,
+    100% 100%;
+  animation: preview-placeholder-sheen 1.4s ease-in-out infinite;
+}
+
 .feed-body {
   display: grid;
   gap: 8px;
   padding: 13px;
+}
+
+@keyframes preview-placeholder-sheen {
+  from {
+    background-position:
+      -180px 0,
+      0 0;
+  }
+
+  to {
+    background-position:
+      calc(100% + 180px) 0,
+      0 0;
+  }
 }
 
 .feed-body strong {
@@ -474,6 +523,65 @@
 .feed-body small {
   color: var(--muted);
   font-size: 12px;
+}
+
+.feed-health-badge {
+  width: fit-content;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1;
+  padding: 5px 7px;
+}
+
+.feed-health-badge.good {
+  background: rgba(20, 120, 80, 0.1);
+  color: #147850;
+}
+
+.feed-health-badge.warn {
+  background: rgba(157, 106, 0, 0.12);
+  color: #8a5f00;
+}
+
+.feed-health-badge.bad {
+  background: rgba(190, 18, 60, 0.1);
+  color: #be123c;
+}
+
+.feed-readiness-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.feed-readiness-row span {
+  width: fit-content;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1;
+  padding: 5px 7px;
+}
+
+.feed-readiness-row.good span {
+  background: rgba(0, 113, 227, 0.1);
+  color: #005bb5;
+}
+
+.feed-readiness-row.warn span {
+  background: rgba(157, 106, 0, 0.1);
+  color: #8a5f00;
+}
+
+.feed-readiness-row.bad span {
+  background: rgba(190, 18, 60, 0.08);
+  color: #be123c;
+}
+
+.readiness-filters {
+  padding-top: 2px;
 }
 
 .feed-tags {
@@ -604,6 +712,36 @@
   color: #ffffff;
 }
 
+.unified-upload-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.unified-upload-panel .import-drop-zone {
+  min-height: 260px;
+  padding: 42px 18px;
+}
+
+.unified-upload-panel .import-drop-zone.is-disabled {
+  cursor: progress;
+  opacity: 0.78;
+}
+
+.unified-upload-button {
+  min-height: 42px;
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
+  font-size: 14px;
+  padding: 0 22px;
+}
+
+.unified-upload-button:hover:not(:disabled) {
+  border-color: #000000;
+  background: #000000;
+  color: #ffffff;
+}
+
 .field-list {
   display: grid;
   gap: 12px;
@@ -682,6 +820,49 @@
   border-radius: 8px;
   background: rgba(255, 204, 0, 0.08);
   border: 1px solid rgba(255, 204, 0, 0.22);
+}
+
+.import-checklist {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: rgba(247, 247, 245, 0.72);
+  padding: 12px;
+}
+
+.import-checklist h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.import-checklist__items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.import-checklist__items span {
+  display: grid;
+  gap: 3px;
+  border-radius: 6px;
+  background: rgba(190, 18, 60, 0.06);
+  color: #7f1d1d;
+  font-size: 12px;
+  font-weight: 720;
+  padding: 8px;
+}
+
+.import-checklist__items span.is-done {
+  background: rgba(20, 120, 80, 0.08);
+  color: #147850;
+}
+
+.import-checklist__items small {
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 620;
+  opacity: 0.78;
 }
 
 .warning-text {

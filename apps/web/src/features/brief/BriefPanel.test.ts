@@ -1,5 +1,7 @@
+import { createElement } from "react";
 import { describe, expect, it } from "vitest";
-import { parsedChips } from "./BriefPanel";
+import { renderToStaticMarkup } from "react-dom/server";
+import { BriefPanel, parsedChips } from "./BriefPanel";
 import type { BriefParseResult } from "@motion-tool/core";
 
 describe("parsedChips", () => {
@@ -24,5 +26,23 @@ describe("parsedChips", () => {
     };
 
     expect(parsedChips(result)).toEqual(["按钮", "悬停", "工作易", "转化入口", "紫色"]);
+  });
+});
+
+describe("BriefPanel", () => {
+  it("disables recommendation while the component library is still loading", () => {
+    const html = renderToStaticMarkup(
+      createElement(BriefPanel, {
+        brief: "文字入场动效",
+        parseResult: null,
+        isLoading: false,
+        isDisabled: true,
+        onBriefChange: () => {},
+        onRecommend: () => {}
+      })
+    );
+
+    expect(html).toContain("组件库加载中...");
+    expect(html).toContain('disabled=""');
   });
 });

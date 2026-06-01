@@ -79,6 +79,13 @@ function videoAnalyzerApiPlugin(): Plugin {
   };
 }
 
+export function builtinComponentChunk(id: string): string | undefined {
+  const match = id.match(/\/packages\/components-builtin\/([^/]+)\//);
+  const componentId = match?.[1];
+  if (!componentId || componentId === "src") return undefined;
+  return `builtin-${componentId}`;
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
@@ -103,9 +110,8 @@ export default defineConfig(({ mode }) => {
           // 把大体量的 WorkEasy 静态数据 / builtin 组件资源 拆到独立 chunk，避免拖慢首屏
           manualChunks(id) {
             if (id.includes("workeasyComponents.generated")) return "workeasy-data";
-            if (id.includes("/packages/components-builtin/")) {
-              return "builtin-assets";
-            }
+            const builtinChunk = builtinComponentChunk(id);
+            if (builtinChunk) return builtinChunk;
             if (id.includes("/node_modules/react") || id.includes("/node_modules/react-dom")) {
               return "react-vendor";
             }

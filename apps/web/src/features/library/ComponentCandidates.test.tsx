@@ -23,7 +23,9 @@ const component = {
         type: "color",
         default: "#6b36fa",
         status: "confirmed",
-        targets: [{ kind: "css-property", file: "source/style.css", selector: ".button", property: "background" }]
+        targets: [
+          { kind: "css-property", file: "source/style.css", selector: ".button", property: "background" }
+        ]
       }
     ]
   },
@@ -61,9 +63,31 @@ const recommendation: Recommendation = {
 };
 
 describe("ComponentCandidates", () => {
+  const loadComponentSource = async (item: MotionComponent) => item;
+
+  it("renders a helpful empty state after a parsed brief has no matches", () => {
+    const html = renderToStaticMarkup(
+      <ComponentCandidates
+        recommendations={[]}
+        components={[component]}
+        hasSearched
+        onLoadComponentSource={loadComponentSource}
+        onSelect={() => {}}
+      />
+    );
+
+    expect(html).toContain("暂未找到匹配组件");
+    expect(html).toContain("减少硬性条件");
+  });
+
   it("renders live thumbnail previews for search results", () => {
     const html = renderToStaticMarkup(
-      <ComponentCandidates recommendations={[recommendation]} components={[component]} onSelect={() => {}} />
+      <ComponentCandidates
+        recommendations={[recommendation]}
+        components={[component]}
+        onLoadComponentSource={loadComponentSource}
+        onSelect={() => {}}
+      />
     );
 
     expect(html).toContain("recommendation-preview-frame");

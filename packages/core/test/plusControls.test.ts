@@ -16,7 +16,9 @@ const manifest: MotionManifest = {
       default: 620,
       constraints: { min: 220, max: 1400, step: 20, unit: "ms" },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }
+      ]
     },
     {
       id: "easing",
@@ -24,7 +26,9 @@ const manifest: MotionManifest = {
       type: "easing",
       default: "ease-out",
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }
+      ]
     },
     {
       id: "dimOpacity",
@@ -53,7 +57,9 @@ describe("derivePlusControls", () => {
     const controls = derivePlusControls(manifest);
 
     expect(controls.map((control) => control.id)).toEqual(["speed", "easing", "intensity"]);
-    expect(controls.find((control) => control.id === "speed")?.mappedParamIds).toEqual(["transitionDuration"]);
+    expect(controls.find((control) => control.id === "speed")?.mappedParamIds).toEqual([
+      "transitionDuration"
+    ]);
     expect(controls.find((control) => control.id === "easing")?.mappedParamIds).toEqual(["easing"]);
     expect(controls.find((control) => control.id === "intensity")?.mappedParamIds).toEqual(["dimOpacity"]);
   });
@@ -63,7 +69,7 @@ describe("derivePlusControls", () => {
     expect(controls).toEqual([]);
   });
 
-  it("does not classify trajectory distance as first-phase intensity", () => {
+  it("classifies trajectory distance separately from intensity", () => {
     const controls = derivePlusControls({
       ...manifest,
       params: [
@@ -74,12 +80,15 @@ describe("derivePlusControls", () => {
           default: 1118,
           constraints: { min: 0, max: 1400, step: 1, unit: "px" },
           status: "confirmed",
-          targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--slide-distance" }]
+          targets: [
+            { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--slide-distance" }
+          ]
         }
       ]
     });
 
-    expect(controls).toEqual([]);
+    expect(controls.map((control) => control.id)).toEqual(["trajectory"]);
+    expect(controls[0]?.mappedParamIds).toEqual(["slideDistance"]);
   });
 });
 
@@ -134,7 +143,9 @@ describe("compilePlusPatch", () => {
             ]
           },
           status: "confirmed",
-          targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }]
+          targets: [
+            { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }
+          ]
         }
       ]
     };
@@ -145,5 +156,45 @@ describe("compilePlusPatch", () => {
     });
 
     expect(result.values.easing).toBe("ease-out");
+  });
+
+  it("compiles trajectory and rhythm controls into bounded values", () => {
+    const result = compilePlusPatch({
+      manifest: {
+        ...manifest,
+        params: [
+          {
+            id: "slideDistance",
+            label: "滑动距离",
+            type: "range",
+            default: 300,
+            constraints: { min: 100, max: 500, step: 10, unit: "px" },
+            status: "confirmed",
+            targets: [
+              { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--slide-distance" }
+            ]
+          },
+          {
+            id: "startDelay",
+            label: "开始延迟",
+            type: "duration",
+            default: 200,
+            constraints: { min: 0, max: 800, step: 20, unit: "ms" },
+            status: "confirmed",
+            targets: [
+              { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--start-delay" }
+            ]
+          }
+        ]
+      },
+      plusValues: {
+        trajectory: { option: "short", amount: 50 },
+        rhythm: { option: "tight", amount: 50 }
+      }
+    });
+
+    expect(result.values.slideDistance).toBe(230);
+    expect(result.values.startDelay).toBe(160);
+    expect(result.affectedParamIds).toEqual(["slideDistance", "startDelay"]);
   });
 });

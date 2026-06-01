@@ -4,6 +4,7 @@ type Props = {
   brief: string;
   parseResult: BriefParseResult | null;
   isLoading: boolean;
+  isDisabled?: boolean;
   onBriefChange: (brief: string) => void;
   onBriefFocus?: () => void;
   onRecommend: () => void;
@@ -23,7 +24,15 @@ export function parsedChips(parseResult: BriefParseResult | null): string[] {
   return displayLabels(terms).slice(0, 8);
 }
 
-export function BriefPanel({ brief, parseResult, isLoading, onBriefChange, onBriefFocus, onRecommend }: Props) {
+export function BriefPanel({
+  brief,
+  parseResult,
+  isLoading,
+  isDisabled = false,
+  onBriefChange,
+  onBriefFocus,
+  onRecommend
+}: Props) {
   const chips = parsedChips(parseResult);
 
   return (
@@ -42,8 +51,13 @@ export function BriefPanel({ brief, parseResult, isLoading, onBriefChange, onBri
           onFocus={onBriefFocus}
           rows={5}
         />
-        <button className="ai-recommend-button" type="button" onClick={onRecommend} disabled={isLoading}>
-          {isLoading ? "正在推荐..." : "生成推荐"}
+        <button
+          className="ai-recommend-button"
+          type="button"
+          onClick={onRecommend}
+          disabled={isLoading || isDisabled}
+        >
+          {isDisabled ? "组件库加载中..." : isLoading ? "正在推荐..." : "生成推荐"}
         </button>
         {parseResult ? (
           <div className="status-grid" aria-label="需求解析状态">

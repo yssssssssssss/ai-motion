@@ -1,11 +1,14 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { MotionComponent, Recommendation } from "@motion-tool/core";
 import { renderPreviewHtml } from "../editor/previewHtml";
 import { createEmptyPatch } from "../../state/projectStore";
+import { hasRenderableSource } from "./sourceState";
 
 type Props = {
   recommendations: Recommendation[];
   components: MotionComponent[];
+  hasSearched?: boolean;
+  onLoadComponentSource: (component: MotionComponent) => Promise<MotionComponent>;
   onSelect: (componentId: string) => void;
 };
 
@@ -31,7 +34,9 @@ function componentKind(component: MotionComponent | undefined): string {
 }
 
 function isReadOnly(component: MotionComponent | undefined): boolean {
-  return Boolean(component && (component.tags.includes("read-only") || component.manifest.params.length === 0));
+  return Boolean(
+    component && (component.tags.includes("read-only") || component.manifest.params.length === 0)
+  );
 }
 
 function componentPreviewHtml(component: MotionComponent): string {
@@ -43,9 +48,71 @@ function componentPreviewHtml(component: MotionComponent): string {
   });
 }
 
-export function ComponentCandidates({ recommendations, components, onSelect }: Props) {
-  const componentById = useMemo(() => new Map(components.map((component) => [component.id, component])), [components]);
-  if (recommendations.length === 0) return null;
+function RecommendationPreview({
+  component,
+  onLoadComponentSource
+}: {
+  component: MotionComponent;
+  onLoadComponentSource: (component: MotionComponent) => Promise<MotionComponent>;
+}) {
+  const [hydratedComponent, setHydratedComponent] = useState(component);
+
+  useEffect(() => {
+    setHydratedComponent(component);
+  }, [component]);
+
+  useEffect(() => {
+    if (hasRenderableSource(hydratedComponent)) return;
+    let ignore = false;
+    onLoadComponentSource(hydratedComponent).then((loaded) => {
+      if (!ignore) setHydratedComponent(loaded);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [hydratedComponent, onLoadComponentSource]);
+
+  return (
+    <div className={`recommendation-preview ${componentKind(component)}`}>
+      {hasRenderableSource(hydratedComponent) ? (
+        <iframe
+          className="recommendation-preview-frame"
+          loading="lazy"
+          sandbox="allow-scripts"
+          srcDoc={componentPreviewHtml(hydratedComponent)}
+          title={`${hydratedComponent.name} 搜索结果预览`}
+        />
+      ) : (
+        <span className="feed-preview-placeholder" aria-label={`${component.name} 搜索结果预览加载占位`} />
+      )}
+    </div>
+  );
+}
+
+export function ComponentCandidates({
+  recommendations,
+  components,
+  hasSearched = false,
+  onLoadComponentSource,
+  onSelect
+}: Props) {
+  const componentById = useMemo(
+    () => new Map(components.map((component) => [component.id, component])),
+    [components]
+  );
+  if (recommendations.length === 0) {
+    if (!hasSearched) return null;
+
+    return (
+      <section className="recommendation-empty" id="recommend" aria-label="智能推荐结果为空">
+        <p className="eyebrow">智能推荐结果</p>
+        <h2>暂未找到匹配组件</h2>
+        <p className="muted">
+          当前组件库没有满足这些条件的动效。可以减少硬性条件，换一种组件类型，或上传新的动效案例。
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="recommendation-strip" id="recommend" aria-label="智能推荐组件">
@@ -64,15 +131,7 @@ export function ComponentCandidates({ recommendations, components, onSelect }: P
               key={item.componentId}
             >
               {component ? (
-                <div className={`recommendation-preview ${componentKind(component)}`}>
-                  <iframe
-                    className="recommendation-preview-frame"
-                    loading="lazy"
-                    sandbox="allow-scripts"
-                    srcDoc={componentPreviewHtml(component)}
-                    title={`${component.name} 搜索结果预览`}
-                  />
-                </div>
+                <RecommendationPreview component={component} onLoadComponentSource={onLoadComponentSource} />
               ) : null}
               <div className="recommendation-body">
                 <strong>{component?.name ?? item.componentId}</strong>

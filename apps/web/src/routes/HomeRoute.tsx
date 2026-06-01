@@ -9,27 +9,39 @@ import {
 import { BriefPanel } from "../features/brief/BriefPanel";
 import { ComponentCandidates } from "../features/library/ComponentCandidates";
 import { ComponentFeed } from "../features/library/ComponentFeed";
-import { ImportPanel } from "../features/import/ImportPanel";
 import { ConfirmParamsPanel } from "../features/import/ConfirmParamsPanel";
+import { ConfirmLayersPanel } from "../features/import/ConfirmLayersPanel";
+import { DesignSpecSelect } from "../features/import/DesignSpecSelect";
+import { ImportChecklistPanel } from "../features/import/ImportChecklistPanel";
 import { UploadMetadataPanel } from "../features/import/UploadMetadataPanel";
-import { VideoMotionPanel } from "../features/import/VideoMotionPanel";
+import { UnifiedUploadPanel } from "../features/import/UnifiedUploadPanel";
 import { parseBrief } from "../services/briefParserClient";
 
-type ImportPhase = "idle" | "confirm-params" | "fill-metadata";
+type ImportPhase = "idle" | "confirm-params" | "confirm-layers" | "fill-metadata";
 
 type HomeRouteProps = {
   components: MotionComponent[];
+  isLibraryLoading?: boolean;
   restoreComponentId?: string | null;
   onSelectComponent: (componentId: string) => void;
+  onLoadComponentSource: (component: MotionComponent) => Promise<MotionComponent>;
   onRestoreComplete?: () => void;
   importFlow: {
     phase: ImportPhase;
     importWarnings: import("@motion-tool/core").ImportWarning[];
     suggestedParams: import("@motion-tool/core").MotionParam[];
     selectedParamIds: Set<string>;
+    suggestedLayers: import("@motion-tool/core").MotionLayer[];
+    selectedReplaceableLayerIds: Set<string>;
+    selectedDesignSpecId: string | null;
+    metadataDefaults: MotionComponentMetadata | null;
     importFiles: (files: Record<string, string>) => void;
+    importComponentDraft: (component: MotionComponent) => void;
     toggleParam: (id: string) => void;
+    toggleLayer: (id: string) => void;
+    setSelectedDesignSpecId: (id: string | null) => void;
     confirmParams: () => void;
+    confirmLayers: () => void;
     submitMetadata: (metadata: MotionComponentMetadata) => MotionComponent | null;
     cancelImport: () => void;
   };
@@ -40,8 +52,10 @@ const DEFAULT_BRIEF = "我想要一个适合软件服务首页的文字入场动
 
 export function HomeRoute({
   components,
+  isLibraryLoading = false,
   restoreComponentId,
   onSelectComponent,
+  onLoadComponentSource,
   onRestoreComplete,
   importFlow,
   onComponentAdded
@@ -85,11 +99,6 @@ export function HomeRoute({
     }
   }
 
-  function handleVideoComponentReady(component: MotionComponent) {
-    setIsUploadOpen(false);
-    onComponentAdded(component);
-  }
-
   function openUploadDialog() {
     setIsUploadOpen(true);
   }
@@ -114,6 +123,7 @@ export function HomeRoute({
         brief={brief}
         parseResult={parseResult}
         isLoading={isRecommending}
+        isDisabled={isLibraryLoading}
         onBriefChange={updateBrief}
         onBriefFocus={clearDefaultBrief}
         onRecommend={runRecommend}
@@ -121,11 +131,15 @@ export function HomeRoute({
       <ComponentCandidates
         recommendations={recommendations}
         components={components}
+        hasSearched={parseResult !== null}
+        onLoadComponentSource={onLoadComponentSource}
         onSelect={onSelectComponent}
       />
       <ComponentFeed
         components={components}
+        isLoading={isLibraryLoading}
         aiMatchIds={aiMatchIds}
+        onLoadComponentSource={onLoadComponentSource}
         restoreComponentId={restoreComponentId}
         onSelect={onSelectComponent}
         onRestoreComplete={onRestoreComplete}
@@ -154,14 +168,20 @@ export function HomeRoute({
               </button>
             </div>
             {importFlow.phase === "idle" && (
-              <div className="upload-options">
-                <VideoMotionPanel onComponentReady={handleVideoComponentReady} />
-                <div className="upload-divider" />
-                <ImportPanel onImport={importFlow.importFiles} disabled={false} compact />
-              </div>
+              <UnifiedUploadPanel
+                onImportFiles={importFlow.importFiles}
+                onVideoComponentReady={importFlow.importComponentDraft}
+              />
             )}
             {importFlow.phase === "confirm-params" && (
               <>
+                <ImportChecklistPanel
+                  phase={importFlow.phase}
+                  hasPreview
+                  layerCount={importFlow.suggestedLayers.length}
+                  confirmedParamCount={importFlow.selectedParamIds.size}
+                  selectedDesignSpecId={importFlow.selectedDesignSpecId}
+                />
                 {importFlow.importWarnings.length > 0 && (
                   <div className="import-warnings">
                     {importFlow.importWarnings.map((warning, index) => (
@@ -179,8 +199,33 @@ export function HomeRoute({
                 />
               </>
             )}
+            {importFlow.phase === "confirm-layers" && (
+              <>
+                <ImportChecklistPanel
+                  phase={importFlow.phase}
+                  hasPreview
+                  layerCount={importFlow.suggestedLayers.length}
+                  confirmedParamCount={importFlow.selectedParamIds.size}
+                  selectedDesignSpecId={importFlow.selectedDesignSpecId}
+                />
+                <DesignSpecSelect
+                  value={importFlow.selectedDesignSpecId}
+                  onChange={importFlow.setSelectedDesignSpecId}
+                />
+                <ConfirmLayersPanel
+                  layers={importFlow.suggestedLayers}
+                  selectedReplaceableLayerIds={importFlow.selectedReplaceableLayerIds}
+                  onToggle={importFlow.toggleLayer}
+                  onConfirm={importFlow.confirmLayers}
+                />
+              </>
+            )}
             {importFlow.phase === "fill-metadata" && (
-              <UploadMetadataPanel onSubmit={handleMetadataSubmit} onCancel={closeUploadDialog} />
+              <UploadMetadataPanel
+                initialMetadata={importFlow.metadataDefaults ?? undefined}
+                onSubmit={handleMetadataSubmit}
+                onCancel={closeUploadDialog}
+              />
             )}
           </div>
         </div>

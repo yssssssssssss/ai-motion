@@ -405,6 +405,18 @@ function createManifest(input: CreateVideoMotionComponentDraftInput, params: Mot
       },
       { id: "appearance", label: "外观", params: ["layerOpacity", "cornerRadius", "posterImage"] }
     ],
+    layers: [
+      {
+        id: "posterImage",
+        label: "视频画面",
+        kind: "image",
+        replaceable: true,
+        paramId: "posterImage",
+        targets: [
+          { kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--video-poster" }
+        ]
+      }
+    ],
     capabilities: ["imported", "editable", "export-html"]
   };
 }

@@ -108,9 +108,17 @@
     for (const animation of activeAnimations) animation.pause();
   }
 
+  function seek(progress) {
+    const cycleDuration = Math.max(800, readMs("--cycle-duration", 3000));
+    const nextProgress = clamp(Number(progress) || 0, 0, 1);
+    if (activeAnimations.length === 0) buildAnimation();
+    for (const animation of activeAnimations) animation.currentTime = cycleDuration * nextProgress;
+  }
+
   window.motionReplay = replay;
   window.motionPlay = play;
   window.motionPause = pause;
+  window.motionSeek = seek;
   root.addEventListener("click", replay);
   requestAnimationFrame(replay);
 })();

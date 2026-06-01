@@ -9,6 +9,8 @@ import {
 import { ParameterPanel } from "../features/editor/ParameterPanel";
 import { ParameterModeTabs, type ParameterMode } from "../features/editor/ParameterModeTabs";
 import { PlusControlPanel } from "../features/editor/PlusControlPanel";
+import { LayerReplacementPanel } from "../features/editor/LayerReplacementPanel";
+import { ReadinessDiagnosisPanel } from "../features/editor/ReadinessDiagnosisPanel";
 import { PreviewFrame, type PreviewPlaybackState } from "../features/editor/PreviewFrame";
 import { ExportPanel } from "../features/export/ExportPanel";
 import type { MotionProject } from "../state/projectStore";
@@ -25,6 +27,7 @@ export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetP
   const [playbackState, setPlaybackState] = useState<PreviewPlaybackState>("playing");
   const [parameterMode, setParameterMode] = useState<ParameterMode>("plus");
   const [plusValues, setPlusValues] = useState<PlusPatchValues>({});
+  const [replayToken, setReplayToken] = useState(0);
   const isReadOnly = Boolean(project && project.manifest.params.length === 0);
   const plusControls = useMemo(() => (project ? derivePlusControls(project.manifest) : []), [project]);
   const plusPatchResult = useMemo(
@@ -53,6 +56,7 @@ export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetP
 
   function replayFromStart() {
     setPlaybackState("playing");
+    setReplayToken((current) => current + 1);
     onReplay();
   }
 
@@ -99,12 +103,21 @@ export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetP
           manifest={project?.manifest ?? null}
           patch={project?.patch ?? null}
           playbackState={playbackState}
+          replayToken={replayToken}
         />
         <div className="preview-controls" aria-label="播放和导出控制">
-          <button type="button" onClick={() => setPlaybackState("playing")} disabled={playbackState === "playing"}>
+          <button
+            type="button"
+            onClick={() => setPlaybackState("playing")}
+            disabled={playbackState === "playing"}
+          >
             播放
           </button>
-          <button type="button" onClick={() => setPlaybackState("paused")} disabled={playbackState === "paused"}>
+          <button
+            type="button"
+            onClick={() => setPlaybackState("paused")}
+            disabled={playbackState === "paused"}
+          >
             暂停
           </button>
           <button type="button" onClick={replayFromStart}>
@@ -147,6 +160,27 @@ export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetP
                 {...(onResetParams ? { onReset: resetAllParams } : {})}
               />
             )}
+            <LayerReplacementPanel
+              manifest={project?.manifest ?? null}
+              patch={project?.patch ?? null}
+              onChange={updateProParam}
+            />
+            <ReadinessDiagnosisPanel
+              component={
+                project
+                  ? {
+                      id: project.manifest.id,
+                      name: project.manifest.name,
+                      category: "layout",
+                      tags: [],
+                      useCases: [],
+                      moods: [],
+                      manifest: project.manifest,
+                      source: project.source
+                    }
+                  : null
+              }
+            />
           </>
         )}
       </aside>

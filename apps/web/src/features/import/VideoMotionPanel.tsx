@@ -193,6 +193,32 @@ export async function inspectUpload(file: File, dataUrl: string): Promise<Upload
   }
 }
 
+export async function createVideoMotionComponentFromFile(file: File): Promise<MotionComponent> {
+  const dataUrl = await readAsDataUrl(file);
+  const upload = await inspectUpload(file, dataUrl);
+  const id = `video-${Date.now()}`;
+  const videoInput: UploadedVideoInput = {
+    fileName: file.name,
+    mimeType: file.type || "video/mp4",
+    dataUrl,
+    posterDataUrl: upload.posterDataUrl
+  };
+
+  if (upload.width !== undefined) videoInput.width = upload.width;
+  if (upload.height !== undefined) videoInput.height = upload.height;
+  if (upload.durationMs !== undefined) videoInput.durationMs = upload.durationMs;
+  if (upload.fps !== undefined) videoInput.fps = upload.fps;
+  if (upload.frames !== undefined) videoInput.frames = upload.frames;
+  if (upload.contactSheetDataUrl !== undefined) videoInput.contactSheetDataUrl = upload.contactSheetDataUrl;
+  if (upload.motionHints !== undefined) videoInput.motionHints = upload.motionHints;
+
+  return createVideoMotionComponentDraft({
+    id,
+    name: componentName(file),
+    video: videoInput
+  }).component;
+}
+
 export function VideoMotionPanel({ onComponentReady }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<string>("等待上传视频");
@@ -204,33 +230,9 @@ export function VideoMotionPanel({ onComponentReady }: Props) {
     setIsProcessing(true);
     setStatus("正在读取视频并生成首版代码动效...");
     try {
-      const dataUrl = await readAsDataUrl(file);
-      const upload = await inspectUpload(file, dataUrl);
-      const id = `video-${Date.now()}`;
-      const videoInput: UploadedVideoInput = {
-        fileName: file.name,
-        mimeType: file.type || "video/mp4",
-        dataUrl,
-        posterDataUrl: upload.posterDataUrl
-      };
-
-      if (upload.width !== undefined) videoInput.width = upload.width;
-      if (upload.height !== undefined) videoInput.height = upload.height;
-      if (upload.durationMs !== undefined) videoInput.durationMs = upload.durationMs;
-      if (upload.fps !== undefined) videoInput.fps = upload.fps;
-      if (upload.frames !== undefined) videoInput.frames = upload.frames;
-      if (upload.contactSheetDataUrl !== undefined)
-        videoInput.contactSheetDataUrl = upload.contactSheetDataUrl;
-      if (upload.motionHints !== undefined) videoInput.motionHints = upload.motionHints;
-
-      const draft = createVideoMotionComponentDraft({
-        id,
-        name: componentName(file),
-        video: videoInput
-      });
-
-      setStatus(draft.job.message);
-      onComponentReady(draft.component);
+      const component = await createVideoMotionComponentFromFile(file);
+      setStatus("代码动效已生成");
+      onComponentReady(component);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "视频生成失败");
     } finally {
