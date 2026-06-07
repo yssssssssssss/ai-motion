@@ -3,8 +3,9 @@ import { HomeRoute } from "./routes/HomeRoute";
 import { EditorRoute } from "./routes/EditorRoute";
 import { useProject } from "./state/useProject";
 import { useImportFlow } from "./state/useImportFlow";
-import type { MotionComponent } from "@motion-tool/core";
+import { applyMotionRecipeToComponent, applyPatchToFiles, type MotionComponent } from "@motion-tool/core";
 import { hasRenderableSource } from "./features/library/sourceState";
+import type { MotionProject } from "./state/projectStore";
 
 async function loadInitialComponents(): Promise<MotionComponent[]> {
   const [{ loadBuiltinComponents }, { workEasyComponents }] = await Promise.all([
@@ -26,6 +27,32 @@ function mergeComponents(base: MotionComponent[], additions: MotionComponent[]):
   return [...base, ...additions.filter((component) => !seen.has(component.id))];
 }
 
+function componentFromProject(component: MotionComponent, project: MotionProject): MotionComponent {
+  const sourceFiles = Object.fromEntries(project.source.files.map((file) => [file.path, file.content]));
+  const patchedFiles = applyPatchToFiles({
+    files: sourceFiles,
+    manifest: project.manifest,
+    patch: project.patch
+  });
+
+  return {
+    ...component,
+    source: {
+      ...project.source,
+      files: project.source.files.map((file) => ({
+        ...file,
+        content: patchedFiles[file.path] ?? file.content
+      }))
+    },
+    manifest: {
+      ...project.manifest,
+      params: project.manifest.params.map((param) =>
+        param.id in project.patch.values ? { ...param, value: project.patch.values[param.id] } : param
+      )
+    }
+  };
+}
+
 type View = "home" | "editor";
 
 export function App() {
@@ -34,6 +61,8 @@ export function App() {
   const [isLibraryLoading, setIsLibraryLoading] = useState(true);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [restoreComponentId, setRestoreComponentId] = useState<string | null>(null);
+  const [generatedDraftComponent, setGeneratedDraftComponent] = useState<MotionComponent | null>(null);
+  const [isGeneratedEditorOpen, setIsGeneratedEditorOpen] = useState(false);
   const { project, startProject, updateParam, replay, resetParams } = useProject();
   const importFlow = useImportFlow();
 
@@ -88,6 +117,52 @@ export function App() {
     setView("editor");
   }
 
+  function closeGeneratedEditor() {
+    setIsGeneratedEditorOpen(false);
+    setGeneratedDraftComponent(null);
+  }
+
+  function saveGeneratedComponent() {
+    if (!generatedDraftComponent || !project) return;
+
+    const savedComponent = componentFromProject(generatedDraftComponent, project);
+    setComponents((current) => mergeComponents(current, [savedComponent]));
+    setSelectedComponentId(savedComponent.id);
+    setRestoreComponentId(savedComponent.id);
+    closeGeneratedEditor();
+  }
+
+  function handleGeneratedComponentReady(component: MotionComponent) {
+    setGeneratedDraftComponent(component);
+    setRestoreComponentId(null);
+    startProject(component.source, component.manifest);
+    setIsGeneratedEditorOpen(true);
+  }
+
+  function currentProjectComponent(): MotionComponent | null {
+    if (!project) return null;
+    const base =
+      generatedDraftComponent ??
+      components.find((component) => component.id === selectedComponentId) ??
+      null;
+    if (!base) return null;
+    return componentFromProject(base, project);
+  }
+
+  async function applyCurrentRecipeToTarget(targetComponentId: string, targetLayerId: string) {
+    const sourceComponent = currentProjectComponent();
+    const targetComponentBase = components.find((component) => component.id === targetComponentId);
+    if (!sourceComponent || !targetComponentBase) return;
+    const targetComponent = await hydrateComponent(targetComponentBase);
+    const generated = applyMotionRecipeToComponent({
+      sourceComponent,
+      targetComponent,
+      targetLayerId,
+      id: `generated-recipe-${sourceComponent.id}-to-${targetComponent.id}-${Date.now()}`
+    });
+    handleGeneratedComponentReady(generated);
+  }
+
   if (view === "editor") {
     return (
       <EditorRoute
@@ -96,20 +171,48 @@ export function App() {
         onParamChange={updateParam}
         onReplay={replay}
         onResetParams={resetParams}
+        recipeTargetComponents={components.filter((component) => component.id !== selectedComponentId)}
+        onApplyRecipeToTarget={applyCurrentRecipeToTarget}
       />
     );
   }
 
   return (
-    <HomeRoute
-      components={components}
-      isLibraryLoading={isLibraryLoading}
-      restoreComponentId={restoreComponentId}
-      onSelectComponent={selectComponent}
-      onLoadComponentSource={hydrateComponent}
-      onRestoreComplete={clearRestoreComponentId}
-      importFlow={importFlow}
-      onComponentAdded={handleComponentAdded}
-    />
+    <>
+      <HomeRoute
+        components={components}
+        isLibraryLoading={isLibraryLoading}
+        restoreComponentId={restoreComponentId}
+        onSelectComponent={selectComponent}
+        onLoadComponentSource={hydrateComponent}
+        onRestoreComplete={clearRestoreComponentId}
+        importFlow={importFlow}
+        onComponentAdded={handleComponentAdded}
+        onGeneratedComponentReady={handleGeneratedComponentReady}
+      />
+      {isGeneratedEditorOpen ? (
+        <div
+          className="generated-editor-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="生成组件编辑器"
+        >
+          <div className="generated-editor-modal">
+            <EditorRoute
+              project={project}
+              variant="modal"
+              onBack={closeGeneratedEditor}
+              onParamChange={updateParam}
+              onReplay={replay}
+              onResetParams={resetParams}
+              recipeTargetComponents={components.filter((component) => component.id !== generatedDraftComponent?.id)}
+              onApplyRecipeToTarget={applyCurrentRecipeToTarget}
+              onSave={saveGeneratedComponent}
+              saveLabel="保存组件"
+            />
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -6,7 +6,8 @@ const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url)
 const home = readFileSync(new URL("../src/styles/home.css", import.meta.url), "utf8");
 const base = readFileSync(new URL("../src/styles/base.css", import.meta.url), "utf8");
 const editor = readFileSync(new URL("../src/styles/editor.css", import.meta.url), "utf8");
-const styles = `${tokens}\n${base}\n${home}\n${editor}`;
+const motion = readFileSync(new URL("../src/styles/motion.css", import.meta.url), "utf8");
+const styles = `${tokens}\n${base}\n${home}\n${editor}\n${motion}`;
 
 describe("ComponentFeed styles", () => {
   it("uses a restrained neutral palette with one action blue", () => {
@@ -36,8 +37,23 @@ describe("ComponentFeed styles", () => {
     expect(styles).toMatch(/\.recommendation-strip,\s*\.feed-panel\s*{[^}]*padding:\s*62px 0 18px/s);
   });
 
+  it("keeps recommendation and generation tab entry timing aligned", () => {
+    expect(styles).toMatch(/\.brief-stack\s*{[^}]*animation:\s*hero-rise 720ms ease-out both/s);
+    expect(styles).toMatch(
+      /\.brief-stack\.is-generate-stack\s*{[^}]*animation:\s*hero-rise 720ms ease-out both/s
+    );
+    expect(styles).toMatch(/\.background-gradient-animation\s*{[^}]*transition:\s*opacity 720ms ease/s);
+    expect(styles).not.toContain("sci-panel-enter");
+  });
+
   it("keeps primary button text readable while hovering", () => {
     expect(styles).toMatch(/\.primary-action:hover:not\(:disabled\)\s*{[^}]*background:\s*#000000/s);
     expect(styles).toMatch(/\.primary-action:hover:not\(:disabled\)\s*{[^}]*color:\s*#ffffff/s);
+  });
+
+  it("uses a black upload button in the home header", () => {
+    expect(styles).toMatch(/\.home-upload-button\s*{[^}]*background:\s*#050505/s);
+    expect(styles).toMatch(/\.home-upload-button\s*{[^}]*color:\s*#ffffff/s);
+    expect(styles).toMatch(/\.home-upload-button:hover:not\(:disabled\)\s*{[^}]*background:\s*#000000/s);
   });
 });

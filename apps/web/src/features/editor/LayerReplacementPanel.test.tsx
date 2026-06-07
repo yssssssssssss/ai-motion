@@ -43,6 +43,31 @@ const manifest: MotionManifest = {
       replaceable: true,
       paramId: "heroImage",
       targets: [{ kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--hero-image" }]
+    },
+    {
+      id: "backgroundLayer",
+      label: "背景结构层",
+      kind: "structure",
+      replaceable: true,
+      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=backgroundLayer]", attribute: "class" }]
+    },
+    {
+      id: "screenLayer",
+      label: "页面结构层",
+      kind: "structure",
+      replaceable: true,
+      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=screenLayer]", attribute: "class" }]
+    }
+  ],
+  motionRecipes: [
+    {
+      recipeId: "float-loop",
+      recipeName: "漂浮循环",
+      category: "loop",
+      targetLayerIds: ["poster-layer", "backgroundLayer", "screenLayer"],
+      targetRoles: ["background", "screen"],
+      paramIds: ["duration"],
+      trigger: "loop"
     }
   ]
 };
@@ -61,7 +86,11 @@ describe("LayerReplacementPanel", () => {
 
     expect(html).toContain("图层替换");
     expect(html).toContain("主视觉层");
+    expect(html).toContain("动效目标：背景图层 / 页面层");
     expect(html).toContain("标题");
+    expect(html).toContain("背景结构层");
+    expect(html).toContain("页面结构层");
+    expect(html).toContain("背景图层 / 页面层");
     expect(html).not.toContain("时长");
   });
 
@@ -69,7 +98,11 @@ describe("LayerReplacementPanel", () => {
     const patch: MotionPatch = { id: "patch", sourceManifestId: "layered", values: {} };
     expect(
       renderToStaticMarkup(
-        <LayerReplacementPanel manifest={{ ...manifest, params: [] }} patch={patch} onChange={vi.fn()} />
+        <LayerReplacementPanel
+          manifest={{ ...manifest, params: [], motionRecipes: [], layers: [] }}
+          patch={patch}
+          onChange={vi.fn()}
+        />
       )
     ).toBe("");
   });

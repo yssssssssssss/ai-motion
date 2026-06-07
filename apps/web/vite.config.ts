@@ -79,6 +79,58 @@ function videoAnalyzerApiPlugin(): Plugin {
   };
 }
 
+function controlledGenerationApiPlugin(): Plugin {
+  return {
+    name: "controlled-generation-api",
+    configureServer(server) {
+      server.middlewares.use("/api/generation/controlled", async (req, res) => {
+        const { createControlledGenerationHandler } = await server.ssrLoadModule<
+          typeof import("./src/dev-api/controlledGenerationRoute")
+        >("/src/dev-api/controlledGenerationRoute.ts");
+        await createControlledGenerationHandler()(req, res);
+      });
+    },
+    async configurePreviewServer(server) {
+      const { createControlledGenerationHandler } = await import("./src/dev-api/controlledGenerationRoute");
+      const handler = createControlledGenerationHandler();
+
+      server.middlewares.use("/api/generation/controlled", (req, res) => {
+        void handler(req, res);
+      });
+    }
+  };
+}
+
+function referenceGuidedGenerationApiPlugin(env: Record<string, string>): Plugin {
+  return {
+    name: "reference-guided-generation-api",
+    configureServer(server) {
+      server.middlewares.use("/api/generation/reference-guided", async (req, res) => {
+        const { createReferenceGuidedGenerationHandler } = await server.ssrLoadModule<
+          typeof import("./src/dev-api/referenceGuidedGenerationRoute")
+        >("/src/dev-api/referenceGuidedGenerationRoute.ts");
+        await createReferenceGuidedGenerationHandler({
+          apiKey: envValue(env, "OPENAI_API_KEY"),
+          apiBaseUrl: envValue(env, "OPENAI_BASE_URL"),
+          model: envValue(env, "OPENAI_GENERATION_MODEL")
+        })(req, res);
+      });
+    },
+    async configurePreviewServer(server) {
+      const { createReferenceGuidedGenerationHandler } = await import("./src/dev-api/referenceGuidedGenerationRoute");
+      const handler = createReferenceGuidedGenerationHandler({
+        apiKey: envValue(env, "OPENAI_API_KEY"),
+        apiBaseUrl: envValue(env, "OPENAI_BASE_URL"),
+        model: envValue(env, "OPENAI_GENERATION_MODEL")
+      });
+
+      server.middlewares.use("/api/generation/reference-guided", (req, res) => {
+        void handler(req, res);
+      });
+    }
+  };
+}
+
 export function builtinComponentChunk(id: string): string | undefined {
   const match = id.match(/\/packages\/components-builtin\/([^/]+)\//);
   const componentId = match?.[1];
@@ -90,7 +142,13 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
-    plugins: [react(), briefParserApiPlugin(env), videoAnalyzerApiPlugin()],
+    plugins: [
+      react(),
+      briefParserApiPlugin(env),
+      videoAnalyzerApiPlugin(),
+      controlledGenerationApiPlugin(),
+      referenceGuidedGenerationApiPlugin(env)
+    ],
     server: {
       host: DEV_HOST,
       port: DEV_PORT,

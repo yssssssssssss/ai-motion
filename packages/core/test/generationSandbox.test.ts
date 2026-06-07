@@ -134,6 +134,32 @@ describe("generated component sandbox", () => {
     expect(generationFailureFallback(result).action).toBe("edit-candidates");
   });
 
+  it("blocks external resource URLs in generated source", () => {
+    const unsafe = {
+      ...component,
+      source: {
+        ...component.source,
+        files: [
+          ...component.source.files,
+          {
+            path: "source/remote.css",
+            kind: "css" as const,
+            content: '.hero { background-image: url("https://example.com/image.png"); }'
+          }
+        ]
+      }
+    };
+    const result = validateGeneratedComponent({
+      component: unsafe,
+      allowed: { paramIds: ["duration"], layerIds: [], sourceFiles: ["source/style.css"] },
+      beforeFiles: { "source/style.css": "" },
+      afterFiles: { "source/remote.css": '.hero { background-image: url("https://example.com/image.png"); }' }
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.checks.some((check) => check.id === "source-whitelist" && check.status === "fail")).toBe(true);
+  });
+
   it("defines minimal conversion protocols for supported upload types", () => {
     expect(conversionProtocols.map((item) => item.sourceKind)).toEqual([
       "video",

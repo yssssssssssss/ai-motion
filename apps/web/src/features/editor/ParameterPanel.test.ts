@@ -54,4 +54,56 @@ describe("groupParameters", () => {
 
     expect(groups.flatMap((group) => group.params.map((param) => param.id))).toEqual(["duration"]);
   });
+
+  it("groups motion recipe params by recipe control category first", () => {
+    const groups = groupParameters({
+      version: "1.0",
+      id: "recipe",
+      name: "Recipe",
+      sourceKind: "builtin-component",
+      runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+      motionRecipes: [
+        {
+          recipeId: "float-loop",
+          recipeName: "漂浮循环",
+          category: "loop",
+          targetLayerIds: ["backgroundLayer"],
+          targetRoles: ["background"],
+          paramIds: ["floatDuration", "floatAmplitude"],
+          trigger: "loop"
+        }
+      ],
+      params: [
+        {
+          id: "floatDuration",
+          label: "漂浮周期",
+          type: "duration",
+          default: 3200,
+          status: "confirmed",
+          targets: [],
+          ui: { group: "时间" }
+        },
+        {
+          id: "floatAmplitude",
+          label: "漂浮幅度",
+          type: "range",
+          default: 22,
+          status: "confirmed",
+          targets: [],
+          ui: { group: "轨迹" }
+        },
+        {
+          id: "pageBackgroundColor",
+          label: "页面背景色",
+          type: "color",
+          default: "#ffffff",
+          status: "confirmed",
+          targets: []
+        }
+      ]
+    });
+
+    expect(groups.map((group) => group.label)).toEqual(["时间", "轨迹", "外观"]);
+    expect(groups[0]?.params.map((param) => param.id)).toEqual(["floatDuration"]);
+  });
 });

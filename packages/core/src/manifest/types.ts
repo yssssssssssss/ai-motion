@@ -79,6 +79,19 @@ export type MotionDesignSpecBinding = {
   required?: boolean;
 };
 
+export type MotionRecipeBinding = {
+  recipeId: string;
+  recipeName?: string;
+  category?: "entrance" | "feedback" | "transition" | "loop";
+  targetLayerIds: string[];
+  targetRoles?: string[];
+  targetSelectors?: string[];
+  paramIds: string[];
+  trigger: "load" | "hover" | "click" | "loop";
+  source?: "builtin" | "extracted" | "model" | "fallback";
+  confidence?: number;
+};
+
 export type MotionLayerKind = "image" | "text" | "structure";
 
 export type MotionLayer = {
@@ -114,6 +127,7 @@ export type MotionManifest = {
   params: MotionParam[];
   groups?: MotionParamGroup[];
   designSpecs?: MotionDesignSpecBinding[];
+  motionRecipes?: MotionRecipeBinding[];
   layers?: MotionLayer[];
   presets?: MotionPreset[];
   capabilities?: MotionCapability[];

@@ -39,8 +39,12 @@ function sourceText(component: MotionComponent): string {
 }
 
 function hasUnsafeSource(component: MotionComponent): boolean {
-  return /\bfetch\s*\(|\bXMLHttpRequest\b|\bdocument\.cookie\b|\beval\s*\(|\bnew\s+Function\s*\(/i.test(
-    sourceText(component)
+  const text = sourceText(component);
+  return (
+    /\bfetch\s*\(|\bXMLHttpRequest\b|\bdocument\.cookie\b|\beval\s*\(|\bnew\s+Function\s*\(/i.test(text) ||
+    /\b(?:src|href)\s*=\s*["']https?:\/\//i.test(text) ||
+    /\burl\(\s*["']?https?:\/\//i.test(text) ||
+    /@import\s+["']https?:\/\//i.test(text)
   );
 }
 

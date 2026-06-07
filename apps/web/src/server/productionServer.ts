@@ -1,11 +1,17 @@
 import { createReadStream, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
+import { createControlledGenerationHandler } from "../dev-api/controlledGenerationRoute";
+import {
+  createReferenceGuidedGenerationHandler,
+  type CreateReferenceGuidedGenerationHandlerInput
+} from "../dev-api/referenceGuidedGenerationRoute";
 import { createVideoAnalyzeHandler, type CreateVideoAnalyzeHandlerInput } from "../dev-api/videoAnalyzeRoute";
 
 type ProductionServerInput = {
   distDir: string;
   analyze?: CreateVideoAnalyzeHandlerInput["analyze"];
+  generation?: CreateReferenceGuidedGenerationHandlerInput;
 };
 
 const MIME_TYPES: Record<string, string> = {
@@ -46,12 +52,24 @@ export function createProductionServer(input: ProductionServerInput) {
   const distDir = resolve(input.distDir);
   const indexPath = join(distDir, "index.html");
   const videoAnalyzeHandler = createVideoAnalyzeHandler(input.analyze ? { analyze: input.analyze } : {});
+  const controlledGenerationHandler = createControlledGenerationHandler();
+  const referenceGuidedGenerationHandler = createReferenceGuidedGenerationHandler(input.generation);
 
   return createServer((req, res) => {
     const pathName = requestPath(req);
 
     if (pathName === "/api/video/analyze") {
       void videoAnalyzeHandler(req, res);
+      return;
+    }
+
+    if (pathName === "/api/generation/controlled") {
+      void controlledGenerationHandler(req, res);
+      return;
+    }
+
+    if (pathName === "/api/generation/reference-guided") {
+      void referenceGuidedGenerationHandler(req, res);
       return;
     }
 

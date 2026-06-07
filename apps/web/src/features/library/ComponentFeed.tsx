@@ -12,7 +12,6 @@ import { createEmptyPatch } from "../../state/projectStore";
 import { hasRenderableSource } from "./sourceState";
 
 type Filter = "all" | "workeasy" | "native" | "uploaded" | "buttons" | "cards" | "checkboxes";
-export type ReadinessFilter = "all" | "ready" | "partial" | "needs-spec";
 
 type Props = {
   components: MotionComponent[];
@@ -32,13 +31,6 @@ const filters: Array<{ id: Filter; label: string }> = [
   { id: "buttons", label: "按钮" },
   { id: "cards", label: "卡片" },
   { id: "checkboxes", label: "选择控件" }
-];
-
-const readinessFilters: Array<{ id: ReadinessFilter; label: string }> = [
-  { id: "all", label: "全部" },
-  { id: "ready", label: "生成就绪" },
-  { id: "partial", label: "部分可生成" },
-  { id: "needs-spec", label: "需补规范" }
 ];
 
 const INITIAL_PREVIEW_COUNT = 12;
@@ -145,13 +137,6 @@ function matchesFilter(component: MotionComponent, filter: Filter): boolean {
   return component.tags.includes(filter);
 }
 
-export function matchesReadinessFilter(component: MotionComponent, filter: ReadinessFilter): boolean {
-  if (filter === "all") return true;
-  const status = getGenerationReadiness(component).status;
-  if (filter === "needs-spec") return status === "blocked";
-  return status === filter;
-}
-
 function componentPreviewHtml(component: MotionComponent): string {
   return renderPreviewHtml({
     source: component.source,
@@ -252,14 +237,7 @@ export function ComponentFeed({
   onRestoreComplete
 }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
-  const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>("all");
-  const visible = useMemo(
-    () =>
-      components.filter(
-        (component) => matchesFilter(component, filter) && matchesReadinessFilter(component, readinessFilter)
-      ),
-    [components, filter, readinessFilter]
-  );
+  const visible = useMemo(() => components.filter((component) => matchesFilter(component, filter)), [components, filter]);
 
   useLayoutEffect(() => {
     if (!restoreComponentId) return;
@@ -288,18 +266,6 @@ export function ComponentFeed({
               key={item.id}
               type="button"
               onClick={() => setFilter(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <div className="feed-filters readiness-filters" aria-label="生成就绪度筛选">
-          {readinessFilters.map((item) => (
-            <button
-              className={item.id === readinessFilter ? "filter-pill is-on" : "filter-pill"}
-              key={item.id}
-              type="button"
-              onClick={() => setReadinessFilter(item.id)}
             >
               {item.label}
             </button>

@@ -61,6 +61,24 @@ function hasCustomImage(value: unknown): boolean {
 
 type GroupedSection = { id: string; label: string | null; params: MotionParam[] };
 
+const recipeGroupLabels: Record<string, string> = {
+  duration: "时间",
+  delay: "时间",
+  easing: "时间",
+  distance: "轨迹",
+  direction: "轨迹",
+  opacity: "透明度",
+  scale: "缩放",
+  rotate: "变换",
+  transformOrigin: "变换",
+  loop: "循环"
+};
+
+function recipeParamGroup(param: MotionParam): string | null {
+  if (!param.ui?.group) return null;
+  return recipeGroupLabels[param.ui.group] ?? param.ui.group;
+}
+
 // 把参数按 manifest.groups 或 param.ui.group 分块；没有任何分组信息时返回单段
 export function groupParameters(manifest: MotionManifest): GroupedSection[] {
   const confirmed = manifest.params.filter(
@@ -69,6 +87,41 @@ export function groupParameters(manifest: MotionManifest): GroupedSection[] {
   if (confirmed.length === 0) return [];
 
   const byId = new Map(confirmed.map((p) => [p.id, p]));
+  const recipeParamIds = new Set(manifest.motionRecipes?.flatMap((recipe) => recipe.paramIds) ?? []);
+  const recipeParams = confirmed.filter((param) => recipeParamIds.has(param.id));
+
+  if (recipeParams.length > 0) {
+    const sections: GroupedSection[] = [];
+    const used = new Set<string>();
+    const byRecipeGroup = new Map<string, MotionParam[]>();
+
+    for (const param of recipeParams) {
+      const key = recipeParamGroup(param) ?? "动效";
+      const list = byRecipeGroup.get(key) ?? [];
+      list.push(param);
+      byRecipeGroup.set(key, list);
+      used.add(param.id);
+    }
+
+    for (const [label, params] of byRecipeGroup) {
+      sections.push({ id: `recipe-${label}`, label, params });
+    }
+
+    const leftovers = confirmed.filter((param) => !used.has(param.id));
+    if (leftovers.length > 0 && manifest.groups && manifest.groups.length > 0) {
+      for (const group of manifest.groups as MotionParamGroup[]) {
+        const params = group.params.flatMap((id) => {
+          const param = byId.get(id);
+          return param && !used.has(param.id) ? [param] : [];
+        });
+        if (params.length > 0) sections.push({ id: group.id, label: group.label, params });
+      }
+    } else if (leftovers.length > 0) {
+      sections.push({ id: "__rest__", label: "外观", params: leftovers });
+    }
+
+    return sections;
+  }
 
   // 优先用 manifest.groups 显式分组
   if (manifest.groups && manifest.groups.length > 0) {

@@ -144,6 +144,41 @@ const campaignHero = component({
   }
 });
 
+const textReveal = component({
+  id: "text-reveal",
+  name: "标题入场",
+  category: "text",
+  tags: ["text", "headline", "entry"],
+  useCases: ["landing-page"],
+  manifest: {
+    ...productTransition.manifest,
+    id: "text-reveal",
+    name: "标题入场",
+    designSpecs: [{ id: "text-reveal-motion-skill", confidence: 0.88 }],
+    layers: [
+      {
+        id: "headline",
+        label: "标题",
+        kind: "text",
+        replaceable: true,
+        paramId: "headline",
+        targets: [{ kind: "html-text", file: "source/index.html", selector: "[data-motion=headline]" }]
+      }
+    ],
+    params: [
+      {
+        id: "headline",
+        label: "标题",
+        type: "text",
+        default: "Hello",
+        status: "confirmed",
+        targets: [{ kind: "html-text", file: "source/index.html", selector: "[data-motion=headline]" }]
+      },
+      productTransition.manifest.params[1]!
+    ]
+  }
+});
+
 const blockedProduct = component({
   id: "product-static",
   name: "商品详情静态稿",
@@ -153,17 +188,20 @@ const blockedProduct = component({
 });
 
 describe("createGenerationPlan", () => {
-  it("returns only two controlled candidates with whitelisted params, layers, specs, and acceptance rules", () => {
+  it("returns top three controlled candidates with whitelisted params, layers, specs, and acceptance rules", () => {
     const plan = createGenerationPlan({
       brief: "需要商品详情页转场动效，滑动轨迹短一点，节奏更紧凑",
-      components: [blockedProduct, campaignHero, productTransition]
+      components: [blockedProduct, campaignHero, textReveal, productTransition]
     });
 
+    expect(plan.candidates).toHaveLength(3);
     expect(plan.candidates.map((candidate) => candidate.componentId)).toEqual([
       "product-transition",
-      "campaign-hero"
+      "campaign-hero",
+      "text-reveal"
     ]);
     expect(plan.candidates[0]?.specSkillIds).toEqual(["ecommerce-transition-motion-skill"]);
+    expect(plan.candidates[0]?.specSkills?.[0]?.rules.length).toBeGreaterThan(0);
     expect(plan.candidates[0]?.allowed.paramIds).toEqual([
       "productImage",
       "transitionDuration",

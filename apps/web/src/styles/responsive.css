@@ -121,6 +121,88 @@
     padding: 18px;
   }
 
+  .generation-editor-loading-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    min-height: auto;
+  }
+
+  .generation-progress-backdrop {
+    overflow-y: auto;
+  }
+
+  .generation-progress-backdrop.is-compact {
+    overflow: hidden;
+    padding: 14px;
+  }
+
+  .generation-progress-backdrop.is-compact .generation-editor-loading-shell {
+    width: calc(100vw - 28px);
+    height: min(680px, calc(100svh - 28px));
+    min-height: 0;
+    overflow: auto;
+    border-radius: 16px;
+  }
+
+  .generation-progress-backdrop.is-expanding .generation-editor-loading-shell,
+  .generation-progress-backdrop.is-revealing .generation-editor-loading-shell {
+    width: 100%;
+    height: 100svh;
+    min-height: 100svh;
+    border-radius: 0;
+  }
+
+  .generation-loading-header {
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+
+  .generation-loading-close {
+    width: 68px;
+    height: 42px;
+  }
+
+  .generation-loading-save {
+    display: none;
+  }
+
+  .generation-loading-title {
+    width: min(210px, 52vw);
+  }
+
+  .generation-loading-title-main {
+    height: 22px;
+  }
+
+  .generation-loading-preview-area {
+    padding: 18px 14px;
+  }
+
+  .generation-loading-preview-frame {
+    min-height: 360px;
+  }
+
+  .generation-loading-preview-core {
+    width: 132px;
+    border-radius: 24px;
+  }
+
+  .generation-loading-controls {
+    flex-wrap: wrap;
+  }
+
+  .generation-loading-control-skeleton {
+    min-height: 42px;
+  }
+
+  .generation-loading-inspector {
+    max-height: none;
+    overflow: visible;
+    border-left: 0;
+    border-top: 1px solid rgba(216, 180, 254, 0.5);
+    padding: 18px 14px 28px;
+  }
+
   .import-checklist__items {
     grid-template-columns: 1fr;
   }

@@ -6,10 +6,12 @@ import {
   type PlusControlValue,
   type PlusPatchValues
 } from "@motion-tool/core";
+import type { MotionComponent } from "@motion-tool/core";
 import { ParameterPanel } from "../features/editor/ParameterPanel";
 import { ParameterModeTabs, type ParameterMode } from "../features/editor/ParameterModeTabs";
 import { PlusControlPanel } from "../features/editor/PlusControlPanel";
 import { LayerReplacementPanel } from "../features/editor/LayerReplacementPanel";
+import { MotionRecipePanel } from "../features/editor/MotionRecipePanel";
 import { ReadinessDiagnosisPanel } from "../features/editor/ReadinessDiagnosisPanel";
 import { PreviewFrame, type PreviewPlaybackState } from "../features/editor/PreviewFrame";
 import { ExportPanel } from "../features/export/ExportPanel";
@@ -21,9 +23,25 @@ type EditorRouteProps = {
   onParamChange: (paramId: string, value: unknown) => void;
   onReplay: () => void;
   onResetParams?: () => void;
+  variant?: "page" | "modal";
+  onSave?: () => void;
+  saveLabel?: string;
+  recipeTargetComponents?: MotionComponent[];
+  onApplyRecipeToTarget?: (targetComponentId: string, targetLayerId: string) => void;
 };
 
-export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetParams }: EditorRouteProps) {
+export function EditorRoute({
+  project,
+  onBack,
+  onParamChange,
+  onReplay,
+  onResetParams,
+  variant = "page",
+  onSave,
+  saveLabel = "保存组件",
+  recipeTargetComponents = [],
+  onApplyRecipeToTarget
+}: EditorRouteProps) {
   const [playbackState, setPlaybackState] = useState<PreviewPlaybackState>("playing");
   const [parameterMode, setParameterMode] = useState<ParameterMode>("plus");
   const [plusValues, setPlusValues] = useState<PlusPatchValues>({});
@@ -86,16 +104,23 @@ export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetP
     onResetParams?.();
   }
 
+  const shellClassName = variant === "modal" ? "editor-shell is-modal" : "editor-shell";
+
   return (
-    <main className="editor-shell">
+    <main className={shellClassName}>
       <header className="editor-header">
         <button type="button" onClick={onBack}>
-          返回组件库
+          {variant === "modal" ? "关闭" : "返回组件库"}
         </button>
         <div>
-          <p className="eyebrow">参数编辑器</p>
+          <p className="eyebrow">{variant === "modal" ? "生成结果" : "参数编辑器"}</p>
           <h1>{project?.manifest.name ?? "组件编辑"}</h1>
         </div>
+        {onSave ? (
+          <button className="primary-action editor-save-button" type="button" onClick={onSave}>
+            {saveLabel}
+          </button>
+        ) : null}
       </header>
       <section className="editor-preview" aria-label="动效预览">
         <PreviewFrame
@@ -143,6 +168,11 @@ export function EditorRoute({ project, onBack, onParamChange, onReplay, onResetP
               mode={activeParameterMode}
               plusDisabled={plusControls.length === 0}
               onChange={setParameterMode}
+            />
+            <MotionRecipePanel
+              manifest={project?.manifest ?? null}
+              targetComponents={recipeTargetComponents}
+              {...(onApplyRecipeToTarget ? { onApplyToTarget: onApplyRecipeToTarget } : {})}
             />
             {activeParameterMode === "plus" ? (
               <PlusControlPanel

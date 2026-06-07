@@ -9,6 +9,13 @@ if (!Number.isFinite(port) || port <= 0) {
   throw new Error("PORT must be a positive number");
 }
 
-createProductionServer({ distDir }).listen(port, host, () => {
+createProductionServer({
+  distDir,
+  generation: {
+    apiKey: process.env.OPENAI_API_KEY,
+    apiBaseUrl: process.env.OPENAI_BASE_URL,
+    model: process.env.OPENAI_GENERATION_MODEL
+  }
+}).listen(port, host, () => {
   console.log(`ai-motion web server listening on http://${host}:${port}`);
 });

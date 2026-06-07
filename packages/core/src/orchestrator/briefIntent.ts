@@ -20,7 +20,7 @@ export type BriefParseResult = {
 };
 
 const KIND_TERMS = ["button", "card", "checkbox", "hero", "text"];
-const MOTION_TERMS = ["hover", "reveal", "transition", "animation", "micro", "magnetic", "rainbow"];
+const MOTION_TERMS = ["hover", "reveal", "transition", "page-transition", "animation", "micro", "magnetic", "rainbow"];
 const SOURCE_TERMS = ["workeasy", "native"];
 const CATEGORY_BY_KIND: Record<string, string> = {
   button: "interaction",
@@ -35,6 +35,7 @@ const PREFERENCE_GROUPS = [
   ["卡片", "card"],
   ["选择控件", "checkbox", "checklist", "表单"],
   ["文字", "text", "hero", "reveal"],
+  ["页面转场", "页面切换", "前后进场", "page-transition", "screen-transition"],
   ["hover", "悬停"],
   ["紫色", "purple", "violet"],
   ["蓝色", "blue"],
@@ -66,6 +67,18 @@ function preferenceTerms(value: string): string[] {
   return unique(terms);
 }
 
+const NEGATED_CLAUSE_PATTERN = /(?:不要|别|不需要|无需|不是|排除|禁止|别再|不要再)\s*([^，。；;,.!！?？\n]{1,80})/gi;
+
+function negativeClauses(value: string): string[] {
+  return [...value.matchAll(NEGATED_CLAUSE_PATTERN)]
+    .map((match) => match[1]?.trim() ?? "")
+    .filter(Boolean);
+}
+
+function positiveText(value: string): string {
+  return value.replace(NEGATED_CLAUSE_PATTERN, " ").trim();
+}
+
 export function createEmptyBriefIntent(query = ""): ParsedBriefIntent {
   return {
     query,
@@ -84,7 +97,9 @@ export function createEmptyBriefIntent(query = ""): ParsedBriefIntent {
 }
 
 export function createFallbackBriefIntent(brief: string): ParsedBriefIntent {
-  const tokens = tokenize(brief);
+  const positive = positiveText(brief) || brief;
+  const negatives = negativeClauses(brief);
+  const tokens = tokenize(positive);
   const componentKinds = unique(tokens.filter((token) => KIND_TERMS.includes(token)));
   const motionStyles = unique(tokens.filter((token) => MOTION_TERMS.includes(token)));
   const sources = unique(tokens.filter((token) => SOURCE_TERMS.includes(token)));
@@ -93,8 +108,8 @@ export function createFallbackBriefIntent(brief: string): ParsedBriefIntent {
   const keywords = unique(tokens.filter((token) => !reserved.has(token)).slice(0, 8));
 
   return {
-    query: brief,
-    semanticQuery: brief,
+    query: positive,
+    semanticQuery: positive,
     categories,
     componentKinds,
     motionStyles,
@@ -105,10 +120,10 @@ export function createFallbackBriefIntent(brief: string): ParsedBriefIntent {
       ...motionStyles,
       ...sources,
       ...keywords,
-      ...preferenceTerms(brief)
+      ...preferenceTerms(positive)
     ]).slice(0, 16),
     hardConstraints: [],
-    negativePreferences: [],
+    negativePreferences: unique([...negatives, ...negatives.flatMap(preferenceTerms)]).slice(0, 16),
     reasoningHints: [],
     confidence: tokens.length > 0 ? 0.35 : 0
   };

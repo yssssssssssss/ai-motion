@@ -1,4 +1,5 @@
 import type { MotionComponent } from "../library/componentLibrary";
+import { findDesignSpecSkill, type DesignSpecSkill } from "../library/designSpecs";
 import { analyzeGenerationReadiness, inferDesignSpecBindings } from "../library/generationReadiness";
 import type { MotionParam, MotionTarget } from "../manifest/types";
 import { createFallbackBriefIntent, type ParsedBriefIntent } from "./briefIntent";
@@ -19,6 +20,7 @@ export type GenerationPlanCandidate = {
   reason: string;
   readinessStatus: ReturnType<typeof analyzeGenerationReadiness>["status"];
   specSkillIds: string[];
+  specSkills: DesignSpecSkill[];
   plusControlIds: string[];
   allowed: GenerationAllowedChangeSet;
   paramConcepts: Array<{ paramId: string; concepts: ParamConceptId[] }>;
@@ -121,6 +123,9 @@ function candidateFromComponent(input: {
   const params = confirmedParams(input.component);
   const controls = derivePlusControls(input.component.manifest);
   const specBindings = inferDesignSpecBindings(input.component);
+  const specSkills = specBindings
+    .map((binding) => findDesignSpecSkill(binding.id))
+    .filter((skill): skill is DesignSpecSkill => Boolean(skill));
   const allowedParamIds = readiness.allowedParamIds;
   const allowedLayerIds = readiness.replaceableLayerIds;
   const allowedSourceFiles = unique([
@@ -142,6 +147,7 @@ function candidateFromComponent(input: {
     reason: input.reason,
     readinessStatus: readiness.status,
     specSkillIds: specBindings.map((binding) => binding.id),
+    specSkills,
     plusControlIds: controls.map((control) => control.id),
     allowed: {
       paramIds: allowedParamIds,
@@ -186,8 +192,10 @@ export function createGenerationPlan(input: {
   brief?: string;
   intent?: ParsedBriefIntent;
   components: MotionComponent[];
+  limit?: number;
 }): GenerationPlan {
   const intent = input.intent ?? createFallbackBriefIntent(input.brief ?? "");
+  const limit = input.limit ?? 3;
   const recommendations = recommendComponents({
     intent,
     components: input.components,
@@ -207,7 +215,7 @@ export function createGenerationPlan(input: {
     .filter((candidate) => candidate.readinessStatus !== "blocked")
     .filter((candidate) => candidate.allowed.paramIds.length > 0)
     .sort((left, right) => right.score - left.score)
-    .slice(0, 2);
+    .slice(0, limit);
 
   return {
     intent,

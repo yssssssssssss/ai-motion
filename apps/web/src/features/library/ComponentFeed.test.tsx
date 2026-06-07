@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { MotionComponent } from "@motion-tool/core";
-import { ComponentFeed, matchesReadinessFilter, shouldLoadPreviewSource } from "./ComponentFeed";
+import { ComponentFeed, shouldLoadPreviewSource } from "./ComponentFeed";
 
 function makeComponent(index: number): MotionComponent {
   const id = `component-${index}`;
@@ -152,7 +152,7 @@ describe("ComponentFeed", () => {
     expect(html).toContain("feed-readiness-row");
   });
 
-  it("renders readiness filters and classifies components by generation status", () => {
+  it("does not render generation readiness filter navigation", () => {
     const ready = {
       ...makeComponent(1),
       tags: ["campaign", "hero"],
@@ -198,19 +198,38 @@ describe("ComponentFeed", () => {
         files: [{ path: "source/index.html", kind: "html" as const, content: "" }]
       }
     } satisfies MotionComponent;
+    const partial = {
+      ...makeComponent(3),
+      tags: ["product", "transition"],
+      source: {
+        ...makeComponent(3).source,
+        files: [
+          {
+            path: "source/index.html",
+            kind: "html" as const,
+            content: '<main data-motion-root class="product-screen"><button class="button">开始</button></main>'
+          },
+          {
+            path: "source/style.css",
+            kind: "css" as const,
+            content: ".button { transition: transform 180ms; } .product-screen { display: grid; }"
+          }
+        ]
+      }
+    } satisfies MotionComponent;
     const html = renderToStaticMarkup(
       <ComponentFeed
-        components={[ready, blocked]}
+        components={[ready, partial, blocked]}
         aiMatchIds={new Set()}
         onLoadComponentSource={async (item) => item}
         onSelect={() => {}}
       />
     );
 
+    expect(html).not.toContain('aria-label="生成就绪度筛选"');
     expect(html).toContain("生成就绪");
     expect(html).toContain("部分可生成");
     expect(html).toContain("需补规范");
-    expect(matchesReadinessFilter(ready, "ready")).toBe(true);
-    expect(matchesReadinessFilter(blocked, "needs-spec")).toBe(true);
+    expect(html).toContain("feed-readiness-row");
   });
 });

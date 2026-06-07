@@ -15,6 +15,7 @@ export type {
   MotionParam,
   MotionParamGroup,
   MotionDesignSpecBinding,
+  MotionRecipeBinding,
   MotionLayerKind,
   MotionLayer,
   MotionPatch,
@@ -66,6 +67,8 @@ export { createFallbackBriefIntent, isParsedBriefIntent } from "./orchestrator/b
 export { displayLabels } from "./orchestrator/displayLabels";
 export type { Recommendation } from "./orchestrator/recommend";
 export { recommendComponents } from "./orchestrator/recommend";
+export type { ResolvedReferenceComponent } from "./orchestrator/referenceResolver";
+export { resolveReferenceComponents } from "./orchestrator/referenceResolver";
 export type { SearchProfile } from "./orchestrator/searchProfile";
 export { createSearchProfile } from "./orchestrator/searchProfile";
 export type { ColorFacet } from "./orchestrator/colorAnalysis";
@@ -110,6 +113,82 @@ export {
   generationFailureFallback,
   validateGeneratedComponent
 } from "./generation/sandbox";
+export type {
+  ControlledGenerationPatch,
+  ControlledGenerationRequest,
+  GeneratedComponentFromPatch
+} from "./generation/controlledPatch";
+export {
+  buildControlledGenerationRequest,
+  compileSemanticPatch,
+  createGeneratedComponentFromPatch
+} from "./generation/controlledPatch";
+export type {
+  SemanticGenerationColor,
+  SemanticGenerationDirection,
+  SemanticGenerationEffect,
+  SemanticGenerationIntent,
+  SemanticGenerationRole,
+  SemanticGenerationSpeed,
+  SemanticGenerationTrigger
+} from "./generation/semanticIntent";
+export { parseSemanticGenerationIntent } from "./generation/semanticIntent";
+export type {
+  SemanticIntentV2,
+  SemanticIntentV2Layer,
+  SemanticIntentV2LayerRole,
+  SemanticIntentV2Motion,
+  SemanticIntentV2Composition,
+  SemanticIntentV2MotionCategory,
+  SemanticIntentV2MotionType,
+  SemanticIntentV2TargetKind
+} from "./generation/semanticIntentV2";
+export {
+  parseSemanticIntentV2Fallback,
+  parseSemanticIntentV2Payload,
+  semanticIntentV2Compositions,
+  semanticIntentV2LayerRoles,
+  semanticIntentV2MotionCategories,
+  semanticIntentV2MotionTypes,
+  semanticIntentV2TargetKinds,
+  semanticIntentV2ToLegacyIntent
+} from "./generation/semanticIntentV2";
+export type {
+  AppliedMotionRecipe,
+  ApplyMotionRecipeToComponentInput,
+  ExtractedMotionRecipe,
+  MotionRecipeCacheEntry,
+  MotionRecipe,
+  MotionRecipeCategory,
+  MotionRecipeComposition,
+  MotionRecipeParam,
+  MotionRecipeParamKind,
+  MotionRecipeRequest,
+  MotionRecipeSource,
+  MotionRecipeTarget,
+  MotionRecipeTimeline
+} from "./generation/motionRecipe";
+export {
+  applyMotionRecipe,
+  applyMotionRecipeToComponent,
+  builtinMotionRecipes,
+  createMotionRecipeCache,
+  extractMotionRecipeFromComponent,
+  findCachedMotionRecipe,
+  motionRecipeCategories,
+  motionRecipeParamKinds,
+  motionRecipeRequestFromSemanticIntent,
+  motionRecipeSchema,
+  resolveMotionRecipe,
+  validateMotionRecipe,
+  validateRecipeApplication
+} from "./generation/motionRecipe";
+export type {
+  ReferenceGuidedGenerationCoverage,
+  ReferenceGuidedGenerationResult,
+  ReferenceGuidedSourceDraft
+} from "./generation/referenceGuidedGeneration";
+export { createReferenceGuidedComponent } from "./generation/referenceGuidedGeneration";
 
 // ---- import / analyze / export ----
 export type { ImportWarning, ImportResult } from "./import/sourceImporter";

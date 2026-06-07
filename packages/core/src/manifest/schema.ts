@@ -76,6 +76,19 @@ const designSpecBindingSchema = z.object({
   required: z.boolean().optional()
 });
 
+const motionRecipeBindingSchema = z.object({
+  recipeId: z.string().min(1),
+  recipeName: z.string().min(1).optional(),
+  category: z.enum(["entrance", "feedback", "transition", "loop"]).optional(),
+  targetLayerIds: z.array(z.string().min(1)),
+  targetRoles: z.array(z.string().min(1)).optional(),
+  targetSelectors: z.array(z.string().min(1)).optional(),
+  paramIds: z.array(z.string().min(1)),
+  trigger: z.enum(["load", "hover", "click", "loop"]),
+  source: z.enum(["builtin", "extracted", "model", "fallback"]).optional(),
+  confidence: z.number().min(0).max(1).optional()
+});
+
 const layerSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
@@ -100,6 +113,7 @@ export const motionManifestSchema = z.object({
   params: z.array(motionParamSchema),
   groups: z.array(z.object({ id: z.string(), label: z.string(), params: z.array(z.string()) })).optional(),
   designSpecs: z.array(designSpecBindingSchema).optional(),
+  motionRecipes: z.array(motionRecipeBindingSchema).optional(),
   layers: z.array(layerSchema).optional(),
   presets: z
     .array(
