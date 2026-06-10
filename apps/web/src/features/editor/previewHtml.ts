@@ -44,6 +44,7 @@ body {
 const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
 (() => {
   const stageClass = "motion-preview-stage";
+  const thumbnailReplayPauseMs = 800;
   let loopTimer = 0;
 
   function ensureStage() {
@@ -261,7 +262,7 @@ const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
     loopTimer = window.setTimeout(() => {
       replayThumbnailMotion();
       scheduleThumbnailLoop();
-    }, thumbnailPlaybackDuration() + 320);
+    }, thumbnailPlaybackDuration() + thumbnailReplayPauseMs);
   }
 
   window.addEventListener("load", scheduleFit);
@@ -321,6 +322,7 @@ body {
 const EDITOR_SCRIPT = `<script data-motion-preview="editor">
 (() => {
   const stageClass = "motion-editor-stage";
+  const editorReplayPauseMs = 1200;
   let isPreviewPlaying = true;
   let loopTimer = 0;
 
@@ -540,7 +542,7 @@ const EDITOR_SCRIPT = `<script data-motion-preview="editor">
       if (!isPreviewPlaying) return;
       replayMotion();
       schedulePlaybackLoop();
-    }, declaredPlaybackDuration() + 240);
+    }, declaredPlaybackDuration() + editorReplayPauseMs);
   }
 
   function setPreviewPlayback(nextState) {

@@ -21,6 +21,9 @@ export type {
   MotionPatch,
   MotionPreset,
   MotionCapability,
+  MotionSkillTargetBinding,
+  MotionSkillTokenBinding,
+  MotionSkillBinding,
   MotionManifest
 } from "./manifest/types";
 export { motionManifestSchema } from "./manifest/schema";
@@ -183,6 +186,37 @@ export {
   validateMotionRecipe,
   validateRecipeApplication
 } from "./generation/motionRecipe";
+export type {
+  AtomicMotionProperty,
+  AtomicMotionToken,
+  CompileMotionSkillsResult,
+  DesignerMotionRow,
+  MotionSkillElement,
+  MotionSkillLock,
+  MotionSkillManifest,
+  MotionSkillPack,
+  MotionSkillRecipe,
+  MotionSkillRecipeFile,
+  MotionSkillRegistry,
+  MotionSkillTokenFile
+} from "./motionSkill";
+export {
+  atomicMotionTokenSchema,
+  compileMotionSkillsFromRows,
+  createMotionSkillDraftComponent,
+  motionSkillLockSchema,
+  motionSkillPackSchema,
+  motionSkillRecipeFileSchema,
+  motionSkillRecipeToMotionRecipe,
+  motionSkillRegistrySchema,
+  motionSkillTokenFileSchema,
+  normalizeDesignerMotionRows,
+  parseCssEasing,
+  parseKeyframes,
+  parseMilliseconds,
+  propertyFromAnimationType,
+  slugMotionId
+} from "./motionSkill";
 export type {
   ReferenceGuidedGenerationCoverage,
   ReferenceGuidedGenerationResult,

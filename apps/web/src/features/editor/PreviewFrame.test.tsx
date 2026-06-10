@@ -41,6 +41,44 @@ const manifest: MotionManifest = {
   ]
 };
 
+const imageManifest: MotionManifest = {
+  version: "1.0",
+  id: "image-layer",
+  name: "Image layer",
+  sourceKind: "builtin-component",
+  runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+  params: [
+    {
+      id: "heroImage",
+      label: "Hero image",
+      type: "image",
+      default: "",
+      status: "confirmed",
+      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--hero-image" }]
+    }
+  ]
+};
+
+const imageSource: MotionSource = {
+  id: "image-layer",
+  origin: "generated",
+  kind: "builtin-component",
+  entry: "source/index.html",
+  files: [
+    {
+      path: "source/index.html",
+      kind: "html",
+      content:
+        '<!doctype html><html><head><link rel="stylesheet" href="./style.css" /></head><body><div class="hero"></div></body></html>'
+    },
+    {
+      path: "source/style.css",
+      kind: "css",
+      content: ".hero { background: var(--hero-image, none) center / 100% 100% no-repeat; }"
+    }
+  ]
+};
+
 function renderPreview(patch: MotionPatch): string {
   return renderToStaticMarkup(
     <PreviewFrame source={source} manifest={manifest} patch={patch} playbackState="playing" />
@@ -85,6 +123,33 @@ describe("PreviewFrame", () => {
     );
 
     expect(initial).toBe(replayed);
+  });
+
+  it("refreshes iframe srcDoc when image patch values change", () => {
+    const initial = renderToStaticMarkup(
+      <PreviewFrame
+        source={imageSource}
+        manifest={imageManifest}
+        patch={{ id: "patch", sourceManifestId: "image-layer", values: {} }}
+        playbackState="playing"
+      />
+    );
+    const updated = renderToStaticMarkup(
+      <PreviewFrame
+        source={imageSource}
+        manifest={imageManifest}
+        patch={{
+          id: "patch",
+          sourceManifestId: "image-layer",
+          values: { heroImage: "data:image/png;base64,NEWPAYLOAD" }
+        }}
+        playbackState="playing"
+      />
+    );
+
+    expect(initial).not.toBe(updated);
+    expect(updated).toContain("data:image/png;base64,NEWPAYLOAD");
+    expect(updated).toContain("--hero-image: url(&quot;data:image/png;base64,NEWPAYLOAD&quot;)");
   });
 
   it("sends default values for params missing from the current patch", () => {

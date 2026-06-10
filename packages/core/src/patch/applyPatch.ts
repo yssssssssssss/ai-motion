@@ -40,8 +40,21 @@ function applyAttribute(content: string, selector: string, attribute: string, va
 
   const elementPattern = new RegExp(`<[^>]*data-motion=["']${escapeRegExp(key)}["'][^>]*>`);
   return content.replace(elementPattern, (element) => {
-    const attributePattern = new RegExp(`(${escapeRegExp(attribute)}\\s*=\\s*)(["'])([^"']*)(\\2)`);
-    return element.replace(attributePattern, `$1$2${escapeHtmlAttribute(value)}$4`);
+    const attributePattern = new RegExp(`\\s${escapeRegExp(attribute)}\\s*=\\s*(["'])`, "i");
+    const match = attributePattern.exec(element);
+    const escapedValue = escapeHtmlAttribute(value);
+
+    if (!match) {
+      return element.replace(/\/?>$/, (end) => ` ${attribute}="${escapedValue}"${end}`);
+    }
+
+    const quote = match[1];
+    if (!quote) return element;
+    const valueStart = match.index + match[0].length;
+    const valueEnd = element.indexOf(quote, valueStart);
+    if (valueEnd === -1) return element;
+
+    return `${element.slice(0, valueStart)}${escapedValue}${element.slice(valueEnd)}`;
   });
 }
 
@@ -97,7 +110,7 @@ function findCssDeclarationEnd(content: string, start: number): number {
 function applyCssVariable(content: string, name: string, value: string): string {
   const pattern = new RegExp(`${escapeRegExp(name)}\\s*:\\s*`);
   const match = pattern.exec(content);
-  if (!match) return content;
+  if (!match) return `:root { ${name}: ${value}; }\n${content}`;
 
   const valueStart = match.index + match[0].length;
   const valueEnd = findCssDeclarationEnd(content, valueStart);

@@ -3,6 +3,7 @@
   "include": ["src"],
   "compilerOptions": {
     "jsx": "react-jsx",
+    "resolveJsonModule": true,
     "noEmit": true
   }
 }

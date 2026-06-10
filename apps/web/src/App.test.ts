@@ -78,5 +78,11 @@ describe("App bundle boundaries", () => {
     expect(html).toContain("保存组件");
     expect(html).toContain('aria-label="动效预览"');
     expect(html).toContain('aria-label="参数面板"');
+    expect(html).toContain('aria-label="检查器内容分类"');
+    expect(html).toContain("组件信息");
+    expect(html).toContain("信息");
+    expect(html).toContain("参数");
+    expect(html).toContain("图层");
+    expect(html).toContain("其他");
   });
 });

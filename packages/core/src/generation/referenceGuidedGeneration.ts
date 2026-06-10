@@ -58,6 +58,12 @@ const DEFAULT_BUTTON_COLOR: SemanticGenerationColor = {
   label: "蓝色",
   value: "#2563eb"
 };
+const DEFAULT_MOBILE_PAGE_SIZE = {
+  stageWidth: 430,
+  stageHeight: 932,
+  backgroundLayerWidth: 500,
+  backgroundLayerHeight: 1060
+};
 
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
@@ -849,6 +855,10 @@ function sourceFilesForMobilePage(intent: SemanticGenerationIntent): SourceFile[
   </body>
 </html>`;
   const css = `:root {
+  --stage-width: ${DEFAULT_MOBILE_PAGE_SIZE.stageWidth}px;
+  --stage-height: ${DEFAULT_MOBILE_PAGE_SIZE.stageHeight}px;
+  --background-layer-width: ${DEFAULT_MOBILE_PAGE_SIZE.backgroundLayerWidth}px;
+  --background-layer-height: ${DEFAULT_MOBILE_PAGE_SIZE.backgroundLayerHeight}px;
   --page-bg: #f8fafc;
   --foreground-bg: ${color.value};
   --foreground-scale-start: 0.72;
@@ -875,8 +885,10 @@ body {
 .semantic-mobile-page {
   display: grid;
   place-items: center;
-  width: min(390px, 92vw);
-  aspect-ratio: 390 / 844;
+  width: var(--stage-width);
+  height: var(--stage-height);
+  max-width: 92vw;
+  max-height: 92vh;
 }
 
 .mobile-screen {
@@ -896,7 +908,10 @@ body {
 }
 
 .background-layer {
-  inset: 0;
+  left: calc((100% - var(--background-layer-width)) / 2);
+  top: calc((100% - var(--background-layer-height)) / 2);
+  width: var(--background-layer-width);
+  height: var(--background-layer-height);
   background:
     radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--foreground-bg) 20%, transparent), transparent 34%),
     linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);
@@ -1581,6 +1596,42 @@ function mobilePageParams(intent: SemanticGenerationIntent): MotionParam[] {
       status: "confirmed",
       targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--foreground-scale-start" }]
     },
+    {
+      id: "stageWidth",
+      label: "页面宽度",
+      type: "range",
+      default: DEFAULT_MOBILE_PAGE_SIZE.stageWidth,
+      constraints: { min: 320, max: 520, step: 1, unit: "px" },
+      status: "confirmed",
+      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--stage-width" }]
+    },
+    {
+      id: "stageHeight",
+      label: "页面高度",
+      type: "range",
+      default: DEFAULT_MOBILE_PAGE_SIZE.stageHeight,
+      constraints: { min: 700, max: 1200, step: 1, unit: "px" },
+      status: "confirmed",
+      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--stage-height" }]
+    },
+    {
+      id: "backgroundLayerWidth",
+      label: "背景层宽度",
+      type: "range",
+      default: DEFAULT_MOBILE_PAGE_SIZE.backgroundLayerWidth,
+      constraints: { min: 360, max: 640, step: 1, unit: "px" },
+      status: "confirmed",
+      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--background-layer-width" }]
+    },
+    {
+      id: "backgroundLayerHeight",
+      label: "背景层高度",
+      type: "range",
+      default: DEFAULT_MOBILE_PAGE_SIZE.backgroundLayerHeight,
+      constraints: { min: 800, max: 1280, step: 1, unit: "px" },
+      status: "confirmed",
+      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--background-layer-height" }]
+    },
     ...motionParams(intent)
   ];
 }
@@ -1833,6 +1884,11 @@ function roleGroups(role: SemanticGenerationRole): MotionParamGroup[] {
   if (role === "mobile-page") {
     return [
       { id: "layout", label: "页面", params: ["pageBackgroundColor", "foregroundColor"] },
+      {
+        id: "backgroundLayerSize",
+        label: "背景层尺寸",
+        params: ["stageWidth", "stageHeight", "backgroundLayerWidth", "backgroundLayerHeight"]
+      },
       { id: "motion", label: "动效", params: ["foregroundScaleStart", "motionDuration", "motionEasing"] }
     ];
   }

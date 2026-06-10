@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "families": {
+    "popup-feedback": {
+      "latestVersion": "1.0.0",
+      "tokens": {
+        "popup-feedback.large.scale": {
+          "fingerprint": "{\"property\":\"scale\",\"durationMs\":300,\"delayMs\":50,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[0.95,1.05,1]}",
+          "status": "active"
+        },
+        "popup-feedback.large.opacity": {
+          "fingerprint": "{\"property\":\"opacity\",\"durationMs\":200,\"delayMs\":50,\"easing\":\"cubic-bezier(0.8, 0, 1, 1)\",\"keyframes\":[0,1]}",
+          "status": "active"
+        },
+        "popup-feedback.medium.scale": {
+          "fingerprint": "{\"property\":\"scale\",\"durationMs\":200,\"delayMs\":50,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[0.95,1.05,1]}",
+          "status": "active"
+        },
+        "popup-feedback.medium.opacity": {
+          "fingerprint": "{\"property\":\"opacity\",\"durationMs\":150,\"delayMs\":50,\"easing\":\"cubic-bezier(0.8, 0, 1, 1)\",\"keyframes\":[0,1]}",
+          "status": "active"
+        },
+        "popup-feedback.small.scale": {
+          "fingerprint": "{\"property\":\"scale\",\"durationMs\":150,\"delayMs\":50,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[0.95,1.05,1]}",
+          "status": "active"
+        },
+        "popup-feedback.small.opacity": {
+          "fingerprint": "{\"property\":\"opacity\",\"durationMs\":100,\"delayMs\":50,\"easing\":\"cubic-bezier(0.8, 0, 1, 1)\",\"keyframes\":[0,1]}",
+          "status": "active"
+        }
+      }
+    },
+    "popup-close": {
+      "latestVersion": "1.0.0",
+      "tokens": {
+        "popup-close.all.opacity": {
+          "fingerprint": "{\"property\":\"opacity\",\"durationMs\":50,\"delayMs\":0,\"easing\":\"cubic-bezier(0, 0, 0, 1)\",\"keyframes\":[1,0]}",
+          "status": "active"
+        }
+      }
+    },
+    "container-transform": {
+      "latestVersion": "1.0.0",
+      "tokens": {
+        "container-transform.product-card.size": {
+          "fingerprint": "{\"property\":\"size\",\"durationMs\":400,\"delayMs\":100,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[{\"width\":176,\"height\":176},{\"width\":355,\"height\":512}]}",
+          "status": "active"
+        },
+        "container-transform.product-card.roundness": {
+          "fingerprint": "{\"property\":\"roundness\",\"durationMs\":400,\"delayMs\":100,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[8,12]}",
+          "status": "active"
+        },
+        "container-transform.product-card.position": {
+          "fingerprint": "{\"property\":\"position\",\"durationMs\":400,\"delayMs\":100,\"easing\":\"cubic-bezier(0, 0, 0, 1)\",\"keyframes\":[{\"x\":182,\"y\":602},{\"x\":182,\"y\":564}]}",
+          "status": "active"
+        }
+      }
+    }
+  }
+}

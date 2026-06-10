@@ -1,0 +1,49 @@
+{
+  "recipes": [
+    {
+      "id": "popup-feedback.large.enter",
+      "name": "弹窗反馈 / 大型尺寸",
+      "family": "popup-feedback",
+      "sourceElement": "弹窗反馈",
+      "variant": "large",
+      "sourceVariant": "大型尺寸",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "popup-feedback.large.scale",
+        "popup-feedback.large.opacity"
+      ]
+    },
+    {
+      "id": "popup-feedback.medium.enter",
+      "name": "弹窗反馈 / 中型尺寸",
+      "family": "popup-feedback",
+      "sourceElement": "弹窗反馈",
+      "variant": "medium",
+      "sourceVariant": "中型尺寸",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "popup-feedback.medium.scale",
+        "popup-feedback.medium.opacity"
+      ]
+    },
+    {
+      "id": "popup-feedback.small.enter",
+      "name": "弹窗反馈 / 小型尺寸",
+      "family": "popup-feedback",
+      "sourceElement": "弹窗反馈",
+      "variant": "small",
+      "sourceVariant": "小型尺寸",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "popup-feedback.small.scale",
+        "popup-feedback.small.opacity"
+      ]
+    }
+  ]
+}

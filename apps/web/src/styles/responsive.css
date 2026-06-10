@@ -60,6 +60,9 @@
   }
 
   .editor-preview {
+    position: static;
+    max-height: none;
+    overflow: visible;
     padding: 18px;
   }
 
@@ -97,6 +100,27 @@
   .brief-stack textarea {
     height: 122px;
     min-height: 122px;
+  }
+
+  .brief-mode-tabs {
+    width: 100%;
+  }
+
+  .brief-mode-tab {
+    font-size: 12px;
+    padding: 0 6px;
+  }
+
+  .brief-content-region.is-atomic-content {
+    min-height: 360px;
+  }
+
+  .atomic-motion-content {
+    grid-template-columns: 1fr;
+  }
+
+  .atomic-motion-element-grid {
+    grid-template-columns: 1fr;
   }
 
   .status-pill,

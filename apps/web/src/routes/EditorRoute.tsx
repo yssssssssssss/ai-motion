@@ -10,6 +10,7 @@ import type { MotionComponent } from "@motion-tool/core";
 import { ParameterPanel } from "../features/editor/ParameterPanel";
 import { ParameterModeTabs, type ParameterMode } from "../features/editor/ParameterModeTabs";
 import { PlusControlPanel } from "../features/editor/PlusControlPanel";
+import { AtomicMotionInspectorPanel } from "../features/editor/AtomicMotionInspectorPanel";
 import { LayerReplacementPanel } from "../features/editor/LayerReplacementPanel";
 import { MotionRecipePanel } from "../features/editor/MotionRecipePanel";
 import { ReadinessDiagnosisPanel } from "../features/editor/ReadinessDiagnosisPanel";
@@ -30,6 +31,55 @@ type EditorRouteProps = {
   onApplyRecipeToTarget?: (targetComponentId: string, targetLayerId: string) => void;
 };
 
+type InspectorTab = "info" | "params" | "layers" | "related";
+
+const inspectorTabs: Array<{ id: InspectorTab; label: string }> = [
+  { id: "info", label: "信息" },
+  { id: "params", label: "参数" },
+  { id: "layers", label: "图层" },
+  { id: "related", label: "其他" }
+];
+
+function ComponentInfoPanel({ project }: { project: MotionProject | null }) {
+  if (!project) return null;
+
+  const { manifest } = project;
+  const confirmedParamCount = manifest.params.filter((param) => param.status === "confirmed").length;
+  const layerCount = manifest.layers?.length ?? 0;
+  const recipeCount = manifest.motionRecipes?.length ?? 0;
+
+  return (
+    <section className="component-info-panel" aria-label="组件信息">
+      <div className="panel-header compact-panel-header">
+        <p className="eyebrow">组件信息</p>
+        <h2>{manifest.name}</h2>
+      </div>
+      <dl className="component-info-summary">
+        <div>
+          <dt>运行时</dt>
+          <dd>{manifest.runtime.engine}</dd>
+        </div>
+        <div>
+          <dt>来源</dt>
+          <dd>{manifest.sourceKind}</dd>
+        </div>
+        <div>
+          <dt>可调参数</dt>
+          <dd>
+            {confirmedParamCount}/{manifest.params.length}
+          </dd>
+        </div>
+        <div>
+          <dt>图层 / Recipe</dt>
+          <dd>
+            {layerCount} / {recipeCount}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
 export function EditorRoute({
   project,
   onBack,
@@ -46,7 +96,9 @@ export function EditorRoute({
   const [parameterMode, setParameterMode] = useState<ParameterMode>("plus");
   const [plusValues, setPlusValues] = useState<PlusPatchValues>({});
   const [replayToken, setReplayToken] = useState(0);
-  const isReadOnly = Boolean(project && project.manifest.params.length === 0);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("info");
+  const isAtomicMotion = Boolean(project?.manifest.motionSkill);
+  const isReadOnly = Boolean(project && project.manifest.params.length === 0 && !isAtomicMotion);
   const plusControls = useMemo(() => (project ? derivePlusControls(project.manifest) : []), [project]);
   const plusPatchResult = useMemo(
     () =>
@@ -70,6 +122,7 @@ export function EditorRoute({
     setPlaybackState("playing");
     setParameterMode("plus");
     setPlusValues({});
+    setInspectorTab("info");
   }, [project?.id]);
 
   function replayFromStart() {
@@ -105,6 +158,18 @@ export function EditorRoute({
   }
 
   const shellClassName = variant === "modal" ? "editor-shell is-modal" : "editor-shell";
+  const readinessComponent: MotionComponent | null = project
+    ? {
+        id: project.manifest.id,
+        name: project.manifest.name,
+        category: "layout",
+        tags: [],
+        useCases: [],
+        moods: [],
+        manifest: project.manifest,
+        source: project.source
+      }
+    : null;
 
   return (
     <main className={shellClassName}>
@@ -160,57 +225,89 @@ export function EditorRoute({
           </div>
         ) : (
           <>
-            <div className="panel-header">
-              <p className="eyebrow">参数调节</p>
-              <h2>{activeParameterMode === "plus" ? "简化控制" : "可调参数"}</h2>
+            <div className="inspector-tabs" role="tablist" aria-label="检查器内容分类">
+              {inspectorTabs.map((tab) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={inspectorTab === tab.id}
+                  className={inspectorTab === tab.id ? "is-active" : undefined}
+                  key={tab.id}
+                  onClick={() => setInspectorTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-            <ParameterModeTabs
-              mode={activeParameterMode}
-              plusDisabled={plusControls.length === 0}
-              onChange={setParameterMode}
-            />
-            <MotionRecipePanel
-              manifest={project?.manifest ?? null}
-              targetComponents={recipeTargetComponents}
-              {...(onApplyRecipeToTarget ? { onApplyToTarget: onApplyRecipeToTarget } : {})}
-            />
-            {activeParameterMode === "plus" ? (
-              <PlusControlPanel
-                controls={plusControls}
-                values={plusValues}
-                affectedParamIds={plusPatchResult.affectedParamIds}
-                onChange={updatePlusControl}
-                {...(onResetParams ? { onReset: resetAllParams } : {})}
-              />
-            ) : (
-              <ParameterPanel
-                manifest={project?.manifest ?? null}
-                patch={project?.patch ?? null}
-                onChange={updateProParam}
-                {...(onResetParams ? { onReset: resetAllParams } : {})}
-              />
-            )}
-            <LayerReplacementPanel
-              manifest={project?.manifest ?? null}
-              patch={project?.patch ?? null}
-              onChange={updateProParam}
-            />
-            <ReadinessDiagnosisPanel
-              component={
-                project
-                  ? {
-                      id: project.manifest.id,
-                      name: project.manifest.name,
-                      category: "layout",
-                      tags: [],
-                      useCases: [],
-                      moods: [],
-                      manifest: project.manifest,
-                      source: project.source
-                    }
-                  : null
-              }
-            />
+            <div className="inspector-tab-panel" role="tabpanel">
+              {inspectorTab === "info" ? (
+                <>
+                  <ComponentInfoPanel project={project} />
+                  {isAtomicMotion ? (
+                    <AtomicMotionInspectorPanel
+                      section="summary"
+                      manifest={project?.manifest ?? null}
+                      patch={project?.patch ?? null}
+                      onChange={updateProParam}
+                    />
+                  ) : null}
+                  <MotionRecipePanel
+                    manifest={project?.manifest ?? null}
+                    targetComponents={recipeTargetComponents}
+                    {...(onApplyRecipeToTarget ? { onApplyToTarget: onApplyRecipeToTarget } : {})}
+                  />
+                </>
+              ) : null}
+              {inspectorTab === "params" ? (
+                <>
+                  {isAtomicMotion ? (
+                    <AtomicMotionInspectorPanel
+                      section="params"
+                      manifest={project?.manifest ?? null}
+                      patch={project?.patch ?? null}
+                      onChange={updateProParam}
+                      {...(onResetParams ? { onReset: resetAllParams } : {})}
+                    />
+                  ) : (
+                    <>
+                      <div className="panel-header">
+                        <p className="eyebrow">参数调节</p>
+                        <h2>{activeParameterMode === "plus" ? "简化控制" : "可调参数"}</h2>
+                      </div>
+                      <ParameterModeTabs
+                        mode={activeParameterMode}
+                        plusDisabled={plusControls.length === 0}
+                        onChange={setParameterMode}
+                      />
+                      {activeParameterMode === "plus" ? (
+                        <PlusControlPanel
+                          controls={plusControls}
+                          values={plusValues}
+                          affectedParamIds={plusPatchResult.affectedParamIds}
+                          onChange={updatePlusControl}
+                          {...(onResetParams ? { onReset: resetAllParams } : {})}
+                        />
+                      ) : (
+                        <ParameterPanel
+                          manifest={project?.manifest ?? null}
+                          patch={project?.patch ?? null}
+                          onChange={updateProParam}
+                          {...(onResetParams ? { onReset: resetAllParams } : {})}
+                        />
+                      )}
+                    </>
+                  )}
+                </>
+              ) : null}
+              {inspectorTab === "layers" ? (
+                <LayerReplacementPanel
+                  manifest={project?.manifest ?? null}
+                  patch={project?.patch ?? null}
+                  onChange={updateProParam}
+                />
+              ) : null}
+              {inspectorTab === "related" ? <ReadinessDiagnosisPanel component={readinessComponent} /> : null}
+            </div>
           </>
         )}
       </aside>

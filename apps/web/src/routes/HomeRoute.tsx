@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import {
-  parseSemanticGenerationIntent,
   recommendComponents,
   type BriefParseResult,
   type MotionComponent,
   type MotionComponentMetadata,
   type Recommendation
 } from "@motion-tool/core";
+import { AtomicMotionPanel } from "../features/brief/AtomicMotionPanel";
 import { BriefPanel, type BriefPanelMode } from "../features/brief/BriefPanel";
 import { ComponentCandidates } from "../features/library/ComponentCandidates";
 import { ComponentFeed } from "../features/library/ComponentFeed";
@@ -18,6 +18,7 @@ import { ImportChecklistPanel } from "../features/import/ImportChecklistPanel";
 import { UploadMetadataPanel } from "../features/import/UploadMetadataPanel";
 import { UnifiedUploadPanel } from "../features/import/UnifiedUploadPanel";
 import { parseBrief } from "../services/briefParserClient";
+import { generateAtomicMotionComponent, motionSkillElements } from "../services/atomicMotionGeneration";
 import { loadControlledGenerationCandidates } from "../services/generationCandidates";
 import { generateReferenceGuidedComponent } from "../services/referenceGuidedGenerationClient";
 
@@ -100,12 +101,7 @@ function GenerationProgressOverlay({
   const shellClassName = `generation-editor-loading-shell${isSlow ? " is-slow" : ""}`;
 
   return (
-    <div
-      className={backdropClassName}
-      role="dialog"
-      aria-modal="true"
-      aria-label="正在生成组件草稿"
-    >
+    <div className={backdropClassName} role="dialog" aria-modal="true" aria-label="正在生成组件草稿">
       <div className={shellClassName}>
         <header className="generation-loading-header">
           <span className="generation-loading-close" aria-hidden="true" />
@@ -223,16 +219,14 @@ export function HomeRoute({
   const [generationStatus, setGenerationStatus] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const firstAtomicElement = motionSkillElements.find((element) => element.active) ?? motionSkillElements[0];
+  const [atomicElementId, setAtomicElementId] = useState(firstAtomicElement?.id ?? "");
+  const [atomicVariant, setAtomicVariant] = useState(firstAtomicElement?.variants[0] ?? "");
 
   const aiMatchIds = useMemo(
     () => new Set(recommendations.map((item) => item.componentId)),
     [recommendations]
   );
-  const generationIntent = useMemo(
-    () => (briefMode === "generate" && brief.trim() ? parseSemanticGenerationIntent(brief) : null),
-    [brief, briefMode]
-  );
-
   function updateBrief(value: string) {
     setIsBriefPristine(false);
     setBrief(value);
@@ -315,6 +309,22 @@ export function HomeRoute({
     setGenerationStatus(null);
   }
 
+  function selectAtomicElement(elementId: string) {
+    const element = motionSkillElements.find((item) => item.id === elementId);
+    setAtomicElementId(elementId);
+    setAtomicVariant(element?.variants[0] ?? "");
+  }
+
+  function generateAtomicMotionDraft() {
+    try {
+      const component = generateAtomicMotionComponent({ elementId: atomicElementId, variant: atomicVariant });
+      onGeneratedComponentReady(component);
+      setGenerationStatus("原子动效草稿已生成，保存后入库");
+    } catch (error) {
+      setGenerationStatus(error instanceof Error ? error.message : "原子动效生成失败");
+    }
+  }
+
   function handleMetadataSubmit(metadata: MotionComponentMetadata) {
     const component = importFlow.submitMetadata(metadata);
     if (component) {
@@ -347,7 +357,6 @@ export function HomeRoute({
         mode={briefMode}
         brief={brief}
         parseResult={parseResult}
-        generationIntent={generationIntent}
         isLoading={briefMode === "generate" ? isGenerating : isRecommending}
         isDisabled={isLibraryLoading}
         generationStatus={isGenerationOverlayOpen ? null : generationStatus}
@@ -356,6 +365,16 @@ export function HomeRoute({
         onBriefFocus={clearDefaultBrief}
         onRecommend={runRecommend}
         onGenerate={runGenerate}
+        onGenerateAtomicMotion={generateAtomicMotionDraft}
+        atomicMotionPanel={
+          <AtomicMotionPanel
+            elements={motionSkillElements}
+            selectedElementId={atomicElementId}
+            selectedVariant={atomicVariant}
+            onSelectElement={selectAtomicElement}
+            onSelectVariant={setAtomicVariant}
+          />
+        }
       />
       <GenerationProgressOverlay
         isOpen={isGenerationOverlayOpen}

@@ -1,0 +1,15 @@
+{
+  "id": "popup-feedback",
+  "name": "弹窗反馈",
+  "version": "1.0.0",
+  "source": "designer-csv",
+  "variants": [
+    "大型尺寸",
+    "中型尺寸",
+    "小型尺寸"
+  ],
+  "defaultVariant": "large",
+  "tokenFile": "tokens.json",
+  "recipeFile": "recipes.json",
+  "skillFile": "skill.md"
+}

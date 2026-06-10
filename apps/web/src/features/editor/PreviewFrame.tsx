@@ -18,6 +18,15 @@ export function previewPatchValues(manifest: MotionManifest, patch: MotionPatch)
   );
 }
 
+function imagePatchValues(manifest: MotionManifest, patch: MotionPatch | null): MotionPatch["values"] {
+  if (!patch) return {};
+  return Object.fromEntries(
+    manifest.params
+      .filter((param) => param.type === "image" && param.id in patch.values)
+      .map((param) => [param.id, patch.values[param.id]])
+  );
+}
+
 export function PreviewFrame({ source, manifest, patch, playbackState, replayToken = 0 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const lastReplayTokenRef = useRef(replayToken);
@@ -28,10 +37,14 @@ export function PreviewFrame({ source, manifest, patch, playbackState, replayTok
     return renderPreviewHtml({
       source,
       manifest,
-      patch: { id: `${manifest.id}-preview-base`, sourceManifestId: manifest.id, values: {} },
+      patch: {
+        id: `${manifest.id}-preview-base`,
+        sourceManifestId: manifest.id,
+        values: imagePatchValues(manifest, patch)
+      },
       mode: "editor"
     });
-  }, [source, manifest]);
+  }, [source, manifest, patch]);
 
   const postPlaybackState = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(

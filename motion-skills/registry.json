@@ -1,0 +1,72 @@
+{
+  "version": "1.0",
+  "elements": [
+    {
+      "id": "popup-feedback",
+      "label": "弹窗反馈",
+      "latestVersion": "1.0.0",
+      "active": true,
+      "variants": [
+        "大型尺寸",
+        "中型尺寸",
+        "小型尺寸"
+      ],
+      "packPath": "popup-feedback/manifest.json",
+      "status": "active"
+    },
+    {
+      "id": "popup-close",
+      "label": "弹窗关闭",
+      "latestVersion": "1.0.0",
+      "active": true,
+      "variants": [
+        "all"
+      ],
+      "packPath": "popup-close/manifest.json",
+      "status": "active"
+    },
+    {
+      "id": "front-back-entry",
+      "label": "前后进场",
+      "latestVersion": "0.0.0",
+      "active": false,
+      "variants": [
+        "半弹层"
+      ],
+      "packPath": "",
+      "status": "incomplete",
+      "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"
+    },
+    {
+      "id": "horizontal-switch",
+      "label": "横向切换",
+      "latestVersion": "0.0.0",
+      "active": false,
+      "variants": [],
+      "packPath": "",
+      "status": "incomplete",
+      "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"
+    },
+    {
+      "id": "container-transform",
+      "label": "容器变换",
+      "latestVersion": "1.0.0",
+      "active": true,
+      "variants": [
+        "商卡"
+      ],
+      "packPath": "container-transform/manifest.json",
+      "status": "active"
+    },
+    {
+      "id": "container-loading",
+      "label": "容器加载",
+      "latestVersion": "0.0.0",
+      "active": false,
+      "variants": [],
+      "packPath": "",
+      "status": "incomplete",
+      "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"
+    }
+  ]
+}

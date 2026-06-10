@@ -1,0 +1,18 @@
+{
+  "recipes": [
+    {
+      "id": "popup-close.all.enter",
+      "name": "弹窗关闭 / all",
+      "family": "popup-close",
+      "sourceElement": "弹窗关闭",
+      "variant": "all",
+      "sourceVariant": "all",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "popup-close.all.opacity"
+      ]
+    }
+  ]
+}

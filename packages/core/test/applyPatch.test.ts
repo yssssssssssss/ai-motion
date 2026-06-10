@@ -113,6 +113,39 @@ describe("applyPatchToFiles", () => {
     expect(files["source/style.css"]).not.toContain("OLDPAYLOAD");
   });
 
+  it("inserts missing css variables so image layer patches are persisted", () => {
+    const dataUrl = "data:image/png;base64,NEWPAYLOAD";
+    const files = applyPatchToFiles({
+      files: {
+        "source/index.html": '<div class="hero"></div>',
+        "source/style.css": ".hero { background: var(--hero-image, none) center / cover no-repeat; }"
+      },
+      manifest: {
+        version: "1.0",
+        id: "missing-image-var",
+        name: "Missing image var",
+        sourceKind: "builtin-component",
+        runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+        params: [
+          {
+            id: "heroImage",
+            label: "Hero image",
+            type: "image",
+            default: "",
+            status: "confirmed",
+            targets: [
+              { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--hero-image" }
+            ]
+          }
+        ]
+      },
+      patch: { id: "patch-missing-var", sourceManifestId: "missing-image-var", values: { heroImage: dataUrl } }
+    });
+
+    expect(files["source/style.css"]).toContain(`:root { --hero-image: url("${dataUrl}"); }`);
+    expect(files["source/style.css"]).toContain("background: var(--hero-image, none) center / cover no-repeat");
+  });
+
   it("updates css property targets", () => {
     const files = applyPatchToFiles({
       files: {
@@ -266,5 +299,46 @@ describe("applyPatchToFiles", () => {
 
     expect(files["source/index.html"]).toContain('alt="Hero &quot;new&quot;"');
     expect(files["source/index.html"]).toContain('fill="#ff3366"');
+  });
+
+  it("updates image src attributes whose existing value contains nested quotes", () => {
+    const files = applyPatchToFiles({
+      files: {
+        "source/index.html":
+          '<img data-motion="heroImage" src="data:image/svg+xml,%3Csvg viewBox=\'0 0 1 1\'%3E%3C/svg%3E" alt="" />'
+      },
+      manifest: {
+        version: "1.0",
+        id: "image-src-attribute",
+        name: "Image src attribute",
+        sourceKind: "single-html",
+        runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+        params: [
+          {
+            id: "heroImage",
+            label: "Hero image",
+            type: "image",
+            default: "",
+            status: "confirmed",
+            targets: [
+              {
+                kind: "html-attribute",
+                file: "source/index.html",
+                selector: "[data-motion=heroImage]",
+                attribute: "src"
+              }
+            ]
+          }
+        ]
+      },
+      patch: {
+        id: "patch-image-src",
+        sourceManifestId: "image-src-attribute",
+        values: { heroImage: "data:image/png;base64,NEWIMAGE" }
+      }
+    });
+
+    expect(files["source/index.html"]).toContain('src="data:image/png;base64,NEWIMAGE"');
+    expect(files["source/index.html"]).not.toContain("viewBox");
   });
 });

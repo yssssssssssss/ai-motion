@@ -21,6 +21,8 @@
     "check:circular": "madge --circular --extensions ts,tsx packages/core/src packages/components-builtin/src apps/web/src",
     "gen:workeasy": "node scripts/generate-workeasy-components.mjs",
     "gen:workeasy:check": "node scripts/generate-workeasy-components.mjs && git diff --exit-code -- apps/web/src/data/workeasyComponents.generated.ts",
+    "motion:compile": "node scripts/compile-motion-skills.mjs",
+    "deploy:cloud": "node scripts/deploy-cloud.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

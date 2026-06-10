@@ -459,8 +459,28 @@ window.motionSeek = function motionSeek() {};`
     expect(result.coverage.missing).toEqual([]);
     expect(html).toContain('data-motion="backgroundLayer"');
     expect(html).not.toContain("<button");
+    expect(css).toContain("--stage-width: 430px");
+    expect(css).toContain("--stage-height: 932px");
+    expect(css).toContain("--background-layer-width: 500px");
+    expect(css).toContain("--background-layer-height: 1060px");
+    expect(css).toContain("width: var(--background-layer-width)");
+    expect(css).toContain("height: var(--background-layer-height)");
+    expect(css).toContain("left: calc((100% - var(--background-layer-width)) / 2)");
+    expect(css).toContain("top: calc((100% - var(--background-layer-height)) / 2)");
+    expect(css).not.toContain("translate3d(-50%, -50%, 0)");
     expect(css).toContain("@keyframes generated-loop-float");
     expect(css).toContain("animation: generated-loop-float");
+    expect(result.component.manifest.params.map((param) => param.id)).toEqual(
+      expect.arrayContaining(["stageWidth", "stageHeight", "backgroundLayerWidth", "backgroundLayerHeight"])
+    );
+    expect(result.component.manifest.groups).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "backgroundLayerSize",
+          params: ["stageWidth", "stageHeight", "backgroundLayerWidth", "backgroundLayerHeight"]
+        })
+      ])
+    );
     expect(result.component.manifest.motionRecipes?.[0]).toMatchObject({
       recipeId: "float-loop",
       trigger: "loop"

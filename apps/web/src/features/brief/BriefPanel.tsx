@@ -1,12 +1,12 @@
-import { displayLabels, type BriefParseResult, type SemanticGenerationIntent } from "@motion-tool/core";
+import type { ReactNode } from "react";
+import { displayLabels, type BriefParseResult } from "@motion-tool/core";
 
-export type BriefPanelMode = "recommend" | "generate";
+export type BriefPanelMode = "recommend" | "generate" | "atomic";
 
 type Props = {
   mode: BriefPanelMode;
   brief: string;
   parseResult: BriefParseResult | null;
-  generationIntent?: SemanticGenerationIntent | null;
   isLoading: boolean;
   isDisabled?: boolean;
   generationStatus?: string | null;
@@ -15,6 +15,8 @@ type Props = {
   onBriefFocus?: () => void;
   onRecommend: () => void;
   onGenerate: () => void;
+  onGenerateAtomicMotion: () => void;
+  atomicMotionPanel: ReactNode;
 };
 
 export function parsedChips(parseResult: BriefParseResult | null): string[] {
@@ -31,38 +33,57 @@ export function parsedChips(parseResult: BriefParseResult | null): string[] {
   return displayLabels(terms).slice(0, 8);
 }
 
-function roleLabel(role: SemanticGenerationIntent["role"]): string | null {
-  if (role === "page-transition") return "页面转场";
-  if (role === "button") return "按钮";
-  if (role === "card") return "卡片";
-  if (role === "text") return "文字";
-  if (role === "badge") return "标签";
-  if (role === "loader") return "加载动画";
-  if (role === "mobile-page") return "移动端页面";
-  return null;
-}
-
-export function generationUnderstandingChips(intent: SemanticGenerationIntent | null | undefined): string[] {
-  if (!intent) return [];
-  const terms = [
-    roleLabel(intent.role),
-    ...intent.referenceHints.slice(0, 2),
-    ...intent.colors.map((color) => color.label),
-    ...intent.effects,
-    intent.direction,
-    intent.trigger,
-    intent.speed,
-    ...intent.negativePreferences.map((item) => `排除 ${item}`)
-  ].filter((item): item is string => Boolean(item));
-
-  return displayLabels(terms).slice(0, 9);
+function EtherealShadowBackground() {
+  return (
+    <div className="ethereal-shadow-background" aria-hidden="true">
+      <svg className="ethereal-shadow-filter" focusable="false">
+        <defs>
+          <filter id="ethereal-shadow-filter" x="-24%" y="-24%" width="148%" height="148%">
+            <feTurbulence
+              result="ethereal-noise"
+              type="turbulence"
+              baseFrequency="0.0012 0.003"
+              numOctaves="2"
+              seed="7"
+            >
+              <animate
+                attributeName="baseFrequency"
+                dur="18s"
+                values="0.0012 0.003;0.0021 0.005;0.0008 0.0024;0.0012 0.003"
+                repeatCount="indefinite"
+              />
+            </feTurbulence>
+            <feColorMatrix
+              in="ethereal-noise"
+              result="ethereal-circulation"
+              type="matrix"
+              values="4 0 0 0 1  4 0 0 0 1  4 0 0 0 1  1 0 0 0 0"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="ethereal-circulation"
+              scale="72"
+              result="ethereal-displaced"
+            >
+              <animate attributeName="scale" dur="14s" values="56;92;68;104;56" repeatCount="indefinite" />
+            </feDisplacementMap>
+            <feGaussianBlur in="ethereal-displaced" stdDeviation="4" result="ethereal-blur" />
+            <feBlend in="ethereal-blur" in2="SourceGraphic" mode="screen" />
+          </filter>
+        </defs>
+      </svg>
+      <div className="ethereal-shadow-field">
+        <div className="ethereal-shadow-mask" />
+      </div>
+      <div className="ethereal-shadow-noise" />
+    </div>
+  );
 }
 
 export function BriefPanel({
   mode,
   brief,
   parseResult,
-  generationIntent,
   isLoading,
   isDisabled = false,
   generationStatus,
@@ -70,37 +91,60 @@ export function BriefPanel({
   onBriefChange,
   onBriefFocus,
   onRecommend,
-  onGenerate
+  onGenerate,
+  onGenerateAtomicMotion,
+  atomicMotionPanel
 }: Props) {
   const chips = parsedChips(parseResult);
-  const generationChips = generationUnderstandingChips(generationIntent);
   const isGenerateMode = mode === "generate";
-  const heading = isGenerateMode
-    ? {
-        eyebrow: "自然语义生成动效组件",
-        title: "按规范生成新动效",
-        description: "输入目标效果，系统会从候选组件和设计规范中生成一个可编辑版本。",
-        button: "生成新组件",
-        loading: "正在生成..."
-      }
-    : {
-        eyebrow: "智能动效推荐",
-        title: "今天想制作什么动效？",
-        description: "输入你的场景、风格和组件类型，系统会解析需求并推荐可编辑的动效组件。",
-        button: "生成推荐",
-        loading: "正在推荐..."
-      };
-  const panelClassName = `discovery-panel ${isGenerateMode ? "is-generate-mode" : "is-recommend-mode"}`;
-  const stackClassName = `brief-stack ${isGenerateMode ? "is-generate-stack" : "is-recommend-stack"}`;
-  const gradientClassName = `background-gradient-animation${isGenerateMode ? " is-active" : ""}`;
+  const isAtomicMode = mode === "atomic";
+  const heading =
+    mode === "generate"
+      ? {
+          eyebrow: "自然语义生成动效组件",
+          title: "按规范生成新动效",
+          description: "输入目标效果，系统会从候选组件和设计规范中生成一个可编辑版本。",
+          button: "生成新组件",
+          loading: "正在生成..."
+        }
+      : mode === "atomic"
+        ? {
+            eyebrow: "原子动效参数",
+            title: "按参数还原动效",
+            description: "选择设计师维护的元素、梯度和参数，直接生成可编辑的原子动效草稿。",
+            button: "生成原子草稿",
+            loading: "正在生成..."
+          }
+        : {
+            eyebrow: "智能动效推荐",
+            title: "今天想制作什么动效？",
+            description: "输入你的场景、风格和组件类型，系统会解析需求并推荐可编辑的动效组件。",
+            button: "生成推荐",
+            loading: "正在推荐..."
+          };
+  const modeClassName =
+    mode === "generate" ? "is-generate-mode" : mode === "atomic" ? "is-atomic-mode" : "is-recommend-mode";
+  const stackClassName =
+    mode === "generate" ? "is-generate-stack" : mode === "atomic" ? "is-atomic-stack" : "is-recommend-stack";
+  const panelClassName = `discovery-panel ${modeClassName}`;
+  const gradientClassName = `background-gradient-animation${mode !== "recommend" ? " is-active" : ""}`;
+  const action = isAtomicMode
+    ? { onClick: onGenerateAtomicMotion, label: heading.button, loading: heading.loading }
+    : isGenerateMode
+      ? { onClick: onGenerate, label: heading.button, loading: heading.loading }
+      : { onClick: onRecommend, label: heading.button, loading: heading.loading };
 
   return (
     <section className={panelClassName} aria-label="动效需求推荐">
-      <div className={gradientClassName} aria-hidden="true">
-        <div className="background-gradient-animation__field" />
-        <div className="background-gradient-animation__veil" />
-      </div>
-      <div className={stackClassName}>
+      {isAtomicMode ? (
+        <EtherealShadowBackground />
+      ) : (
+        <div className={gradientClassName} aria-hidden="true">
+          <div className="background-gradient-animation__field" />
+          <div className="background-gradient-animation__veil" />
+        </div>
+      )}
+      <div className={`brief-stack ${stackClassName}`}>
         <div className="brief-heading">
           <p className="eyebrow">{heading.eyebrow}</p>
           <h1>{heading.title}</h1>
@@ -125,36 +169,46 @@ export function BriefPanel({
           >
             自然语义生成
           </button>
+          <button
+            className={mode === "atomic" ? "brief-mode-tab is-on" : "brief-mode-tab"}
+            type="button"
+            role="tab"
+            aria-selected={mode === "atomic"}
+            onClick={() => onModeChange("atomic")}
+          >
+            原子动效参数
+          </button>
         </div>
-        <textarea
-          aria-label="动效需求"
-          placeholder="例如：我想要一个适合活动页的紫色按钮悬停动效"
-          value={brief}
-          onChange={(event) => onBriefChange(event.target.value)}
-          onFocus={onBriefFocus}
-          rows={5}
-        />
-        <button
-          className="ai-recommend-button"
-          type="button"
-          onClick={isGenerateMode ? onGenerate : onRecommend}
-          disabled={isLoading || isDisabled}
+        <div
+          className={`brief-content-region ${isAtomicMode ? "is-atomic-content" : "is-prompt-content"}`}
+          key={mode}
         >
-          {isDisabled ? "组件库加载中..." : isLoading ? heading.loading : heading.button}
-        </button>
-        {isGenerateMode && generationStatus ? (
+          {isAtomicMode ? (
+            atomicMotionPanel
+          ) : (
+            <textarea
+              aria-label="动效需求"
+              placeholder="例如：我想要一个适合活动页的紫色按钮悬停动效"
+              value={brief}
+              onChange={(event) => onBriefChange(event.target.value)}
+              onFocus={onBriefFocus}
+              rows={5}
+            />
+          )}
+        </div>
+        <div className="brief-actions">
+          <button
+            className="ai-recommend-button"
+            type="button"
+            onClick={action.onClick}
+            disabled={isLoading || isDisabled}
+          >
+            {isDisabled ? "组件库加载中..." : isLoading ? action.loading : action.label}
+          </button>
+        </div>
+        {(isGenerateMode || isAtomicMode) && generationStatus ? (
           <div className="status-grid" aria-label="生成状态">
             <span className="status-pill">{generationStatus}</span>
-          </div>
-        ) : null}
-        {isGenerateMode && generationChips.length > 0 ? (
-          <div className="status-grid generation-understanding" aria-label="生成理解结果">
-            <span className="status-pill muted">已理解</span>
-            {generationChips.map((chip) => (
-              <span className="brief-chip" key={chip}>
-                {chip}
-              </span>
-            ))}
           </div>
         ) : null}
         {!isGenerateMode && parseResult ? (

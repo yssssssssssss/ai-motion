@@ -89,6 +89,45 @@ const motionRecipeBindingSchema = z.object({
   confidence: z.number().min(0).max(1).optional()
 });
 
+const motionSkillTokenBindingSchema = z
+  .object({
+    id: z.string().min(1),
+    token: z.string(),
+    animationType: z.string().min(1),
+    targetLayer: z.string().min(1),
+    value: z.string().min(1),
+    delay: z.string().min(1),
+    propertyChange: z.string().min(1),
+    cssValue: z.string().min(1),
+    property: z.string().min(1),
+    durationParamId: z.string().min(1),
+    delayParamId: z.string().min(1),
+    easingParamId: z.string().min(1),
+    keyframeParamIds: z.array(z.string().min(1))
+  })
+  .strict();
+
+const motionSkillTargetBindingSchema = z
+  .object({
+    layerId: z.string().min(1),
+    label: z.string().min(1),
+    role: z.string().min(1),
+    selector: z.string().min(1)
+  })
+  .strict();
+
+const motionSkillBindingSchema = z.object({
+  source: z.literal("designer-csv"),
+  element: z.string().min(1),
+  variant: z.string().min(1),
+  family: z.string().min(1),
+  version: z.string().min(1),
+  recipeId: z.string().min(1),
+  tokenIds: z.array(z.string().min(1)),
+  tokens: z.array(motionSkillTokenBindingSchema).optional(),
+  target: motionSkillTargetBindingSchema.optional()
+});
+
 const layerSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
@@ -114,6 +153,7 @@ export const motionManifestSchema = z.object({
   groups: z.array(z.object({ id: z.string(), label: z.string(), params: z.array(z.string()) })).optional(),
   designSpecs: z.array(designSpecBindingSchema).optional(),
   motionRecipes: z.array(motionRecipeBindingSchema).optional(),
+  motionSkill: motionSkillBindingSchema.optional(),
   layers: z.array(layerSchema).optional(),
   presets: z
     .array(

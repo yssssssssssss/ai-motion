@@ -29,6 +29,12 @@ describe("HomeRoute reference-guided generation wiring", () => {
   });
 
   it("keeps generation results as drafts and shows an in-between progress overlay", () => {
+    expect(homeRouteSource).toContain("AtomicMotionPanel");
+    expect(homeRouteSource).toContain("generateAtomicMotionComponent");
+    expect(homeRouteSource).toContain("atomicMotionPanel=");
+    expect(homeRouteSource).toContain("onGenerateAtomicMotion={generateAtomicMotionDraft}");
+    expect(homeRouteSource).not.toContain("isAtomicMotionOpen");
+    expect(homeRouteSource).not.toContain("setIsAtomicMotionOpen");
     expect(homeRouteSource).toContain("GenerationProgressOverlay");
     expect(homeRouteSource).toContain('type GenerationOverlayPhase = "compact" | "expanding" | "revealing"');
     expect(homeRouteSource).toContain("MIN_GENERATION_OVERLAY_MS");
