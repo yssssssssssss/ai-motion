@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderPreviewHtml } from "./previewHtml";
 import type { MotionManifest, MotionPatch, MotionSource } from "@motion-tool/core";
+import { generateAtomicMotionComponent } from "../../services/atomicMotionGeneration";
 
 const source: MotionSource = {
   id: "button",
@@ -69,6 +70,14 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain("fixElementSize(content, declaredSize)");
     expect(html).toContain("fitThumbnail();");
     expect(html).toContain("window.setTimeout(fitThumbnail, 80)");
+    expect(html).toContain("function replayThumbnailMotion()");
+    expect(html).toContain("function ensureMotionPreviewProtocol()");
+    expect(html).toContain("window.motionReplay = fallbackReplay");
+    expect(html).toContain("const thumbnailReplayPauseMs = 800");
+    expect(html).toContain("function scheduleThumbnailLoop()");
+    expect(html).toContain("thumbnailPlaybackDuration() + thumbnailReplayPauseMs");
+    expect(html).toContain('root.classList.remove("is-playing")');
+    expect(html).toContain('root.classList.add("is-playing")');
     expect(html).not.toContain("animation-play-state: paused !important");
     expect(html).not.toContain("transition: none !important");
   });
@@ -117,12 +126,83 @@ describe("renderPreviewHtml", () => {
     const html = renderPreviewHtml({ source, manifest, patch, mode: "editor" });
 
     expect(html).toContain('data.type !== "motion-preview:playback"');
+    expect(html).toContain("const editorReplayPauseMs = 1200");
     expect(html).toContain("function schedulePlaybackLoop()");
+    expect(html).toContain("function ensureMotionPreviewProtocol()");
+    expect(html).toContain("window.motionPause = fallbackPause");
+    expect(html).toContain("window.motionSeek = fallbackSeek");
+    expect(html).toContain("window.motionReplay();");
     expect(html).toContain("function applyPlaybackState(playState)");
     expect(html).toContain("animation.pause()");
     expect(html).toContain("animation.play()");
     expect(html).toContain('data.action === "pause"');
     expect(html).toContain('data.action === "play"');
     expect(html).toContain("requestAnimationFrame(() => requestAnimationFrame(schedulePlaybackLoop))");
+    expect(html).toContain('data.action === "replay"');
+    expect(html).toContain("replayMotion();");
+    expect(html).toContain("declaredPlaybackDuration() + editorReplayPauseMs");
+  });
+
+  it("adds editor patch updates inside the preview iframe", () => {
+    const html = renderPreviewHtml({ source, manifest, patch, mode: "editor" });
+
+    expect(html).toContain('data.type === "motion-preview:patch"');
+    expect(html).toContain("function applyMotionPreviewPatch(values, params)");
+    expect(html).toContain("style.setProperty(target.name, cssValue)");
+    expect(html).toContain('target.kind === "css-property"');
+    expect(html).toContain('target.kind === "html-text"');
+  });
+
+  it("keeps externalized builtin stylesheets as links", () => {
+    const externalSource: MotionSource = {
+      ...source,
+      files: [
+        {
+          ...source.files[0]!,
+          content:
+            '<!doctype html><html><head><link rel="stylesheet" href="./assets.css" /><link rel="stylesheet" href="./style.css" /></head><body><button class="button">Save</button></body></html>'
+        },
+        source.files[1]!,
+        {
+          path: "source/assets.css",
+          kind: "css",
+          content: "/assets/jd-product-transition-video/assets.css"
+        }
+      ]
+    };
+    const html = renderPreviewHtml({
+      source: externalSource,
+      manifest,
+      patch
+    });
+
+    expect(html).toContain('<link rel="stylesheet" href="/assets/jd-product-transition-video/assets.css" />');
+    expect(html).not.toContain("<style>/assets/jd-product-transition-video/assets.css</style>");
+  });
+
+  it("renders uploaded atomic foreground and background images as real layer image src values", () => {
+    const component = generateAtomicMotionComponent({
+      elementId: "popup-feedback",
+      variant: "中型尺寸",
+      now: 1717747200000
+    });
+    const html = renderPreviewHtml({
+      source: component.source,
+      manifest: component.manifest,
+      patch: {
+        id: "atomic-image-patch",
+        sourceManifestId: component.manifest.id,
+        values: {
+          backgroundImage: "data:image/png;base64,BACKGROUND",
+          foregroundImage: "data:image/png;base64,FOREGROUND"
+        }
+      },
+      mode: "editor"
+    });
+
+    expect(html).toContain('data-motion="backgroundImage" src="data:image/png;base64,BACKGROUND"');
+    expect(html).toContain('data-motion="foregroundImage" src="data:image/png;base64,FOREGROUND"');
+    expect(html).toContain("object-fit: fill");
+    expect(html).not.toContain("object-fit: cover");
   });
 });

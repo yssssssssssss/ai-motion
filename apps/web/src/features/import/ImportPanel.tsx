@@ -4,6 +4,12 @@ import JSZip from "jszip";
 type Props = {
   onImport: (files: Record<string, string>) => void;
   disabled?: boolean;
+  compact?: boolean;
+};
+
+export type SourceUploadReadResult = {
+  files: Record<string, string>;
+  summary: string;
 };
 
 // 从 zip 包解压所有文件为 path→content 映射
@@ -22,16 +28,28 @@ async function extractZip(file: File): Promise<Record<string, string>> {
   return entries;
 }
 
-// 读取普通文件列表为 path→content 映射
-async function readFiles(fileList: FileList): Promise<Record<string, string>> {
+export async function readSourceUploadFiles(fileList: FileList | File[]): Promise<SourceUploadReadResult> {
+  const files = Array.from(fileList);
+  const singleFile = files[0];
+
+  if (files.length === 1 && singleFile?.name.endsWith(".zip")) {
+    const extracted = await extractZip(singleFile);
+    const count = Object.keys(extracted).length;
+    return { files: extracted, summary: `已解压 ${singleFile.name}（${count} 个文件）` };
+  }
+
   const entries: Record<string, string> = {};
-  for (const file of Array.from(fileList)) {
+  for (const file of files) {
     entries[file.name] = await file.text();
   }
-  return entries;
+  const exts = new Set(Object.keys(entries).map((p) => p.split(".").pop() ?? ""));
+  return {
+    files: entries,
+    summary: `已加载 ${Object.keys(entries).length} 个文件（${[...exts].join(", ")}）`
+  };
 }
 
-export function ImportPanel({ onImport, disabled }: Props) {
+export function ImportPanel({ onImport, disabled, compact = false }: Props) {
   const inputId = "motion-source-file-input";
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -44,21 +62,9 @@ export function ImportPanel({ onImport, disabled }: Props) {
 
       setIsProcessing(true);
       try {
-        // 如果只上传了一个 zip 文件，自动解压
-        const singleFile = fileList[0];
-        if (fileList.length === 1 && singleFile?.name.endsWith(".zip")) {
-          const extracted = await extractZip(singleFile);
-          const count = Object.keys(extracted).length;
-          setFileSummary(`已解压 ${singleFile.name}（${count} 个文件）`);
-          onImport(extracted);
-          return;
-        }
-
-        // 普通多文件上传
-        const entries = await readFiles(fileList);
-        const exts = new Set(Object.keys(entries).map((p) => p.split(".").pop() ?? ""));
-        setFileSummary(`已加载 ${Object.keys(entries).length} 个文件（${[...exts].join(", ")}）`);
-        onImport(entries);
+        const result = await readSourceUploadFiles(fileList);
+        setFileSummary(result.summary);
+        onImport(result.files);
       } finally {
         setIsProcessing(false);
         // 清空 input 以便重复上传同名文件
@@ -84,8 +90,12 @@ export function ImportPanel({ onImport, disabled }: Props) {
   }
 
   return (
-    <section className="tool-section" id="import">
-      <h2>上传案例</h2>
+    <section
+      className={compact ? "import-panel" : "tool-section"}
+      id={compact ? undefined : "import"}
+      aria-label={compact ? "上传案例" : undefined}
+    >
+      {!compact && <h2>上传案例</h2>}
       <div
         className={isDragging ? "import-drop-zone is-dragging" : "import-drop-zone"}
         onDragOver={handleDragOver}
@@ -95,7 +105,7 @@ export function ImportPanel({ onImport, disabled }: Props) {
         <p className="import-drop-hint">
           拖拽文件到此处，或点击选择
           <br />
-          <small>支持 HTML / CSS / JS / ZIP 包</small>
+          <small>支持 HTML / CSS / JS / JSON / SVG / ZIP 包</small>
         </p>
         <input
           ref={inputRef}

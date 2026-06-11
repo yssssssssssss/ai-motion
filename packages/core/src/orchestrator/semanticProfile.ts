@@ -246,6 +246,10 @@ function localizedMatches(values: string[], groups: Record<string, string[]>): s
   );
 }
 
+function recognizedRoleTerms(values: string[]): string[] {
+  return values.filter((value) => canonicalMatches([value], ROLE_GROUPS).length > 0);
+}
+
 function componentSource(component: MotionComponent): ComponentSemanticProfile["source"] {
   if (component.source.origin === "imported") return "uploaded";
   return component.tags.includes("workeasy") ? "workeasy" : "native";
@@ -267,8 +271,12 @@ function inferIntent(values: string[]): string[] {
   return unique(intents);
 }
 
-function inferIntensity(primitives: string[], triggers: string[]): ComponentSemanticProfile["motion"]["intensity"] {
-  if (primitives.includes("glow") || primitives.includes("particle") || primitives.includes("explosion")) return "high";
+function inferIntensity(
+  primitives: string[],
+  triggers: string[]
+): ComponentSemanticProfile["motion"]["intensity"] {
+  if (primitives.includes("glow") || primitives.includes("particle") || primitives.includes("explosion"))
+    return "high";
   if (primitives.length >= 2 || triggers.includes("hover")) return "medium";
   return "low";
 }
@@ -336,7 +344,12 @@ export function createComponentSemanticProfile(component: MotionComponent): Comp
       colors,
       style,
       shape,
-      density: component.manifest.params.length > 6 ? "rich" : component.manifest.params.length > 2 ? "normal" : "compact"
+      density:
+        component.manifest.params.length > 6
+          ? "rich"
+          : component.manifest.params.length > 2
+            ? "normal"
+            : "compact"
     },
     editable: {
       paramCount: component.manifest.params.length,
@@ -366,7 +379,12 @@ export function createQuerySemanticProfile(intent: ParsedBriefIntent): QuerySema
   const style = localizedMatches(values, VISUAL_STYLE_GROUPS);
   const shape = localizedMatches(values, SHAPE_GROUPS);
   const intents = inferIntent([...values, ...scenes, ...triggers, ...primitives, ...style]);
+  const recognizedComponentKinds = recognizedRoleTerms(intent.componentKinds);
+  const unrecognizedComponentKinds = intent.componentKinds.filter(
+    (value) => !recognizedComponentKinds.includes(value)
+  );
   const should = unique([
+    ...unrecognizedComponentKinds,
     ...intent.softPreferences,
     ...intent.motionStyles,
     ...intent.keywords,
@@ -394,7 +412,7 @@ export function createQuerySemanticProfile(intent: ParsedBriefIntent): QuerySema
       style,
       shape
     },
-    must: unique([...intent.componentKinds, ...intent.hardConstraints]),
+    must: unique([...recognizedComponentKinds, ...intent.hardConstraints]),
     should,
     mustNot: unique(intent.negativePreferences),
     searchText: unique([...values, ...should]).join(" ")

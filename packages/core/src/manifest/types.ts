@@ -73,6 +73,72 @@ export type MotionParamGroup = {
   params: string[];
 };
 
+export type MotionDesignSpecBinding = {
+  id: string;
+  confidence?: number;
+  required?: boolean;
+};
+
+export type MotionRecipeBinding = {
+  recipeId: string;
+  recipeName?: string;
+  category?: "entrance" | "feedback" | "transition" | "loop";
+  targetLayerIds: string[];
+  targetRoles?: string[];
+  targetSelectors?: string[];
+  paramIds: string[];
+  trigger: "load" | "hover" | "click" | "loop";
+  source?: "builtin" | "extracted" | "model" | "fallback";
+  confidence?: number;
+};
+
+export type MotionSkillTokenBinding = {
+  id: string;
+  token: string;
+  animationType: string;
+  targetLayer: string;
+  value: string;
+  delay: string;
+  propertyChange: string;
+  cssValue: string;
+  property: string;
+  durationParamId: string;
+  delayParamId: string;
+  easingParamId: string;
+  keyframeParamIds: string[];
+};
+
+export type MotionSkillTargetBinding = {
+  layerId: string;
+  label: string;
+  role: string;
+  selector: string;
+};
+
+export type MotionSkillBinding = {
+  source: "designer-csv";
+  element: string;
+  variant: string;
+  family: string;
+  version: string;
+  recipeId: string;
+  tokenIds: string[];
+  tokens?: MotionSkillTokenBinding[];
+  target?: MotionSkillTargetBinding;
+};
+
+export type MotionLayerKind = "image" | "text" | "structure";
+
+export type MotionLayer = {
+  id: string;
+  label: string;
+  kind: MotionLayerKind;
+  replaceable: boolean;
+  required?: boolean;
+  paramId?: string;
+  targets: MotionTarget[];
+};
+
 export type MotionPatch = {
   id: string;
   sourceManifestId: string;
@@ -95,6 +161,10 @@ export type MotionManifest = {
   runtime: MotionRuntime;
   params: MotionParam[];
   groups?: MotionParamGroup[];
+  designSpecs?: MotionDesignSpecBinding[];
+  motionRecipes?: MotionRecipeBinding[];
+  motionSkill?: MotionSkillBinding;
+  layers?: MotionLayer[];
   presets?: MotionPreset[];
   capabilities?: MotionCapability[];
 };

@@ -1,0 +1,20 @@
+{
+  "recipes": [
+    {
+      "id": "container-transform.product-card.enter",
+      "name": "容器变换 / 商卡",
+      "family": "container-transform",
+      "sourceElement": "容器变换",
+      "variant": "product-card",
+      "sourceVariant": "商卡",
+      "targetRole": "container",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "container-transform.product-card.size",
+        "container-transform.product-card.roundness",
+        "container-transform.product-card.position"
+      ]
+    }
+  ]
+}

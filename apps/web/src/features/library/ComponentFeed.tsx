@@ -1,14 +1,23 @@
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MotionComponent } from "@motion-tool/core";
-import { createSearchProfile, type SearchProfile } from "@motion-tool/core";
+import {
+  analyzeComponentHealth,
+  analyzeGenerationReadiness,
+  createSearchProfile,
+  type GenerationReadinessReport,
+  type SearchProfile
+} from "@motion-tool/core";
 import { renderPreviewHtml } from "../editor/previewHtml";
 import { createEmptyPatch } from "../../state/projectStore";
+import { hasRenderableSource } from "./sourceState";
 
 type Filter = "all" | "workeasy" | "native" | "uploaded" | "buttons" | "cards" | "checkboxes";
 
 type Props = {
   components: MotionComponent[];
   aiMatchIds: Set<string>;
+  isLoading?: boolean;
+  onLoadComponentSource: (component: MotionComponent) => Promise<MotionComponent>;
   restoreComponentId?: string | null | undefined;
   onSelect: (componentId: string) => void;
   onRestoreComplete?: (() => void) | undefined;
@@ -23,6 +32,13 @@ const filters: Array<{ id: Filter; label: string }> = [
   { id: "cards", label: "卡片" },
   { id: "checkboxes", label: "选择控件" }
 ];
+
+const INITIAL_PREVIEW_COUNT = 12;
+
+export function shouldLoadPreviewSource(component: MotionComponent, state: { isMounted: boolean }): boolean {
+  if (!state.isMounted || hasRenderableSource(component)) return false;
+  return true;
+}
 
 function sourceLabel(component: MotionComponent): "工作易" | "内置" | "上传" {
   if (component.source.origin === "imported") return "上传";
@@ -48,14 +64,37 @@ function isReadOnly(component: MotionComponent): boolean {
   return component.tags.includes("read-only") || component.manifest.params.length === 0;
 }
 
+function healthTone(report: ReturnType<typeof analyzeComponentHealth>): "good" | "warn" | "bad" {
+  if (report.checks.some((check) => check.status === "fail")) return "bad";
+  if (report.score < 90) return "warn";
+  return "good";
+}
+
+function healthSummary(report: ReturnType<typeof analyzeComponentHealth>): string {
+  const issue = report.checks.find((check) => check.status !== "pass");
+  return issue ? `${issue.label}: ${issue.message}` : "组件预览、编辑和导出状态正常";
+}
+
 const COLOR_SWATCH: Record<string, string> = {
-  红色: "#ef4444", 橙色: "#f97316", 黄色: "#eab308", 绿色: "#22c55e",
-  青色: "#06b6d4", 蓝色: "#3b82f6", 紫色: "#a855f7", 粉色: "#ec4899",
-  黑色: "#171717", 白色: "#fafafa", 灰色: "#9ca3af", 棕色: "#92400e",
-  金色: "#fbbf24", 深色: "#262626", 多彩: "#cbd5e1"
+  红色: "#ef4444",
+  橙色: "#f97316",
+  黄色: "#eab308",
+  绿色: "#22c55e",
+  青色: "#06b6d4",
+  蓝色: "#3b82f6",
+  紫色: "#a855f7",
+  粉色: "#ec4899",
+  黑色: "#171717",
+  白色: "#fafafa",
+  灰色: "#9ca3af",
+  棕色: "#92400e",
+  金色: "#fbbf24",
+  深色: "#262626",
+  多彩: "#cbd5e1"
 };
 
 const profileCache = new WeakMap<MotionComponent, SearchProfile>();
+const readinessCache = new WeakMap<MotionComponent, GenerationReadinessReport>();
 
 function getProfile(component: MotionComponent): SearchProfile {
   const cached = profileCache.get(component);
@@ -63,6 +102,31 @@ function getProfile(component: MotionComponent): SearchProfile {
   const p = createSearchProfile(component);
   profileCache.set(component, p);
   return p;
+}
+
+function getGenerationReadiness(component: MotionComponent): GenerationReadinessReport {
+  const cached = readinessCache.get(component);
+  if (cached) return cached;
+  const report = analyzeGenerationReadiness(component);
+  readinessCache.set(component, report);
+  return report;
+}
+
+function readinessLabel(report: GenerationReadinessReport): string {
+  if (report.status === "ready") return "生成就绪";
+  if (report.status === "partial") return "部分可生成";
+  return "需补规范";
+}
+
+function readinessTone(report: GenerationReadinessReport): "good" | "warn" | "bad" {
+  if (report.status === "ready") return "good";
+  if (report.status === "partial") return "warn";
+  return "bad";
+}
+
+function readinessSummary(report: GenerationReadinessReport): string {
+  const issue = report.checks.find((check) => check.status !== "pass");
+  return issue ? `${issue.label}: ${issue.message}` : "已具备规范、图层和 Plus 控制基础";
 }
 
 function matchesFilter(component: MotionComponent, filter: Filter): boolean {
@@ -93,18 +157,87 @@ function getCachedThumbnail(component: MotionComponent): string {
   return html;
 }
 
+function LazyFeedPreview({
+  component,
+  eager,
+  onLoadComponentSource
+}: {
+  component: MotionComponent;
+  eager: boolean;
+  onLoadComponentSource: (component: MotionComponent) => Promise<MotionComponent>;
+}) {
+  const [shouldMount, setShouldMount] = useState(eager);
+  const [hydratedComponent, setHydratedComponent] = useState(component);
+  const previewRef = useRef<HTMLSpanElement>(null);
+  const isMounted = eager || shouldMount;
+
+  useEffect(() => {
+    setHydratedComponent(component);
+  }, [component]);
+
+  useEffect(() => {
+    if (isMounted) return;
+    const element = previewRef.current;
+    if (!element) return;
+
+    if (!("IntersectionObserver" in window)) {
+      setShouldMount(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setShouldMount(true);
+        observer.disconnect();
+      },
+      { rootMargin: "360px 0px" }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (!shouldLoadPreviewSource(hydratedComponent, { isMounted })) return;
+    let ignore = false;
+    onLoadComponentSource(hydratedComponent).then((loaded) => {
+      if (!ignore) setHydratedComponent(loaded);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [hydratedComponent, isMounted, onLoadComponentSource]);
+
+  const canPreview = hasRenderableSource(hydratedComponent);
+
+  return (
+    <span className={`feed-thumb ${componentKind(component)}`} ref={previewRef}>
+      {isMounted && canPreview ? (
+        <iframe
+          className="feed-preview-frame"
+          loading={eager ? "eager" : "lazy"}
+          sandbox="allow-scripts"
+          srcDoc={getCachedThumbnail(hydratedComponent)}
+          title={`${hydratedComponent.name} 预览`}
+        />
+      ) : (
+        <span className="feed-preview-placeholder" aria-label={`${component.name} 预览加载占位`} />
+      )}
+    </span>
+  );
+}
+
 export function ComponentFeed({
   components,
   aiMatchIds,
+  isLoading = false,
+  onLoadComponentSource,
   restoreComponentId,
   onSelect,
   onRestoreComplete
 }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
-  const visible = useMemo(
-    () => components.filter((component) => matchesFilter(component, filter)),
-    [components, filter]
-  );
+  const visible = useMemo(() => components.filter((component) => matchesFilter(component, filter)), [components, filter]);
 
   useLayoutEffect(() => {
     if (!restoreComponentId) return;
@@ -139,10 +272,19 @@ export function ComponentFeed({
           ))}
         </div>
       </div>
-      <div className="feed-grid">
-        {visible.map((component) => {
+      {isLoading ? (
+        <div className="feed-loading" aria-label="组件库加载中">
+          {Array.from({ length: 6 }, (_, index) => (
+            <span className="feed-loading-card" key={index} />
+          ))}
+        </div>
+      ) : null}
+      <div className="feed-grid" aria-busy={isLoading}>
+        {visible.map((component, index) => {
           const isAiMatch = aiMatchIds.has(component.id);
           const profile = getProfile(component);
+          const health = analyzeComponentHealth(component);
+          const readiness = getGenerationReadiness(component);
           return (
             <article
               className={isAiMatch ? "feed-card is-ai-match" : "feed-card"}
@@ -158,15 +300,11 @@ export function ComponentFeed({
                 }
               }}
             >
-              <span className={`feed-thumb ${componentKind(component)}`}>
-                <iframe
-                  className="feed-preview-frame"
-                  loading="lazy"
-                  sandbox="allow-scripts"
-                  srcDoc={getCachedThumbnail(component)}
-                  title={`${component.name} 预览`}
-                />
-              </span>
+              <LazyFeedPreview
+                component={component}
+                eager={index < INITIAL_PREVIEW_COUNT}
+                onLoadComponentSource={onLoadComponentSource}
+              />
               <span className="feed-body">
                 <strong>{component.name}</strong>
                 <small>
@@ -188,7 +326,23 @@ export function ComponentFeed({
                   ))}
                 </span>
                 {isAiMatch ? <em>智能匹配</em> : null}
-                {isReadOnly(component) ? <em>代码预览</em> : <span>打开参数编辑器 -&gt;</span>}
+                {isReadOnly(component) ? (
+                  <em>代码预览</em>
+                ) : (
+                  <span className="feed-card-action">打开参数编辑器 -&gt;</span>
+                )}
+                <span className={`feed-health-badge ${healthTone(health)}`} title={healthSummary(health)}>
+                  健康度 {health.score}
+                </span>
+                <span
+                  className={`feed-readiness-row ${readinessTone(readiness)}`}
+                  title={readinessSummary(readiness)}
+                >
+                  <span>{readinessLabel(readiness)}</span>
+                  <span>
+                    图层 {readiness.layerProfile.replaceableCount}/{readiness.layerProfile.layers.length}
+                  </span>
+                </span>
               </span>
             </article>
           );

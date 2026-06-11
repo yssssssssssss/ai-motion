@@ -12,6 +12,40 @@
   }
 }
 
+@keyframes gradient-background-drift {
+  from {
+    transform: translate3d(-7%, 4%, 0) scale(1.08) rotate(-6deg);
+  }
+
+  to {
+    transform: translate3d(7%, -4%, 0) scale(1.16) rotate(5deg);
+  }
+}
+
+@keyframes gradient-light-sweep {
+  from {
+    opacity: 0.3;
+    transform: translate3d(-12%, 4%, 0) rotate(-5deg);
+  }
+
+  to {
+    opacity: 0.66;
+    transform: translate3d(10%, -4%, 0) rotate(4deg);
+  }
+}
+
+@keyframes gradient-field-pulse {
+  from {
+    opacity: 0.44;
+    transform: translate3d(1%, -1%, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 0.72;
+    transform: translate3d(-1%, 1%, 0) scale(1.04);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

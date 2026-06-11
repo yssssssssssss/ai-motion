@@ -20,6 +20,7 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
 }
 
@@ -32,8 +33,8 @@ select {
 
 button {
   min-height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
   background: var(--panel);
   color: var(--text);
   padding: 0 14px;
@@ -51,7 +52,8 @@ button:disabled {
 }
 
 button:hover:not(:disabled) {
-  border-color: rgba(0, 113, 227, 0.34);
+  border-color: rgba(0, 0, 0, 0.24);
+  background: #fbfbfa;
 }
 
 button:focus-visible,
@@ -73,6 +75,18 @@ select {
   background: var(--panel);
   color: var(--text);
   padding: 9px 11px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(0, 113, 227, 0.55);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+  outline: 0;
 }
 
 input[type="color"] {
@@ -97,9 +111,9 @@ h2 {
 
 .eyebrow {
   margin: 0;
-  color: var(--accent-soft);
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 720;
+  font-weight: 680;
   letter-spacing: 0;
 }
 
@@ -125,7 +139,7 @@ h2 {
   width: max-content;
   min-height: 38px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 8px;
   color: var(--text);
   cursor: pointer;
   font: inherit;
@@ -138,7 +152,7 @@ h2 {
 }
 
 .file-import-button:hover {
-  border-color: rgba(0, 113, 227, 0.34);
+  border-color: rgba(0, 0, 0, 0.24);
   background: #ffffff;
   transform: translateY(-1px);
 }

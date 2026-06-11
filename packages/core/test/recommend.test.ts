@@ -69,6 +69,29 @@ describe("recommendComponents", () => {
     expect(results[0]?.matches).not.toEqual(expect.arrayContaining(["hover", "CTA"]));
   });
 
+  it("does not treat natural-language component kind phrases as impossible hard filters", () => {
+    const results = recommendComponents({
+      intent: {
+        query: "我想要一个适合软件服务首页的文字入场动效",
+        semanticQuery: "适合 SaaS 首页首屏标题的文字入场动效，平滑淡入并上滑出现",
+        categories: ["text animation", "entrance animation", "homepage hero"],
+        componentKinds: ["animated headline"],
+        motionStyles: ["fade in", "slide up", "smooth easing"],
+        sources: [],
+        keywords: ["SaaS", "首页首屏", "标题动效"],
+        softPreferences: ["软件服务首页", "文字入场", "干净简洁"],
+        hardConstraints: [],
+        negativePreferences: [],
+        reasoningHints: [],
+        confidence: 0.92
+      },
+      components,
+      limit: 2
+    });
+
+    expect(results[0]?.componentId).toBe("hero-text-reveal");
+  });
+
   it("creates a fallback intent from raw brief text", () => {
     const intent = createFallbackBriefIntent("WorkEasy hover button with tech style");
 
@@ -188,7 +211,8 @@ describe("recommendComponents", () => {
         files: [
           {
             kind: "css",
-            content: ".button { background: #111827; transition: transform 300ms; } .button:hover { transform: scale(1.03); }"
+            content:
+              ".button { background: #111827; transition: transform 300ms; } .button:hover { transform: scale(1.03); }"
           },
           { kind: "html", content: "<button>Start campaign</button>" }
         ]

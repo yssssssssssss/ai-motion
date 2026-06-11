@@ -14,9 +14,16 @@ export type {
   MotionParamUI,
   MotionParam,
   MotionParamGroup,
+  MotionDesignSpecBinding,
+  MotionRecipeBinding,
+  MotionLayerKind,
+  MotionLayer,
   MotionPatch,
   MotionPreset,
   MotionCapability,
+  MotionSkillTargetBinding,
+  MotionSkillTokenBinding,
+  MotionSkillBinding,
   MotionManifest
 } from "./manifest/types";
 export { motionManifestSchema } from "./manifest/schema";
@@ -29,6 +36,30 @@ export type {
   MotionComponent
 } from "./library/componentLibrary";
 export { loadMotionComponentFromFiles } from "./library/componentLibrary";
+export type {
+  ComponentHealthCheck,
+  ComponentHealthReport,
+  ComponentHealthStatus
+} from "./library/componentHealth";
+export { analyzeComponentHealth } from "./library/componentHealth";
+export type {
+  DesignSpecBinding,
+  GenerationLayer,
+  GenerationLayerKind,
+  GenerationLayerProfile,
+  GenerationGateResult,
+  GenerationReadinessCheck,
+  GenerationReadinessReport,
+  GenerationReadinessStatus
+} from "./library/generationReadiness";
+export {
+  analyzeGenerationReadiness,
+  analyzeLayerProfile,
+  canGenerateFromComponent,
+  inferDesignSpecBindings
+} from "./library/generationReadiness";
+export type { DesignSpecSkill } from "./library/designSpecs";
+export { designSpecSkills, findDesignSpecSkill } from "./library/designSpecs";
 
 // ---- patch ----
 export { applyPatchToFiles } from "./patch/applyPatch";
@@ -39,17 +70,182 @@ export { createFallbackBriefIntent, isParsedBriefIntent } from "./orchestrator/b
 export { displayLabels } from "./orchestrator/displayLabels";
 export type { Recommendation } from "./orchestrator/recommend";
 export { recommendComponents } from "./orchestrator/recommend";
+export type { ResolvedReferenceComponent } from "./orchestrator/referenceResolver";
+export { resolveReferenceComponents } from "./orchestrator/referenceResolver";
 export type { SearchProfile } from "./orchestrator/searchProfile";
 export { createSearchProfile } from "./orchestrator/searchProfile";
 export type { ColorFacet } from "./orchestrator/colorAnalysis";
+export type {
+  CompilePlusPatchInput,
+  CompilePlusPatchResult,
+  PlusControl,
+  PlusControlKind,
+  PlusControlOption,
+  PlusControlValue,
+  PlusPatchValues
+} from "./orchestrator/plusControls";
+export { compilePlusPatch, derivePlusControls } from "./orchestrator/plusControls";
+export type { ParamConcept, ParamConceptId } from "./orchestrator/paramConcepts";
+export { describeParamConcepts, paramConceptIds } from "./orchestrator/paramConcepts";
+export type {
+  GenerationAllowedChangeSet,
+  GenerationAcceptanceRule,
+  GenerationPlan,
+  GenerationPlanCandidate
+} from "./orchestrator/generationPlan";
+export { createGenerationPlan } from "./orchestrator/generationPlan";
+export type {
+  GenerationAllowedDiff,
+  GenerationDiffViolation,
+  GenerationDiffViolationCode,
+  ValidateGenerationDiffInput,
+  ValidateGenerationDiffResult
+} from "./orchestrator/generationDiff";
+export { validateGenerationDiff } from "./orchestrator/generationDiff";
+export type { ConversionProtocol, ConversionSourceKind } from "./generation/conversionProtocols";
+export { conversionProtocols } from "./generation/conversionProtocols";
+export type {
+  GeneratedComponentEvaluation,
+  GeneratedComponentEvaluationItem,
+  GeneratedComponentValidationResult,
+  SandboxCheck,
+  SandboxCheckStatus
+} from "./generation/sandbox";
+export {
+  evaluateGeneratedComponent,
+  generationFailureFallback,
+  validateGeneratedComponent
+} from "./generation/sandbox";
+export type {
+  ControlledGenerationPatch,
+  ControlledGenerationRequest,
+  GeneratedComponentFromPatch
+} from "./generation/controlledPatch";
+export {
+  buildControlledGenerationRequest,
+  compileSemanticPatch,
+  createGeneratedComponentFromPatch
+} from "./generation/controlledPatch";
+export type {
+  SemanticGenerationColor,
+  SemanticGenerationDirection,
+  SemanticGenerationEffect,
+  SemanticGenerationIntent,
+  SemanticGenerationRole,
+  SemanticGenerationSpeed,
+  SemanticGenerationTrigger
+} from "./generation/semanticIntent";
+export { parseSemanticGenerationIntent } from "./generation/semanticIntent";
+export type {
+  SemanticIntentV2,
+  SemanticIntentV2Layer,
+  SemanticIntentV2LayerRole,
+  SemanticIntentV2Motion,
+  SemanticIntentV2Composition,
+  SemanticIntentV2MotionCategory,
+  SemanticIntentV2MotionType,
+  SemanticIntentV2TargetKind
+} from "./generation/semanticIntentV2";
+export {
+  parseSemanticIntentV2Fallback,
+  parseSemanticIntentV2Payload,
+  semanticIntentV2Compositions,
+  semanticIntentV2LayerRoles,
+  semanticIntentV2MotionCategories,
+  semanticIntentV2MotionTypes,
+  semanticIntentV2TargetKinds,
+  semanticIntentV2ToLegacyIntent
+} from "./generation/semanticIntentV2";
+export type {
+  AppliedMotionRecipe,
+  ApplyMotionRecipeToComponentInput,
+  ExtractedMotionRecipe,
+  MotionRecipeCacheEntry,
+  MotionRecipe,
+  MotionRecipeCategory,
+  MotionRecipeComposition,
+  MotionRecipeParam,
+  MotionRecipeParamKind,
+  MotionRecipeRequest,
+  MotionRecipeSource,
+  MotionRecipeTarget,
+  MotionRecipeTimeline
+} from "./generation/motionRecipe";
+export {
+  applyMotionRecipe,
+  applyMotionRecipeToComponent,
+  builtinMotionRecipes,
+  createMotionRecipeCache,
+  extractMotionRecipeFromComponent,
+  findCachedMotionRecipe,
+  motionRecipeCategories,
+  motionRecipeParamKinds,
+  motionRecipeRequestFromSemanticIntent,
+  motionRecipeSchema,
+  resolveMotionRecipe,
+  validateMotionRecipe,
+  validateRecipeApplication
+} from "./generation/motionRecipe";
+export type {
+  AtomicMotionProperty,
+  AtomicMotionToken,
+  CompileMotionSkillsResult,
+  DesignerMotionRow,
+  MotionSkillElement,
+  MotionSkillLock,
+  MotionSkillManifest,
+  MotionSkillPack,
+  MotionSkillRecipe,
+  MotionSkillRecipeFile,
+  MotionSkillRegistry,
+  MotionSkillTokenFile
+} from "./motionSkill";
+export {
+  atomicMotionTokenSchema,
+  compileMotionSkillsFromRows,
+  createMotionSkillDraftComponent,
+  motionSkillLockSchema,
+  motionSkillPackSchema,
+  motionSkillRecipeFileSchema,
+  motionSkillRecipeToMotionRecipe,
+  motionSkillRegistrySchema,
+  motionSkillTokenFileSchema,
+  normalizeDesignerMotionRows,
+  parseCssEasing,
+  parseKeyframes,
+  parseMilliseconds,
+  propertyFromAnimationType,
+  slugMotionId
+} from "./motionSkill";
+export type {
+  ReferenceGuidedGenerationCoverage,
+  ReferenceGuidedGenerationResult,
+  ReferenceGuidedSourceDraft
+} from "./generation/referenceGuidedGeneration";
+export { createReferenceGuidedComponent } from "./generation/referenceGuidedGeneration";
 
 // ---- import / analyze / export ----
 export type { ImportWarning, ImportResult } from "./import/sourceImporter";
 export { importMotionSourceFromFiles } from "./import/sourceImporter";
 export { scanSourceForParams } from "./analyze/ruleScanner";
+export { scanSourceForLayers } from "./analyze/layerScanner";
 export { suggestParams } from "./analyze/paramAdvisor";
 export { confirmValidParams } from "./analyze/validator";
 export { composeEditablePackageFiles, composeStandaloneHtmlFile } from "./export/exportPackage";
+
+// ---- video conversion ----
+export type {
+  VideoConversionStatus,
+  UploadedVideoInput,
+  VideoMotionDirection,
+  VideoMotionHints,
+  VideoConversionJob,
+  MotionPlan,
+  VerificationCheck,
+  VerificationReport,
+  VideoMotionComponentDraft
+} from "./video/types";
+export { createVideoMotionComponentDraft } from "./video/createVideoMotionComponentDraft";
 
 // ---- adapters/workeasy ----
 export type { WorkEasyCategory, WorkEasyComponentRecord, WorkEasySkip } from "./adapters/workeasy/types";

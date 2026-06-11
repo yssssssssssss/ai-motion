@@ -7,7 +7,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --filter @motion-tool/web dev",
+    "dev": "node scripts/dev-server.mjs start",
+    "dev:status": "node scripts/dev-server.mjs status",
+    "dev:stop": "node scripts/dev-server.mjs stop",
+    "dev:restart": "node scripts/dev-server.mjs restart",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
@@ -18,6 +21,8 @@
     "check:circular": "madge --circular --extensions ts,tsx packages/core/src packages/components-builtin/src apps/web/src",
     "gen:workeasy": "node scripts/generate-workeasy-components.mjs",
     "gen:workeasy:check": "node scripts/generate-workeasy-components.mjs && git diff --exit-code -- apps/web/src/data/workeasyComponents.generated.ts",
+    "motion:compile": "node scripts/compile-motion-skills.mjs",
+    "deploy:cloud": "node scripts/deploy-cloud.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

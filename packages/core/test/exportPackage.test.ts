@@ -26,6 +26,48 @@ describe("composeEditablePackageFiles", () => {
     expect(files["source/index.html"]).toBe("<h1>Hello</h1>");
   });
 
+  it("exports editable source files with the current patch applied", () => {
+    const manifest: MotionManifest = {
+      version: "1.0",
+      id: "hero",
+      name: "Hero",
+      sourceKind: "builtin-component",
+      runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+      params: [
+        {
+          id: "duration",
+          label: "Duration",
+          type: "duration",
+          default: 600,
+          status: "confirmed",
+          constraints: { unit: "ms" },
+          targets: [
+            {
+              kind: "css-variable",
+              file: "source/style.css",
+              selector: ":root",
+              name: "--motion-duration"
+            }
+          ]
+        }
+      ]
+    };
+    const patch: MotionPatch = { id: "patch", sourceManifestId: "hero", values: { duration: 900 } };
+
+    const files = composeEditablePackageFiles({
+      sourceFiles: {
+        "source/index.html": '<link rel="stylesheet" href="./style.css" />',
+        "source/style.css": ":root { --motion-duration: 600ms; }"
+      },
+      manifest,
+      metadata: { id: "hero", name: "Hero" },
+      patch
+    });
+
+    expect(files["source/style.css"]).toContain("--motion-duration: 900ms");
+    expect(files["motion.patch.json"]).toContain('"duration": 900');
+  });
+
   it("composes a runnable standalone HTML file with patched CSS and JS inlined", () => {
     const manifest: MotionManifest = {
       version: "1.0",
@@ -58,7 +100,8 @@ describe("composeEditablePackageFiles", () => {
       sourceFiles: {
         "source/index.html":
           '<!doctype html><html><head><link rel="stylesheet" href="./style.css" /></head><body><div class="hero"></div><script src="./script.js"></script></body></html>',
-        "source/style.css": ":root { --motion-duration: 600ms; } .hero { animation-duration: var(--motion-duration); }",
+        "source/style.css":
+          ":root { --motion-duration: 600ms; } .hero { animation-duration: var(--motion-duration); }",
         "source/script.js": "document.body.dataset.ready = 'true';"
       },
       manifest,
@@ -70,5 +113,31 @@ describe("composeEditablePackageFiles", () => {
     expect(html).toContain("<script>document.body.dataset.ready = 'true';</script>");
     expect(html).not.toContain('href="./style.css"');
     expect(html).not.toContain('src="./script.js"');
+  });
+
+  it("inlines resolved externalized CSS content into standalone HTML", () => {
+    const manifest: MotionManifest = {
+      version: "1.0",
+      id: "product",
+      name: "Product",
+      sourceKind: "builtin-component",
+      runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+      params: []
+    };
+    const patch: MotionPatch = { id: "patch", sourceManifestId: "product", values: {} };
+
+    const html = composeStandaloneHtmlFile({
+      sourceFiles: {
+        "source/index.html": '<link rel="stylesheet" href="./assets.css" /><main></main>',
+        "source/assets.css": ":root { --hero-image: url(data:image/png;base64,abc); }"
+      },
+      manifest,
+      patch
+    });
+
+    expect(html).toContain("<style>");
+    expect(html).toContain("--hero-image");
+    expect(html).toContain("data:image/png;base64,abc");
+    expect(html).not.toContain('href="./assets.css"');
   });
 });

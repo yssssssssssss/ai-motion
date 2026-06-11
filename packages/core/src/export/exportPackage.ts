@@ -7,8 +7,14 @@ export function composeEditablePackageFiles(input: {
   metadata: Record<string, unknown>;
   patch: MotionPatch;
 }): Record<string, string> {
+  const patchedFiles = applyPatchToFiles({
+    files: input.sourceFiles,
+    manifest: input.manifest,
+    patch: input.patch
+  });
+
   return {
-    ...input.sourceFiles,
+    ...patchedFiles,
     "motion.manifest.json": JSON.stringify(input.manifest, null, 2),
     "metadata.json": JSON.stringify(input.metadata, null, 2),
     "motion.patch.json": JSON.stringify(input.patch, null, 2)

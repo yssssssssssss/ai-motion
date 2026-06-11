@@ -44,6 +44,22 @@ describe("jd product transition code component", () => {
     ).toBe(true);
   });
 
+  it("declares generation specs and non-replaceable code layers", () => {
+    const manifest = JSON.parse(readComponentFile("motion.manifest.json"));
+
+    expect(manifest.designSpecs?.map((spec) => spec.id)).toEqual(["ecommerce-transition-motion-skill"]);
+    expect(manifest.layers?.map((layer) => layer.id)).toEqual([
+      "home-frame",
+      "detail-frame",
+      "screen-dim",
+      "shared-card",
+      "home-card",
+      "detail-card"
+    ]);
+    expect(manifest.layers.every((layer) => layer.replaceable === false)).toBe(true);
+    expect(manifest.layers.every((layer) => layer.required === true)).toBe(true);
+  });
+
   it("matches the replacement split-layer artboard and editable geometry", () => {
     const style = readComponentFile("source/style.css");
     const assets = readComponentFile("source/assets.css");
@@ -62,10 +78,10 @@ describe("jd product transition code component", () => {
     expect(style).toContain("--end-width: 708px;");
     expect(style).toContain("--end-height: 1020px;");
 
-    expect(assets).toContain("--home-frame: url(\"data:image/jpeg;base64,");
-    expect(assets).toContain("--home-card: url(\"data:image/png;base64,");
-    expect(assets).toContain("--detail-frame: url(\"data:image/png;base64,");
-    expect(assets).toContain("--detail-card: url(\"data:image/png;base64,");
+    expect(assets).toContain('--home-frame: url("data:image/jpeg;base64,');
+    expect(assets).toContain('--home-card: url("data:image/png;base64,');
+    expect(assets).toContain('--detail-frame: url("data:image/png;base64,');
+    expect(assets).toContain('--detail-card: url("data:image/png;base64,');
 
     expect(paramById.endWidth.default).toBe(708);
     expect(paramById.endWidth.constraints.max).toBeGreaterThanOrEqual(708);

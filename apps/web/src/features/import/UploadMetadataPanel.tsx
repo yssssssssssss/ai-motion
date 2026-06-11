@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { MotionComponentMetadata } from "@motion-tool/core";
 
 type Props = {
+  initialMetadata?: MotionComponentMetadata | undefined;
   onSubmit: (metadata: MotionComponentMetadata) => void;
   onCancel: () => void;
 };
@@ -24,25 +25,38 @@ const CATEGORY_LABELS: Record<MotionComponentMetadata["category"], string> = {
   data: "数据"
 };
 
-export function UploadMetadataPanel({ onSubmit, onCancel }: Props) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState<MotionComponentMetadata["category"]>("interaction");
-  const [tagsInput, setTagsInput] = useState("");
+export function createUploadMetadata(input: {
+  name: string;
+  category: MotionComponentMetadata["category"];
+  tagsInput: string;
+  initialMetadata?: MotionComponentMetadata | undefined;
+  createId?: () => string;
+}): MotionComponentMetadata {
+  const tags = input.tagsInput
+    .split(/[,，\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+  return {
+    id: input.createId ? input.createId() : `uploaded-${Date.now()}`,
+    name: input.name.trim(),
+    category: input.category,
+    tags,
+    useCases: input.initialMetadata?.useCases ?? [],
+    moods: input.initialMetadata?.moods ?? []
+  };
+}
+
+export function UploadMetadataPanel({ initialMetadata, onSubmit, onCancel }: Props) {
+  const [name, setName] = useState(initialMetadata?.name ?? "");
+  const [category, setCategory] = useState<MotionComponentMetadata["category"]>(
+    initialMetadata?.category ?? "interaction"
+  );
+  const [tagsInput, setTagsInput] = useState(initialMetadata?.tags.join("，") ?? "");
 
   function handleSubmit() {
     if (!name.trim()) return;
-    const tags = tagsInput
-      .split(/[,，\s]+/)
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-    onSubmit({
-      id: `uploaded-${Date.now()}`,
-      name: name.trim(),
-      category,
-      tags,
-      useCases: [],
-      moods: []
-    });
+    onSubmit(createUploadMetadata({ name, category, tagsInput, initialMetadata }));
   }
 
   return (
@@ -60,7 +74,10 @@ export function UploadMetadataPanel({ onSubmit, onCancel }: Props) {
         </label>
         <label className="select-field">
           <span>分类</span>
-          <select value={category} onChange={(event) => setCategory(event.target.value as MotionComponentMetadata["category"])}>
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value as MotionComponentMetadata["category"])}
+          >
             {CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
                 {CATEGORY_LABELS[cat]}

@@ -8,6 +8,7 @@ export default tseslint.config(
     ignores: [
       "**/node_modules/**",
       "**/dist/**",
+      "**/dist-server/**",
       "**/*.generated.ts",
       "apps/web/src/data/workeasyComponents.generated.ts",
       // 内置组件源代码（运行在 iframe 中），不参与主项目的 lint
