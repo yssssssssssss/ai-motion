@@ -12,18 +12,21 @@ export const atomicMotionTokenSchema = z
     targetRole: targetRoleSchema,
     targetLayer: z.string().min(1),
     token: z.string(),
-    property: z.enum(["scale", "opacity", "position", "roundness", "size"]),
+    property: z.enum(["scale", "opacity", "position", "roundness", "size", "color"]),
     durationMs: z.number().int().nonnegative(),
     delayMs: z.number().int().nonnegative(),
     easing: z.string().min(1),
     keyframes: z.union([
       z.array(z.number()),
+      z.array(z.object({ value: z.number(), offsetMs: z.number().optional() })),
+      z.array(z.string()),
       z.array(
         z.object({
           x: z.number().optional(),
           y: z.number().optional(),
           width: z.number().optional(),
-          height: z.number().optional()
+          height: z.number().optional(),
+          offsetMs: z.number().optional()
         })
       )
     ]),

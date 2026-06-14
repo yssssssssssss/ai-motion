@@ -249,6 +249,54 @@ describe("motion skill compiler", () => {
     expect(result.report).toContain("新增元素: 容器变换@1.0.0");
   });
 
+  it("compiles horizontal switch rows with color tokens", () => {
+    const result = compileMotionSkillsFromRows({
+      rows: [
+        {
+          元素: "横向切换",
+          梯度: "Tab导航",
+          作用图层: "前景层",
+          Token: "standard easing",
+          Value: "300ms",
+          Delay: "0ms",
+          动画类型: "位移",
+          关键属性变化: "position: 0 → -86",
+          "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+        },
+        {
+          Token: "ease out",
+          Value: "120ms",
+          Delay: "80ms",
+          动画类型: "颜色",
+          关键属性变化: "color: #FFF2F3 → #11141A",
+          "CSS Value": "(0.00, 0.00, 0.00, 1.00)"
+        }
+      ],
+      previousLock: null
+    });
+    const pack = result.packs["horizontal-switch"];
+
+    expect(result.registry.elements[0]).toMatchObject({
+      id: "horizontal-switch",
+      label: "横向切换",
+      active: true,
+      variants: ["Tab导航"]
+    });
+    expect(pack?.recipes[0]).toMatchObject({
+      id: "horizontal-switch.tab-navigation.enter",
+      tokenIds: ["horizontal-switch.tab-navigation.position", "horizontal-switch.tab-navigation.color"]
+    });
+    expect(pack?.tokens).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "horizontal-switch.tab-navigation.color",
+          property: "color",
+          keyframes: ["#fff2f3", "#11141a"]
+        })
+      ])
+    );
+  });
+
   it("bumps the family version when visual token values change", () => {
     const first = compileMotionSkillsFromRows({ rows: popupRows, previousLock: null });
     const changed = compileMotionSkillsFromRows({

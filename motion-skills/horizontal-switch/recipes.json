@@ -1,0 +1,81 @@
+{
+  "recipes": [
+    {
+      "id": "horizontal-switch.tab-navigation.enter",
+      "name": "横向切换 / Tab导航",
+      "family": "horizontal-switch",
+      "sourceElement": "横向切换",
+      "variant": "tab-navigation",
+      "sourceVariant": "Tab导航",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "horizontal-switch.tab-navigation.position",
+        "horizontal-switch.tab-navigation.size",
+        "horizontal-switch.tab-navigation.color"
+      ]
+    },
+    {
+      "id": "horizontal-switch.tabbar.enter",
+      "name": "横向切换 / Tabbar底导",
+      "family": "horizontal-switch",
+      "sourceElement": "横向切换",
+      "variant": "tabbar",
+      "sourceVariant": "Tabbar底导",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "horizontal-switch.tabbar.position",
+        "horizontal-switch.tabbar.size"
+      ]
+    },
+    {
+      "id": "horizontal-switch.switch.enter",
+      "name": "横向切换 / 开关",
+      "family": "horizontal-switch",
+      "sourceElement": "横向切换",
+      "variant": "switch",
+      "sourceVariant": "开关",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "horizontal-switch.switch.position",
+        "horizontal-switch.switch.size",
+        "horizontal-switch.switch.color"
+      ]
+    },
+    {
+      "id": "horizontal-switch.indicator.enter",
+      "name": "横向切换 / 指示器",
+      "family": "horizontal-switch",
+      "sourceElement": "横向切换",
+      "variant": "indicator",
+      "sourceVariant": "指示器",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "horizontal-switch.indicator.size",
+        "horizontal-switch.indicator.color"
+      ]
+    },
+    {
+      "id": "horizontal-switch.segmented.enter",
+      "name": "横向切换 / 分段",
+      "family": "horizontal-switch",
+      "sourceElement": "横向切换",
+      "variant": "segmented",
+      "sourceVariant": "分段",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "horizontal-switch.segmented.position",
+        "horizontal-switch.segmented.size"
+      ]
+    }
+  ]
+}

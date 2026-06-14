@@ -1,6 +1,6 @@
 import type { MotionRecipe, MotionRecipeCategory, MotionRecipeParam } from "../generation/motionRecipe";
 import type { MotionTarget } from "../manifest/types";
-import type { AtomicMotionToken, MotionSkillManifest, MotionSkillRecipe } from "./types";
+import type { AtomicMotionToken, MotionSkillManifest, MotionSkillRecipe, ScalarKeyframe } from "./types";
 
 function rootTarget(name: string): MotionTarget {
   return { kind: "css-variable", file: "source/style.css", selector: ":root", name };
@@ -33,14 +33,28 @@ type KeyframeParamDescriptor = {
   cssSuffix: string;
   labelSuffix: string;
   kind: MotionRecipeParam["kind"];
-  default: number;
+  default: MotionRecipeParam["default"];
 };
+
+function isScalarKeyframe(value: unknown): value is ScalarKeyframe {
+  return (
+    typeof value === "number" ||
+    (typeof value === "object" &&
+      value !== null &&
+      "value" in value &&
+      typeof (value as { value?: unknown }).value === "number")
+  );
+}
+
+function scalarValue(frame: ScalarKeyframe): number {
+  return typeof frame === "number" ? frame : frame.value;
+}
 
 function keyframeParamDescriptors(token: AtomicMotionToken): KeyframeParamDescriptor[] {
   if (!Array.isArray(token.keyframes)) return [];
 
-  if (token.keyframes.every((item) => typeof item === "number")) {
-    return token.keyframes.map((value, index) => ({
+  if (token.keyframes.every(isScalarKeyframe)) {
+    return token.keyframes.map((frame, index) => ({
       idSuffix: `keyframe${index}`,
       cssSuffix: `keyframe-${index}`,
       labelSuffix: `关键帧 ${index + 1}`,
@@ -50,6 +64,16 @@ function keyframeParamDescriptors(token: AtomicMotionToken): KeyframeParamDescri
           : token.property === "scale"
             ? ("scale" as const)
             : ("distance" as const),
+      default: scalarValue(frame)
+    }));
+  }
+
+  if (token.keyframes.every((item) => typeof item === "string")) {
+    return token.keyframes.map((value, index) => ({
+      idSuffix: `keyframe${index}`,
+      cssSuffix: `keyframe-${index}`,
+      labelSuffix: `关键帧 ${index + 1}`,
+      kind: "color" as const,
       default: value
     }));
   }
@@ -97,9 +121,7 @@ function keyframeParamDescriptors(token: AtomicMotionToken): KeyframeParamDescri
 }
 
 export function motionSkillKeyframeParamIds(token: AtomicMotionToken): string[] {
-  return keyframeParamDescriptors(token).map((descriptor) =>
-    motionSkillParamId(token, descriptor.idSuffix)
-  );
+  return keyframeParamDescriptors(token).map((descriptor) => motionSkillParamId(token, descriptor.idSuffix));
 }
 
 function categoryFor(recipe: MotionSkillRecipe): MotionRecipeCategory {

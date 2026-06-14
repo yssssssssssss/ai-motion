@@ -46,7 +46,7 @@ function unique<T>(values: T[]): T[] {
 }
 
 function targetRoleForElement(element: string): AtomicMotionToken["targetRole"] {
-  if (/弹窗|弹层|modal|popup/i.test(element)) return "modal";
+  if (/弹窗|弹层|反馈|关闭|modal|popup|feedback|close/i.test(element)) return "modal";
   if (/卡片|card/i.test(element)) return "card";
   if (/前后|横向|页面|screen|page/i.test(element)) return "screen";
   if (/容器|container/i.test(element)) return "container";

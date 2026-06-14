@@ -242,6 +242,8 @@ describe("motion skill recipe adapter", () => {
     expect(sourceText).toContain('data-motion="foregroundLayer"');
     expect(sourceText).toContain('data-motion="foregroundImage"');
     expect(sourceText).toContain("object-fit: fill");
+    expect(sourceText).toContain('.motion-skill-layer-image[src=""]');
+    expect(sourceText).toContain("display: none");
     expect(sourceText).not.toContain("object-fit: cover");
     expect(sourceText).toContain("window.motionReplay");
     expect(
@@ -351,24 +353,27 @@ describe("motion skill recipe adapter", () => {
 
   it("restores popup feedback foreground sizes from large, medium, and small variants", () => {
     const compiled = compileMotionSkillsFromRows({ rows: popupSizeRows, previousLock: null });
-    const heights = Object.fromEntries(
-      [
-        ["large", "popup-feedback.large.enter"],
-        ["medium", "popup-feedback.medium.enter"],
-        ["small", "popup-feedback.small.enter"]
-      ].map(([variant, recipeId]) => {
-        const component = createMotionSkillDraftComponent({
-          registry: compiled.registry,
-          pack: compiled.packs["popup-feedback"]!,
-          recipeId,
-          now: 1717747200000
-        });
-        const css = component.source.files.find((file) => file.path === "source/style.css")?.content ?? "";
-        const height = Number(css.match(/--foreground-layer-height:\s*(\d+)px/)?.[1]);
-        const width = Number(css.match(/--foreground-layer-width:\s*(\d+)px/)?.[1]);
-        return [variant, { height, width }] as const;
-      })
-    );
+    const heights: Record<"large" | "medium" | "small", { height: number; width: number }> = {
+      large: { height: 0, width: 0 },
+      medium: { height: 0, width: 0 },
+      small: { height: 0, width: 0 }
+    };
+    for (const [variant, recipeId] of [
+      ["large", "popup-feedback.large.enter"],
+      ["medium", "popup-feedback.medium.enter"],
+      ["small", "popup-feedback.small.enter"]
+    ] as const) {
+      const component = createMotionSkillDraftComponent({
+        registry: compiled.registry,
+        pack: compiled.packs["popup-feedback"]!,
+        recipeId,
+        now: 1717747200000
+      });
+      const css = component.source.files.find((file) => file.path === "source/style.css")?.content ?? "";
+      const height = Number(css.match(/--foreground-layer-height:\s*(\d+)px/)?.[1]);
+      const width = Number(css.match(/--foreground-layer-width:\s*(\d+)px/)?.[1]);
+      heights[variant] = { height, width };
+    }
 
     expect(heights.large.height).toBeGreaterThan(360);
     expect(heights.medium.height).toBeGreaterThan(200);
@@ -412,17 +417,255 @@ describe("motion skill recipe adapter", () => {
       ]
     });
     expect(sourceText).toContain("@keyframes container-transform-product-card-size");
-    expect(sourceText).toContain("width: var(--container-transform-product-card-size-keyframe-1-width, 355px);");
-    expect(sourceText).toContain("height: var(--container-transform-product-card-size-keyframe-1-height, 512px);");
-    expect(sourceText).toContain("border-radius: var(--container-transform-product-card-roundness-keyframe-1, 12px);");
-    expect(sourceText).toContain("left: var(--container-transform-product-card-position-keyframe-1-x, 182px);");
-    expect(sourceText).toContain("top: var(--container-transform-product-card-position-keyframe-1-y, 564px);");
+    expect(sourceText).toContain("motion-skill-container-transform-product-card");
+    expect(sourceText).toContain("--stage-width: 374px");
+    expect(sourceText).toContain("--stage-height: 812px");
+    expect(sourceText).not.toContain("motion-skill-product-grid");
+    expect(sourceText).toContain(
+      "width: var(--container-transform-product-card-size-keyframe-1-width, 355px);"
+    );
+    expect(sourceText).toContain(
+      "height: var(--container-transform-product-card-size-keyframe-1-height, 512px);"
+    );
+    expect(sourceText).toContain(
+      "border-radius: var(--container-transform-product-card-roundness-keyframe-1, 12px);"
+    );
+    expect(sourceText).toContain(
+      "left: calc(var(--container-transform-card-anchor-left, 8px) + (var(--container-transform-product-card-position-keyframe-1-x, 182px) - 182px));"
+    );
+    expect(sourceText).toContain(
+      "bottom: calc(var(--container-transform-card-anchor-bottom, 34px) - (var(--container-transform-product-card-position-keyframe-1-y, 564px) - 602px));"
+    );
+    expect(sourceText).toContain("transform-origin: left bottom;");
     expect(component.manifest.params.map((param) => param.id)).toEqual(
       expect.arrayContaining([
         "containerTransformProductCardSizeKeyframe1Width",
         "containerTransformProductCardSizeKeyframe1Height",
         "containerTransformProductCardPositionKeyframe1Y"
       ])
+    );
+  });
+
+  it("renders horizontal switch variants with reference-specific default controls", () => {
+    const horizontalRows = [
+      {
+        元素: "横向切换",
+        梯度: "Tab导航",
+        Token: "standard easing",
+        Value: "300ms",
+        Delay: "0ms",
+        动画类型: "位移",
+        关键属性变化: "position: 0 → -86",
+        "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "",
+        Token: "standard easing",
+        Value: "300ms",
+        Delay: "0ms",
+        动画类型: "横向缩放",
+        关键属性变化: "size: 16 → 32(80ms) → 16 | 2.5 → 2.5(80ms) → 2.5",
+        "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "",
+        Token: "ease out",
+        Value: "120ms",
+        Delay: "80ms",
+        动画类型: "颜色",
+        关键属性变化: "color: #FFF2F3 → #11141A",
+        "CSS Value": "(0.00, 0.00, 0.00, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "频道Tab",
+        Token: "",
+        Value: "",
+        Delay: "",
+        动画类型: "",
+        关键属性变化: "",
+        "CSS Value": ""
+      },
+      {
+        元素: "",
+        梯度: "Tabbar底导",
+        Token: "standard easing",
+        Value: "300ms",
+        Delay: "0ms",
+        动画类型: "位移",
+        关键属性变化: "position: 0 → -61.4",
+        "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "",
+        Token: "standard easing",
+        Value: "300ms",
+        Delay: "0ms",
+        动画类型: "横向缩放",
+        关键属性变化: "size: 65.4 → 80.4(80ms) → 65.4 | 44 → 44(80ms) → 44",
+        "CSS Value": "(0.80, 0.00, 0.24, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "开关",
+        Token: "standard easing",
+        Value: "200ms",
+        Delay: "0ms",
+        动画类型: "位移",
+        关键属性变化: "position: 0 → 20",
+        "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "",
+        Token: "standard easing",
+        Value: "200ms",
+        Delay: "0ms",
+        动画类型: "横向缩放",
+        关键属性变化: "size: 32 → 45(33ms) → 32 | 40 → 40(33ms) → 40",
+        "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "",
+        Token: "ease out",
+        Value: "200ms",
+        Delay: "0ms",
+        动画类型: "颜色",
+        关键属性变化: "color: #B4B8BF → #FFF2F3",
+        "CSS Value": "(0.00, 0.00, 0.00, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "指示器",
+        Token: "standard easing",
+        Value: "200ms",
+        Delay: "0ms",
+        动画类型: "横向缩放",
+        关键属性变化: "size: 8 → 4 | 4 → 4",
+        "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "",
+        Token: "ease out",
+        Value: "200ms",
+        Delay: "0ms",
+        动画类型: "颜色",
+        关键属性变化: "color: #FFF2F3 → #F0F0F5",
+        "CSS Value": "(0.00, 0.00, 0.00, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "分段",
+        Token: "standard easing",
+        Value: "200ms",
+        Delay: "0ms",
+        动画类型: "位移",
+        关键属性变化: "position: 0 → 36",
+        "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+      },
+      {
+        元素: "",
+        梯度: "",
+        Token: "standard easing",
+        Value: "200ms",
+        Delay: "0ms",
+        动画类型: "横向缩放",
+        关键属性变化: "size: 36 → 46(80ms) → 36 | 20 → 20(80ms) → 20",
+        "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+      }
+    ];
+    const compiled = compileMotionSkillsFromRows({ rows: horizontalRows, previousLock: null });
+    const pack = compiled.packs["horizontal-switch"]!;
+
+    const componentByRecipe = Object.fromEntries(
+      [
+        "horizontal-switch.tab-navigation.enter",
+        "horizontal-switch.tabbar.enter",
+        "horizontal-switch.switch.enter",
+        "horizontal-switch.indicator.enter",
+        "horizontal-switch.segmented.enter"
+      ].map((recipeId) => {
+        const component = createMotionSkillDraftComponent({
+          registry: compiled.registry,
+          pack,
+          recipeId,
+          now: 1717747200000
+        });
+        return [recipeId, component];
+      })
+    );
+    const cssByRecipe = Object.fromEntries(
+      Object.entries(componentByRecipe).map(([recipeId, component]) => [
+        recipeId,
+        component.source.files.map((file) => file.content).join("\n")
+      ])
+    );
+
+    expect(pack.recipes.map((recipe) => recipe.id)).not.toContain("horizontal-switch.channel-tab.enter");
+    expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain("motion-switch-text-tabs");
+    expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain("--stage-width: 374px");
+    expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain("left: 40px;");
+    expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain(
+      "100% { transform: translateX(258px); }"
+    );
+    expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain(
+      "horizontal-switch-tab-navigation-position calc(var(--horizontal-switch-tab-navigation-position-duration, 300ms) + var(--horizontal-switch-tab-navigation-position-duration, 300ms) + var(--horizontal-switch-tab-navigation-position-duration, 300ms))"
+    );
+    expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain(
+      "8.889% { width: var(--horizontal-switch-tab-navigation-size-keyframe-1-width, 32px);"
+    );
+    expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).not.toContain(
+      "left: var(--horizontal-switch-tab-navigation-position-keyframe-1, -86px);"
+    );
+    expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain(
+      'data-motion="tabNavigationLabel1"'
+    );
+    expect(componentByRecipe["horizontal-switch.tab-navigation.enter"]?.manifest.params).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "activeColor", type: "color", default: "#e60012" }),
+        expect.objectContaining({ id: "tabNavigationLabel1", type: "text", default: "内容名称" })
+      ])
+    );
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain("motion-switch-tabbar-shell");
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain("--stage-height: 140px");
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain("left: 28px;");
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain(
+      "100% { transform: translateX(245.6px); }"
+    );
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain(
+      "horizontal-switch-tabbar-position calc(var(--horizontal-switch-tabbar-position-duration, 300ms) + var(--horizontal-switch-tabbar-position-duration, 300ms) + var(--horizontal-switch-tabbar-position-duration, 300ms) + var(--horizontal-switch-tabbar-position-duration, 300ms))"
+    );
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain(
+      "6.667% { width: var(--horizontal-switch-tabbar-size-keyframe-1-width, 80.4px);"
+    );
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain(
+      "box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18);"
+    );
+    expect(cssByRecipe["horizontal-switch.switch.enter"]).toContain("motion-switch-track");
+    expect(cssByRecipe["horizontal-switch.switch.enter"]).toContain("horizontal-switch-switch-fill");
+    expect(cssByRecipe["horizontal-switch.switch.enter"]).toContain(
+      "8.25% { width: var(--horizontal-switch-switch-size-keyframe-1-width, 45px);"
+    );
+    expect(cssByRecipe["horizontal-switch.switch.enter"]).toContain("50% { transform: translateX(20px); }");
+    expect(cssByRecipe["horizontal-switch.indicator.enter"]).toContain("motion-switch-indicators");
+    expect(cssByRecipe["horizontal-switch.indicator.enter"]).toContain(
+      "@keyframes horizontal-switch-indicator-position"
+    );
+    expect(cssByRecipe["horizontal-switch.indicator.enter"]).toContain(
+      "100% { transform: translateX(30px); }"
+    );
+    expect(cssByRecipe["horizontal-switch.segmented.enter"]).toContain("motion-switch-segmented-track");
+    expect(cssByRecipe["horizontal-switch.segmented.enter"]).toContain("--foreground-layer-width: 36px");
+    expect(cssByRecipe["horizontal-switch.segmented.enter"]).toContain(
+      "100% { transform: translateX(36px); }"
+    );
+    expect(cssByRecipe["horizontal-switch.segmented.enter"]).toContain(
+      "13.333% { width: var(--horizontal-switch-segmented-size-keyframe-1-width, 46px);"
     );
   });
 });

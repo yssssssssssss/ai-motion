@@ -34,11 +34,17 @@ describe("AtomicMotionPanel", () => {
       })
     );
 
-    expect(html).toContain("原子动效参数");
     expect(html).toContain("弹窗反馈");
     expect(html).toContain("atomic-motion-element-grid");
+    expect(html).toContain("元素横向卡片列表");
     expect(html).toContain("atomic-motion-variant-tray");
     expect(html).toContain("中型尺寸");
+    expect(html).not.toContain("Designer CSV");
+    expect(html).not.toContain("原子动效参数");
+    expect(html).not.toContain("atomic-motion-scroll-controls");
+    expect(html).not.toContain("atomic-motion-scroll-button");
+    expect(html).not.toContain("向左滚动");
+    expect(html).not.toContain("向右滚动");
     expect(html).not.toContain("应用对象");
     expect(html).not.toContain("弹窗图层");
     expect(html).not.toContain("当前草稿图层");

@@ -76,4 +76,17 @@ describe("motion skill normalization", () => {
     expect(parseKeyframes("roundness: 8 -> 12", "roundness")).toEqual([8, 12]);
     expect(slugMotionId("商卡")).toBe("product-card");
   });
+
+  it("preserves designer-specified intermediate keyframe timing", () => {
+    expect(parseKeyframes("size: 16 -> 32(80ms) -> 16 | 2.5 -> 2.5(80ms) -> 2.5", "size")).toEqual([
+      { width: 16, height: 2.5 },
+      { width: 32, height: 2.5, offsetMs: 80 },
+      { width: 16, height: 2.5 }
+    ]);
+    expect(parseKeyframes("scale: 50 -> 110%(133ms) -> 100%", "scale")).toEqual([
+      0.5,
+      { value: 1.1, offsetMs: 133 },
+      1
+    ]);
+  });
 });

@@ -1,0 +1,17 @@
+{
+  "id": "horizontal-switch",
+  "name": "横向切换",
+  "version": "1.3.0",
+  "source": "designer-csv",
+  "variants": [
+    "Tab导航",
+    "Tabbar底导",
+    "开关",
+    "指示器",
+    "分段"
+  ],
+  "defaultVariant": "tab-navigation",
+  "tokenFile": "tokens.json",
+  "recipeFile": "recipes.json",
+  "skillFile": "skill.md"
+}

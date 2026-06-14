@@ -27,6 +27,7 @@ export const motionRecipeParamKinds = [
   "distance",
   "scale",
   "opacity",
+  "color",
   "rotate",
   "stagger",
   "loop",
@@ -186,6 +187,8 @@ const recipeTextParam = (param: MotionRecipeParam): MotionParam => {
   const type =
     param.kind === "duration"
       ? "duration"
+      : param.kind === "color"
+        ? "color"
       : param.kind === "easing"
         ? "easing"
         : param.kind === "loop"
@@ -228,7 +231,9 @@ const recipeTextParam = (param: MotionRecipeParam): MotionParam => {
       : param.kind === "distance" || param.kind === "direction"
         ? "轨迹"
         : param.kind === "opacity"
-          ? "透明度"
+        ? "透明度"
+        : param.kind === "color"
+          ? "颜色"
           : param.kind === "scale"
             ? "缩放"
             : param.kind === "rotate" || param.kind === "transformOrigin"
@@ -1048,7 +1053,7 @@ function recipeDefaultFromValue(
   value: unknown,
   kind: MotionRecipeParamKind
 ): MotionRecipeParam["default"] | undefined {
-  if (kind === "easing" || kind === "direction" || kind === "transformOrigin") {
+  if (kind === "easing" || kind === "direction" || kind === "transformOrigin" || kind === "color") {
     return typeof value === "string" && value.trim() ? value.trim() : undefined;
   }
   if (kind === "loop") {

@@ -60,6 +60,13 @@ describe("ComponentFeed styles", () => {
     expect(home).toMatch(/\.ethereal-shadow-noise\s*{[^}]*animation:\s*ethereal-noise-drift 3s/s);
     expect(home).toContain(".atomic-motion-element-grid");
     expect(home).toContain(".atomic-motion-variant-tray");
+    expect(home).toMatch(/\.atomic-motion-element-grid\s*{[^}]*grid-auto-flow:\s*column/s);
+    expect(home).toMatch(/\.atomic-motion-element-grid\s*{[^}]*overflow-x:\s*auto/s);
+    expect(home).toMatch(/\.atomic-motion-element-grid\s*{[^}]*scroll-snap-type:\s*x proximity/s);
+    expect(home).toMatch(/\.atomic-motion-element-card\s*{[^}]*scroll-snap-align:\s*start/s);
+    expect(home).not.toContain("grid-row: span 2");
+    expect(home).not.toContain(".atomic-motion-scroll-controls");
+    expect(home).not.toContain(".atomic-motion-scroll-button");
     expect(home).toMatch(/\.atomic-motion-option:hover:not\(:disabled\)\s*{[^}]*background:\s*rgba\(126,\s*34,\s*206,\s*0\.2\)/s);
     expect(home).toMatch(/\.atomic-motion-option\.is-on:hover:not\(:disabled\)\s*{[^}]*background:\s*rgba\(126,\s*34,\s*206,\s*0\.34\)/s);
     expect(home).toMatch(

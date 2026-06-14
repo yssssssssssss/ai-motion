@@ -9,6 +9,7 @@ export const motionSkillElements = motionSkillRegistry.elements;
 
 function keyframeLabel(frame: AtomicMotionToken["keyframes"][number]): string {
   if (typeof frame === "number") return String(frame);
+  if (typeof frame === "string") return frame;
 
   const parts = [];
   if (typeof frame.width === "number") parts.push(`width ${frame.width}`);

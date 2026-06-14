@@ -15,7 +15,17 @@ export type DesignerMotionRow = {
   rowNumber: number;
 };
 
-export type AtomicMotionProperty = "scale" | "opacity" | "position" | "roundness" | "size";
+export type AtomicMotionProperty = "scale" | "opacity" | "position" | "roundness" | "size" | "color";
+
+export type ScalarKeyframe = number | { value: number; offsetMs?: number };
+
+export type ObjectKeyframe = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  offsetMs?: number;
+};
 
 export type AtomicMotionToken = {
   id: string;
@@ -30,7 +40,7 @@ export type AtomicMotionToken = {
   durationMs: number;
   delayMs: number;
   easing: string;
-  keyframes: number[] | Array<{ x?: number; y?: number; width?: number; height?: number }>;
+  keyframes: ScalarKeyframe[] | string[] | ObjectKeyframe[];
   metadata: {
     animationType: string;
     sourceChange: string;

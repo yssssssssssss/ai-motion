@@ -26,28 +26,6 @@
       "status": "active"
     },
     {
-      "id": "front-back-entry",
-      "label": "前后进场",
-      "latestVersion": "0.0.0",
-      "active": false,
-      "variants": [
-        "半弹层"
-      ],
-      "packPath": "",
-      "status": "incomplete",
-      "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"
-    },
-    {
-      "id": "horizontal-switch",
-      "label": "横向切换",
-      "latestVersion": "0.0.0",
-      "active": false,
-      "variants": [],
-      "packPath": "",
-      "status": "incomplete",
-      "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"
-    },
-    {
       "id": "container-transform",
       "label": "容器变换",
       "latestVersion": "1.0.0",
@@ -59,11 +37,71 @@
       "status": "active"
     },
     {
-      "id": "container-loading",
-      "label": "容器加载",
+      "id": "front-back-entry",
+      "label": "前后进场",
       "latestVersion": "0.0.0",
       "active": false,
-      "variants": [],
+      "variants": [
+        "二级页跳转",
+        "半弹层",
+        "动作面板",
+        "滑动操作"
+      ],
+      "packPath": "",
+      "status": "incomplete",
+      "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"
+    },
+    {
+      "id": "horizontal-switch",
+      "label": "横向切换",
+      "latestVersion": "1.3.0",
+      "active": true,
+      "variants": [
+        "Tab导航",
+        "Tabbar底导",
+        "开关",
+        "指示器",
+        "分段"
+      ],
+      "packPath": "horizontal-switch/manifest.json",
+      "status": "active"
+    },
+    {
+      "id": "content-feedback",
+      "label": "内容反馈",
+      "latestVersion": "1.1.0",
+      "active": true,
+      "variants": [
+        "大型尺寸（高度<360）",
+        "中型尺寸（200<高度<360）",
+        "小型尺寸(吐司)（高度<200）",
+        "气泡",
+        "单选/多选"
+      ],
+      "packPath": "content-feedback/manifest.json",
+      "status": "active"
+    },
+    {
+      "id": "close",
+      "label": "关闭",
+      "latestVersion": "1.0.0",
+      "active": true,
+      "variants": [
+        "all"
+      ],
+      "packPath": "close/manifest.json",
+      "status": "active"
+    },
+    {
+      "id": "content-loading",
+      "label": "内容加载",
+      "latestVersion": "0.0.0",
+      "active": false,
+      "variants": [
+        "骨架",
+        "全局",
+        "下拉"
+      ],
       "packPath": "",
       "status": "incomplete",
       "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"

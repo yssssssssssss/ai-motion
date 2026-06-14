@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { MotionManifest, MotionPatch } from "@motion-tool/core";
-import { AtomicMotionInspectorPanel } from "./AtomicMotionInspectorPanel";
+import { AtomicMotionInspectorPanel, easingPointFromClientPosition } from "./AtomicMotionInspectorPanel";
 
 const manifest: MotionManifest = {
   version: "1.0",
@@ -98,11 +98,15 @@ describe("AtomicMotionInspectorPanel", () => {
     expect(html).toContain("应用图层");
     expect(html).toContain("弹窗图层");
     expect(html).toContain("Token");
-    expect(html).toContain("Value");
-    expect(html).toContain("Delay");
+    expect(html).toContain("时长");
+    expect(html).toContain("延迟");
     expect(html).toContain("动画类型");
     expect(html).toContain("关键属性变化");
-    expect(html).toContain("CSS Value");
+    expect(html).toContain("缓动曲线");
+    expect(html).toContain("缓动曲线曲线编辑器");
+    expect(html).toContain("控制点 1");
+    expect(html).toContain("x1");
+    expect(html).toContain("y2");
     expect(html).toContain("scale：95 → 105% →100%");
     expect(html).toContain("(0.38, 0.00, 0.24, 1.00)");
   });
@@ -117,8 +121,8 @@ describe("AtomicMotionInspectorPanel", () => {
     expect(html).toContain("中型尺寸");
     expect(html).toContain("应用图层");
     expect(html).toContain("弹窗图层");
-    expect(html).not.toContain("Value");
-    expect(html).not.toContain("Delay");
+    expect(html).not.toContain("时长");
+    expect(html).not.toContain("延迟");
     expect(html).not.toContain("关键属性变化");
   });
 
@@ -129,10 +133,51 @@ describe("AtomicMotionInspectorPanel", () => {
 
     expect(html).toContain("Token 参数");
     expect(html).toContain("Token");
-    expect(html).toContain("Value");
-    expect(html).toContain("Delay");
+    expect(html).toContain("时长");
+    expect(html).toContain("延迟");
     expect(html).toContain("关键属性变化");
     expect(html).not.toContain("应用图层");
+  });
+
+  it("labels horizontal switch duration as per-move timing", () => {
+    const horizontalManifest: MotionManifest = {
+      ...manifest,
+      motionSkill: {
+        ...manifest.motionSkill!,
+        family: "horizontal-switch",
+        tokens: [
+          {
+            ...manifest.motionSkill!.tokens![0]!,
+            id: "horizontal-switch.tab-navigation.position",
+            property: "position"
+          }
+        ]
+      }
+    };
+    const html = renderToStaticMarkup(
+      <AtomicMotionInspectorPanel
+        section="params"
+        manifest={horizontalManifest}
+        patch={patch}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(html).toContain("单次移动时长");
+  });
+
+  it("maps pointer coordinates through the centered easing SVG viewport", () => {
+    const point = easingPointFromClientPosition({
+      clientX: 100 + (320 - 180) / 2 + 16 + 0.8 * 148,
+      clientY: 200 + 16 + 0.25 * 72,
+      rect: { left: 100, top: 200, width: 320, height: 104 },
+      width: 180,
+      height: 104,
+      padding: 16
+    });
+
+    expect(point?.x).toBeCloseTo(0.8);
+    expect(point?.y).toBeCloseTo(0.75);
   });
 
   it("renders nothing for non-atomic components", () => {

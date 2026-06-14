@@ -1,0 +1,1394 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Motion Opportunity Analyzer Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f4;
+        --surface: #ffffff;
+        --surface-2: #eef2ee;
+        --ink: #151a17;
+        --muted: #68736d;
+        --line: #d8ded8;
+        --accent: #16836f;
+        --accent-strong: #0d5f54;
+        --attention: #d9822b;
+        --feedback: #3d68c5;
+        --trust: #5d6680;
+        --risk: #b73844;
+        --shadow: 0 20px 60px rgba(24, 34, 29, 0.12);
+        --radius: 8px;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(246, 247, 244, 0.95)),
+          radial-gradient(circle at top left, rgba(22, 131, 111, 0.08), transparent 34rem);
+        color: var(--ink);
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: 64px 1fr;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(18px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        background:
+          linear-gradient(135deg, var(--accent), transparent 72%),
+          linear-gradient(315deg, var(--attention), #f7c15e);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 750;
+        letter-spacing: 0;
+      }
+
+      .status-strip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(248px, 292px) minmax(460px, 1fr) minmax(324px, 376px);
+        gap: 1px;
+        min-height: 0;
+        background: var(--line);
+      }
+
+      .panel,
+      .stage,
+      .inspector {
+        background: var(--bg);
+        min-width: 0;
+        min-height: 0;
+      }
+
+      .panel,
+      .inspector {
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+      }
+
+      .section {
+        padding: 20px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .section-title {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 750;
+        letter-spacing: 0;
+      }
+
+      .upload-well {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px dashed #a7b2aa;
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.54);
+      }
+
+      .file-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13px;
+      }
+
+      .file-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 650;
+      }
+
+      .small-pill {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        padding: 0 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+        background: var(--surface);
+      }
+
+      .control-stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .field-label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 680;
+      }
+
+      select,
+      input {
+        width: 100%;
+        height: 38px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--ink);
+        padding: 0 10px;
+        outline: none;
+      }
+
+      select:focus,
+      input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(22, 131, 111, 0.12);
+      }
+
+      .primary-btn,
+      .ghost-btn,
+      .mini-btn {
+        height: 38px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        font-weight: 720;
+      }
+
+      .primary-btn {
+        width: 100%;
+        background: var(--ink);
+        color: white;
+      }
+
+      .primary-btn:hover {
+        background: var(--accent-strong);
+      }
+
+      .ghost-btn {
+        background: var(--surface);
+        border-color: var(--line);
+        color: var(--ink);
+      }
+
+      .mini-btn {
+        height: 30px;
+        padding: 0 10px;
+        background: var(--surface);
+        border-color: var(--line);
+        color: var(--ink);
+        font-size: 12px;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .metric {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .metric strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 18px;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .stage {
+        position: relative;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+      }
+
+      .stage-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(246, 247, 244, 0.86);
+      }
+
+      .stage-title {
+        min-width: 0;
+      }
+
+      .stage-title h2 {
+        margin: 0 0 4px;
+        font-size: 18px;
+        letter-spacing: 0;
+      }
+
+      .stage-title p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .segmented {
+        display: inline-flex;
+        padding: 3px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .segmented button {
+        height: 30px;
+        min-width: 72px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 720;
+      }
+
+      .segmented button.is-active {
+        background: var(--ink);
+        color: white;
+      }
+
+      .canvas-wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-height: 0;
+        padding: 28px;
+        overflow: auto;
+      }
+
+      .draft-frame {
+        position: relative;
+        width: min(820px, 100%);
+        aspect-ratio: 1120 / 760;
+        min-width: 440px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #f7f8f5;
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(19, 27, 22, 0.1);
+      }
+
+      .mock-page {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: 1.08fr 0.92fr;
+        background: #fbfbf8;
+      }
+
+      .mock-left {
+        padding: 58px 56px;
+        background: linear-gradient(145deg, rgba(22, 131, 111, 0.08), transparent 44%), #f7f8f5;
+      }
+
+      .mock-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 78px;
+        color: #3a433e;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .mock-nav-items {
+        display: flex;
+        gap: 18px;
+        color: #7c8580;
+        font-weight: 620;
+      }
+
+      .mock-kicker {
+        width: 118px;
+        height: 24px;
+        margin-bottom: 22px;
+        border-radius: 999px;
+        background: #dfe8e1;
+      }
+
+      .mock-headline {
+        width: 84%;
+        height: 42px;
+        margin-bottom: 12px;
+        border-radius: 6px;
+        background: #202820;
+      }
+
+      .mock-headline.short {
+        width: 68%;
+        margin-bottom: 24px;
+      }
+
+      .mock-copy {
+        width: 74%;
+        height: 12px;
+        margin-bottom: 9px;
+        border-radius: 99px;
+        background: #c3cac4;
+      }
+
+      .mock-copy.short {
+        width: 58%;
+        margin-bottom: 34px;
+      }
+
+      .mock-cta-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .mock-cta {
+        width: 154px;
+        height: 46px;
+        border-radius: 7px;
+        background: #171d19;
+        position: relative;
+      }
+
+      .mock-cta::after {
+        content: "立即购买";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 780;
+      }
+
+      .mock-secondary {
+        width: 100px;
+        height: 34px;
+        border-radius: 7px;
+        background: #e4e8e3;
+      }
+
+      .mock-right {
+        padding: 58px 48px;
+        background: #eef1eb;
+        display: grid;
+        gap: 18px;
+        align-content: start;
+      }
+
+      .product-visual {
+        height: 248px;
+        border-radius: 10px;
+        background:
+          linear-gradient(140deg, rgba(255, 255, 255, 0.55), transparent 54%),
+          linear-gradient(45deg, #dcb065, #80a99c 48%, #54677b);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+      }
+
+      .mock-card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .mock-card {
+        height: 108px;
+        border-radius: 8px;
+        background: #ffffff;
+        border: 1px solid #dde2db;
+        padding: 16px;
+      }
+
+      .mock-card-line {
+        height: 10px;
+        width: 80%;
+        margin-bottom: 8px;
+        border-radius: 99px;
+        background: #c8d0ca;
+      }
+
+      .mock-card-line.short {
+        width: 54%;
+      }
+
+      .mock-toast {
+        position: absolute;
+        right: 44px;
+        bottom: 42px;
+        width: 218px;
+        height: 54px;
+        border-radius: 8px;
+        background: #ffffff;
+        border: 1px solid #dfe4df;
+        box-shadow: 0 12px 34px rgba(26, 35, 29, 0.14);
+      }
+
+      .mock-toast::before {
+        content: "";
+        position: absolute;
+        top: 17px;
+        left: 16px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      .mock-toast::after {
+        content: "";
+        position: absolute;
+        top: 20px;
+        left: 48px;
+        width: 118px;
+        height: 10px;
+        border-radius: 99px;
+        background: #bdc7c0;
+      }
+
+      .marker {
+        position: absolute;
+        border: 2px solid var(--accent);
+        border-radius: 8px;
+        background: rgba(22, 131, 111, 0.09);
+        transition:
+          border-color 180ms ease,
+          background 180ms ease,
+          box-shadow 180ms ease,
+          transform 180ms ease;
+      }
+
+      .marker.is-active {
+        border-color: var(--attention);
+        background: rgba(217, 130, 43, 0.14);
+        box-shadow: 0 0 0 5px rgba(217, 130, 43, 0.13);
+        transform: translateY(-2px);
+      }
+
+      .marker-label {
+        position: absolute;
+        left: -2px;
+        top: -30px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        padding: 0 8px;
+        border-radius: 999px;
+        color: #fff;
+        background: var(--ink);
+        font-size: 12px;
+        font-weight: 760;
+        white-space: nowrap;
+      }
+
+      .preview-layer {
+        position: absolute;
+        inset: 0;
+        display: none;
+        place-items: center;
+        background: rgba(247, 248, 245, 0.84);
+        backdrop-filter: blur(12px);
+      }
+
+      .preview-layer.is-visible {
+        display: grid;
+      }
+
+      .motion-preview {
+        width: 360px;
+        min-height: 220px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        padding: 26px;
+        display: grid;
+        align-content: center;
+        justify-items: center;
+        gap: 18px;
+      }
+
+      .preview-button {
+        width: 176px;
+        height: 48px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--ink);
+        color: white;
+        font-weight: 780;
+        animation: pressSuccess 1800ms ease-in-out infinite;
+      }
+
+      .preview-card-stack {
+        width: 260px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .preview-card {
+        height: 44px;
+        border-radius: 8px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        transform: translateY(12px);
+        opacity: 0;
+        animation: cardReveal 1800ms cubic-bezier(0.18, 0.86, 0.22, 1) infinite;
+      }
+
+      .preview-card:nth-child(2) {
+        animation-delay: 120ms;
+      }
+
+      .preview-card:nth-child(3) {
+        animation-delay: 240ms;
+      }
+
+      .preview-toast {
+        width: 240px;
+        height: 60px;
+        border-radius: 8px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        box-shadow: 0 18px 48px rgba(24, 34, 29, 0.12);
+        transform: translateY(18px);
+        opacity: 0;
+        animation: toastIn 1800ms cubic-bezier(0.18, 0.86, 0.22, 1) infinite;
+      }
+
+      .preview-caption {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        text-align: center;
+      }
+
+      @keyframes pressSuccess {
+        0%,
+        20%,
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 rgba(22, 131, 111, 0);
+        }
+        34% {
+          transform: scale(0.94);
+        }
+        48% {
+          transform: scale(1.03);
+          box-shadow: 0 0 0 9px rgba(22, 131, 111, 0.15);
+        }
+      }
+
+      @keyframes cardReveal {
+        0%,
+        16% {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        38%,
+        78% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+      }
+
+      @keyframes toastIn {
+        0%,
+        18% {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        38%,
+        78% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+      }
+
+      .opportunity-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .opportunity {
+        width: 100%;
+        text-align: left;
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--ink);
+      }
+
+      .opportunity.is-active {
+        border-color: rgba(217, 130, 43, 0.72);
+        box-shadow: 0 0 0 3px rgba(217, 130, 43, 0.13);
+      }
+
+      .opportunity-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .priority {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: #1b211d;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .score {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .opportunity strong {
+        font-size: 14px;
+      }
+
+      .opportunity p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .detail {
+        display: grid;
+        gap: 16px;
+      }
+
+      .detail-title {
+        margin: 0 0 6px;
+        font-size: 18px;
+        letter-spacing: 0;
+      }
+
+      .detail-copy {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .fact-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .fact {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 12px;
+        align-items: start;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+
+      .fact span:first-child {
+        color: var(--muted);
+      }
+
+      .risk-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .risk-list li {
+        padding: 9px 10px;
+        border: 1px solid rgba(183, 56, 68, 0.24);
+        border-radius: var(--radius);
+        color: #762630;
+        background: rgba(183, 56, 68, 0.06);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .param-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .param {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 680;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .actions .primary-btn {
+        grid-column: span 2;
+      }
+
+      .blueprint-output {
+        min-height: 96px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #111713;
+        color: #dce7df;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 11px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+
+      .toast-note {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%) translateY(12px);
+        opacity: 0;
+        pointer-events: none;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: #151a17;
+        color: white;
+        font-size: 13px;
+        box-shadow: var(--shadow);
+        transition:
+          opacity 180ms ease,
+          transform 180ms ease;
+      }
+
+      .toast-note.is-visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      @media (max-width: 1080px) {
+        .workspace {
+          grid-template-columns: 248px minmax(380px, 1fr);
+        }
+
+        .inspector {
+          grid-column: 1 / -1;
+          max-height: 46vh;
+          border-top: 1px solid var(--line);
+        }
+      }
+
+      @media (max-width: 760px) {
+        .app {
+          grid-template-rows: auto 1fr;
+        }
+
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 8px;
+          padding: 14px 16px;
+        }
+
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .panel,
+        .inspector {
+          max-height: none;
+        }
+
+        .stage-toolbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .canvas-wrap {
+          padding: 16px;
+        }
+
+        .draft-frame {
+          min-width: 320px;
+        }
+
+        .segmented {
+          width: 100%;
+        }
+
+        .segmented button {
+          flex: 1;
+          min-width: 0;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 1ms !important;
+          scroll-behavior: auto !important;
+          transition-duration: 1ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <h1>Motion Opportunity Analyzer</h1>
+        </div>
+        <div class="status-strip">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="statusText">Blueprint ready</span>
+        </div>
+      </header>
+
+      <section class="workspace" aria-label="Motion opportunity analyzer demo">
+        <aside class="panel">
+          <section class="section">
+            <p class="section-title">稿件</p>
+            <div class="upload-well">
+              <div class="file-row">
+                <span class="file-name">commerce-homepage.png</span>
+                <span class="small-pill">1120 x 760</span>
+              </div>
+              <button class="ghost-btn" id="swapDraftBtn" type="button">切换样例</button>
+            </div>
+          </section>
+
+          <section class="section">
+            <p class="section-title">业务目标</p>
+            <div class="control-stack">
+              <label>
+                <span class="field-label">页面类型</span>
+                <select id="pageType">
+                  <option>电商商品页</option>
+                  <option>AI 结果页</option>
+                  <option>表单提交页</option>
+                </select>
+              </label>
+              <label>
+                <span class="field-label">目标行为</span>
+                <input id="goalInput" value="提高购买按钮点击率" />
+              </label>
+              <button class="primary-btn" id="analyzeBtn" type="button">重新分析</button>
+            </div>
+          </section>
+
+          <section class="section">
+            <p class="section-title">Blueprint</p>
+            <div class="metric-grid">
+              <div class="metric">
+                <strong id="elementCount">7</strong>
+                <span>识别元素</span>
+              </div>
+              <div class="metric">
+                <strong id="opportunityCount">4</strong>
+                <span>机会点</span>
+              </div>
+              <div class="metric">
+                <strong>3</strong>
+                <span>策略类型</span>
+              </div>
+              <div class="metric">
+                <strong id="topScore">86</strong>
+                <span>最高适配</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <p class="section-title">状态</p>
+            <div class="blueprint-output" id="blueprintOutput"></div>
+          </section>
+        </aside>
+
+        <section class="stage">
+          <div class="stage-toolbar">
+            <div class="stage-title">
+              <h2 id="stageHeading">静态稿件标注</h2>
+              <p id="stageSubheading">机会点按业务目标、决策阻力和实现风险排序。</p>
+            </div>
+            <div class="segmented" role="tablist" aria-label="视图">
+              <button class="is-active" id="blueprintViewBtn" type="button">Blueprint</button>
+              <button id="previewViewBtn" type="button">Preview</button>
+            </div>
+          </div>
+
+          <div class="canvas-wrap">
+            <div class="draft-frame" id="draftFrame">
+              <div class="mock-page" aria-hidden="true">
+                <div class="mock-left">
+                  <div class="mock-nav">
+                    <span>JDC Shop</span>
+                    <div class="mock-nav-items"><span>新品</span><span>服务</span><span>账户</span></div>
+                  </div>
+                  <div class="mock-kicker"></div>
+                  <div class="mock-headline"></div>
+                  <div class="mock-headline short"></div>
+                  <div class="mock-copy"></div>
+                  <div class="mock-copy"></div>
+                  <div class="mock-copy short"></div>
+                  <div class="mock-cta-row">
+                    <div class="mock-cta"></div>
+                    <div class="mock-secondary"></div>
+                  </div>
+                </div>
+                <div class="mock-right">
+                  <div class="product-visual"></div>
+                  <div class="mock-card-grid">
+                    <div class="mock-card">
+                      <div class="mock-card-line"></div>
+                      <div class="mock-card-line short"></div>
+                    </div>
+                    <div class="mock-card">
+                      <div class="mock-card-line"></div>
+                      <div class="mock-card-line short"></div>
+                    </div>
+                    <div class="mock-card">
+                      <div class="mock-card-line"></div>
+                      <div class="mock-card-line short"></div>
+                    </div>
+                    <div class="mock-card">
+                      <div class="mock-card-line"></div>
+                      <div class="mock-card-line short"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="mock-toast"></div>
+              </div>
+              <div id="markerLayer"></div>
+              <div class="preview-layer" id="previewLayer">
+                <div class="motion-preview" id="motionPreview"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="inspector">
+          <section class="section">
+            <p class="section-title">机会点</p>
+            <div class="opportunity-list" id="opportunityList"></div>
+          </section>
+
+          <section class="section">
+            <p class="section-title">详情</p>
+            <div class="detail">
+              <div>
+                <h3 class="detail-title" id="detailTitle"></h3>
+                <p class="detail-copy" id="detailReason"></p>
+              </div>
+              <div class="fact-grid" id="factGrid"></div>
+              <div>
+                <p class="section-title">推荐参数</p>
+                <div class="param-row" id="paramRow"></div>
+              </div>
+              <div>
+                <p class="section-title">风险</p>
+                <ul class="risk-list" id="riskList"></ul>
+              </div>
+              <div class="actions">
+                <button class="primary-btn" id="generateBtn" type="button">生成动效预览</button>
+                <button class="ghost-btn" id="ignoreBtn" type="button">忽略</button>
+                <button class="ghost-btn" id="exportBtn" type="button">导出 Blueprint</button>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <div class="toast-note" id="toastNote" role="status"></div>
+
+    <script>
+      const opportunities = [
+        {
+          id: "cta-buy",
+          priority: "P0",
+          score: 86,
+          element: "主按钮",
+          title: "主 CTA 点击反馈",
+          friction: "Attention + Confidence",
+          strategy: "Attention Motion",
+          pattern: "button-press-success",
+          stage: "decide / act",
+          reason:
+            "主按钮处在首屏关键路径，但旁侧商品视觉更抢眼。建议使用一次性轻微强调和点击确认，避免循环吸引。",
+          params: ["scale 1 -> 0.94 -> 1", "160ms", "spring", "repeat none"],
+          risks: ["不要使用持续呼吸动画。", "点击反馈必须短于 200ms。"],
+          marker: { x: 56, y: 69, width: 14, height: 7 },
+          preview: "button"
+        },
+        {
+          id: "cards-understand",
+          priority: "P1",
+          score: 72,
+          element: "卖点卡片",
+          title: "卡片渐进展示",
+          friction: "Understanding",
+          strategy: "Guidance Motion",
+          pattern: "staggered-card-reveal",
+          stage: "understand",
+          reason: "四个卖点密度相近，用户扫读顺序不明显。卡片分组入场可以建立阅读路径。",
+          params: ["stagger 80ms", "duration 260ms", "y 16px -> 0", "opacity 0 -> 1"],
+          risks: ["首屏加载时只播放一次。", "延迟总和不要超过 420ms。"],
+          marker: { x: 57, y: 60, width: 36, height: 28 },
+          preview: "cards"
+        },
+        {
+          id: "success-toast",
+          priority: "P1",
+          score: 68,
+          element: "反馈提示",
+          title: "成功反馈提示",
+          friction: "Confidence",
+          strategy: "Feedback Motion",
+          pattern: "toast-success-feedback",
+          stage: "feedback",
+          reason: "页面已有轻量反馈区域，但状态变化不够明确。建议使用短进入、稳定停留、快速退出。",
+          params: ["enter 180ms", "hold 1200ms", "exit 140ms", "decelerate / accelerate"],
+          risks: ["Toast 退出不使用回弹。", "不遮挡主按钮。"],
+          marker: { x: 72, y: 83, width: 20, height: 7 },
+          preview: "toast"
+        },
+        {
+          id: "hero-focus",
+          priority: "P2",
+          score: 51,
+          element: "标题区域",
+          title: "标题聚焦入场",
+          friction: "Attention",
+          strategy: "Attention Motion",
+          pattern: "one-shot-reveal",
+          stage: "discover",
+          reason: "标题层级明确，动效收益低于 CTA。仅适合作为页面首次进入的轻量补充。",
+          params: ["opacity 0 -> 1", "y 12px -> 0", "240ms", "standard"],
+          risks: ["不要和 CTA 强调同时抢注意力。"],
+          marker: { x: 7, y: 35, width: 36, height: 14 },
+          preview: "cards"
+        }
+      ];
+
+      const initialParams = new URLSearchParams(window.location.search);
+      const initialId = initialParams.get("id");
+
+      let selectedId = opportunities.some((item) => item.id === initialId) ? initialId : opportunities[0].id;
+      let previewMode = initialParams.get("preview") === "1";
+      let sampleIndex = 0;
+
+      const markerLayer = document.getElementById("markerLayer");
+      const opportunityList = document.getElementById("opportunityList");
+      const detailTitle = document.getElementById("detailTitle");
+      const detailReason = document.getElementById("detailReason");
+      const factGrid = document.getElementById("factGrid");
+      const paramRow = document.getElementById("paramRow");
+      const riskList = document.getElementById("riskList");
+      const blueprintOutput = document.getElementById("blueprintOutput");
+      const previewLayer = document.getElementById("previewLayer");
+      const motionPreview = document.getElementById("motionPreview");
+      const statusText = document.getElementById("statusText");
+      const toastNote = document.getElementById("toastNote");
+      const goalInput = document.getElementById("goalInput");
+      const pageType = document.getElementById("pageType");
+      const stageHeading = document.getElementById("stageHeading");
+      const stageSubheading = document.getElementById("stageSubheading");
+      const blueprintViewBtn = document.getElementById("blueprintViewBtn");
+      const previewViewBtn = document.getElementById("previewViewBtn");
+
+      function selectedOpportunity() {
+        return opportunities.find((item) => item.id === selectedId) || opportunities[0];
+      }
+
+      function showToast(message) {
+        toastNote.textContent = message;
+        toastNote.classList.add("is-visible");
+        window.clearTimeout(showToast.timer);
+        showToast.timer = window.setTimeout(() => toastNote.classList.remove("is-visible"), 1500);
+      }
+
+      function renderMarkers() {
+        markerLayer.innerHTML = "";
+        for (const item of opportunities) {
+          const marker = document.createElement("button");
+          marker.type = "button";
+          marker.className = item.id === selectedId ? "marker is-active" : "marker";
+          marker.style.left = `${item.marker.x}%`;
+          marker.style.top = `${item.marker.y}%`;
+          marker.style.width = `${item.marker.width}%`;
+          marker.style.height = `${item.marker.height}%`;
+          marker.setAttribute("aria-label", item.title);
+          marker.addEventListener("click", () => {
+            selectedId = item.id;
+            previewMode = false;
+            render();
+          });
+
+          const label = document.createElement("span");
+          label.className = "marker-label";
+          label.textContent = `${item.priority} ${item.element}`;
+          marker.appendChild(label);
+          markerLayer.appendChild(marker);
+        }
+      }
+
+      function renderList() {
+        opportunityList.innerHTML = "";
+        for (const item of opportunities) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = item.id === selectedId ? "opportunity is-active" : "opportunity";
+          button.innerHTML = `
+            <span class="opportunity-head">
+              <span class="priority">${item.priority}</span>
+              <span class="score">${item.score} fit</span>
+            </span>
+            <strong>${item.title}</strong>
+            <p>${item.friction} · ${item.strategy}</p>
+          `;
+          button.addEventListener("click", () => {
+            selectedId = item.id;
+            previewMode = false;
+            render();
+          });
+          opportunityList.appendChild(button);
+        }
+      }
+
+      function renderDetail() {
+        const item = selectedOpportunity();
+        detailTitle.textContent = item.title;
+        detailReason.textContent = item.reason;
+        factGrid.innerHTML = [
+          ["元素", item.element],
+          ["决策阶段", item.stage],
+          ["阻力", item.friction],
+          ["策略", item.strategy],
+          ["模式", item.pattern]
+        ]
+          .map(([label, value]) => `<div class="fact"><span>${label}</span><strong>${value}</strong></div>`)
+          .join("");
+        paramRow.innerHTML = item.params.map((param) => `<span class="param">${param}</span>`).join("");
+        riskList.innerHTML = item.risks.map((risk) => `<li>${risk}</li>`).join("");
+      }
+
+      function renderBlueprintOutput() {
+        const item = selectedOpportunity();
+        const payload = {
+          goal: goalInput.value,
+          pageType: pageType.value,
+          selected: item.id,
+          friction: item.friction,
+          pattern: item.pattern,
+          priority: item.priority
+        };
+        blueprintOutput.textContent = JSON.stringify(payload, null, 2);
+      }
+
+      function renderPreview() {
+        const item = selectedOpportunity();
+        previewLayer.classList.toggle("is-visible", previewMode);
+        blueprintViewBtn.classList.toggle("is-active", !previewMode);
+        previewViewBtn.classList.toggle("is-active", previewMode);
+        stageHeading.textContent = previewMode ? "动效预览" : "静态稿件标注";
+        stageSubheading.textContent = previewMode
+          ? `${item.pattern} · ${item.params.join(" · ")}`
+          : "机会点按业务目标、决策阻力和实现风险排序。";
+
+        if (!previewMode) return;
+
+        if (item.preview === "button") {
+          motionPreview.innerHTML = `
+            <button class="preview-button" type="button">立即购买</button>
+            <p class="preview-caption">点击压感 + 成功确认</p>
+          `;
+        } else if (item.preview === "toast") {
+          motionPreview.innerHTML = `
+            <div class="preview-toast"></div>
+            <p class="preview-caption">短进入、稳定停留、快速退出</p>
+          `;
+        } else {
+          motionPreview.innerHTML = `
+            <div class="preview-card-stack">
+              <div class="preview-card"></div>
+              <div class="preview-card"></div>
+              <div class="preview-card"></div>
+            </div>
+            <p class="preview-caption">分组入场建立阅读路径</p>
+          `;
+        }
+      }
+
+      function render() {
+        renderMarkers();
+        renderList();
+        renderDetail();
+        renderBlueprintOutput();
+        renderPreview();
+      }
+
+      document.getElementById("analyzeBtn").addEventListener("click", () => {
+        statusText.textContent = "Analyzing";
+        document.getElementById("elementCount").textContent = "0";
+        document.getElementById("opportunityCount").textContent = "0";
+        window.setTimeout(() => {
+          selectedId = opportunities[0].id;
+          previewMode = false;
+          statusText.textContent = "Blueprint ready";
+          document.getElementById("elementCount").textContent = "7";
+          document.getElementById("opportunityCount").textContent = "4";
+          document.getElementById("topScore").textContent = opportunities[0].score;
+          render();
+          showToast("Blueprint 已更新");
+        }, 620);
+      });
+
+      document.getElementById("generateBtn").addEventListener("click", () => {
+        previewMode = true;
+        render();
+        showToast("已生成 MotionDocument 预览");
+      });
+
+      document.getElementById("ignoreBtn").addEventListener("click", () => {
+        const index = opportunities.findIndex((item) => item.id === selectedId);
+        selectedId = opportunities[(index + 1) % opportunities.length].id;
+        previewMode = false;
+        render();
+        showToast("已切换到下一条机会点");
+      });
+
+      document.getElementById("exportBtn").addEventListener("click", () => {
+        showToast("Blueprint JSON 已复制到导出面板");
+      });
+
+      blueprintViewBtn.addEventListener("click", () => {
+        previewMode = false;
+        render();
+      });
+
+      previewViewBtn.addEventListener("click", () => {
+        previewMode = true;
+        render();
+      });
+
+      document.getElementById("swapDraftBtn").addEventListener("click", () => {
+        const samples = [
+          ["电商商品页", "提高购买按钮点击率", "commerce-homepage.png"],
+          ["AI 结果页", "帮助用户理解 AI 生成结果", "ai-result-page.png"],
+          ["表单提交页", "让提交成功反馈更明确", "form-submit-page.png"]
+        ];
+        sampleIndex = (sampleIndex + 1) % samples.length;
+        const [type, goal, name] = samples[sampleIndex];
+        pageType.value = type;
+        goalInput.value = goal;
+        document.querySelector(".file-name").textContent = name;
+        showToast("样例已切换");
+        renderBlueprintOutput();
+      });
+
+      render();
+    </script>
+  </body>
+</html>

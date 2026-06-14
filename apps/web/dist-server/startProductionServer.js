@@ -49,7 +49,7 @@ function createControlledGenerationHandler(input = {}) {
         buildControlledGenerationRequest,
         compileSemanticPatch,
         createGeneratedComponentFromPatch
-      } = await import("./assets/index-B99Dvm39.js");
+      } = await import("./assets/index-DHIjq5Ri.js");
       const components = parsed.components.filter(isMotionComponent$1);
       const request = buildControlledGenerationRequest({ brief: parsed.brief, components });
       const patch = compileSemanticPatch(request);
@@ -317,7 +317,7 @@ function parseOpenAISourceDraftResponse(payload) {
 async function generateSemanticIntentV2(input) {
   const brief = input.brief.trim();
   if (!brief || !input.apiKey) return void 0;
-  const { parseSemanticIntentV2Payload } = await import("./assets/index-B99Dvm39.js");
+  const { parseSemanticIntentV2Payload } = await import("./assets/index-DHIjq5Ri.js");
   const requestBody = JSON.stringify({
     model: input.model ?? "gpt-5.5",
     input: [
@@ -463,7 +463,7 @@ function createReferenceGuidedGenerationHandler(input = {}) {
         parseSemanticGenerationIntent,
         parseSemanticIntentV2Fallback,
         semanticIntentV2ToLegacyIntent
-      } = await import("./assets/index-B99Dvm39.js");
+      } = await import("./assets/index-DHIjq5Ri.js");
       const components = parsed.components.filter(isMotionComponent);
       const semanticIntentV2 = await generateSemanticIntentV2({
         brief: parsed.brief,

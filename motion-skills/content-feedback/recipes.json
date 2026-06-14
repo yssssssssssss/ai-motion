@@ -1,0 +1,77 @@
+{
+  "recipes": [
+    {
+      "id": "content-feedback.large.enter",
+      "name": "内容反馈 / 大型尺寸（高度<360）",
+      "family": "content-feedback",
+      "sourceElement": "内容反馈",
+      "variant": "large",
+      "sourceVariant": "大型尺寸（高度<360）",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "content-feedback.large.scale",
+        "content-feedback.large.opacity"
+      ]
+    },
+    {
+      "id": "content-feedback.medium.enter",
+      "name": "内容反馈 / 中型尺寸（200<高度<360）",
+      "family": "content-feedback",
+      "sourceElement": "内容反馈",
+      "variant": "medium",
+      "sourceVariant": "中型尺寸（200<高度<360）",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "content-feedback.medium.scale",
+        "content-feedback.medium.opacity"
+      ]
+    },
+    {
+      "id": "content-feedback.toast.enter",
+      "name": "内容反馈 / 小型尺寸(吐司)（高度<200）",
+      "family": "content-feedback",
+      "sourceElement": "内容反馈",
+      "variant": "toast",
+      "sourceVariant": "小型尺寸(吐司)（高度<200）",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "content-feedback.toast.scale"
+      ]
+    },
+    {
+      "id": "content-feedback.bubble.enter",
+      "name": "内容反馈 / 气泡",
+      "family": "content-feedback",
+      "sourceElement": "内容反馈",
+      "variant": "bubble",
+      "sourceVariant": "气泡",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "content-feedback.bubble.opacity"
+      ]
+    },
+    {
+      "id": "content-feedback.selection.enter",
+      "name": "内容反馈 / 单选/多选",
+      "family": "content-feedback",
+      "sourceElement": "内容反馈",
+      "variant": "selection",
+      "sourceVariant": "单选/多选",
+      "targetRole": "modal",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "content-feedback.selection.scale",
+        "content-feedback.selection.opacity"
+      ]
+    }
+  ]
+}
