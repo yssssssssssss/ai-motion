@@ -31,6 +31,9 @@ describe("HomeRoute reference-guided generation wiring", () => {
   it("keeps generation results as drafts and shows an in-between progress overlay", () => {
     expect(homeRouteSource).toContain("AtomicMotionPanel");
     expect(homeRouteSource).toContain("generateAtomicMotionComponent");
+    expect(homeRouteSource).toContain("atomicMotionTriggerRule(firstAtomicElement?.id ?? \"\", firstAtomicElement?.variants[0])");
+    expect(homeRouteSource).toContain("function selectAtomicVariant(variant: string)");
+    expect(homeRouteSource).toContain("atomicMotionTriggerRule(atomicElementId, variant)");
     expect(homeRouteSource).toContain("atomicMotionPanel=");
     expect(homeRouteSource).toContain("onGenerateAtomicMotion={generateAtomicMotionDraft}");
     expect(homeRouteSource).not.toContain("isAtomicMotionOpen");
@@ -57,9 +60,20 @@ describe("HomeRoute reference-guided generation wiring", () => {
     expect(homeRouteSource).toContain("phase={generationOverlayPhase}");
     expect(homeRouteSource).toContain("generationStatus={isGenerationOverlayOpen ? null : generationStatus}");
     expect(homeRouteSource).toContain("onGeneratedComponentReady(component)");
+    expect(homeRouteSource).toContain("onSelectVariant={selectAtomicVariant}");
+    expect(homeRouteSource).not.toContain("allowedTriggers={atomicMotionTriggerRule(atomicElementId, atomicVariant).allowedTriggers}");
+    expect(homeRouteSource).not.toContain("onSelectTrigger={setAtomicTrigger}");
     expect(homeRouteSource).toContain("setIsGenerationOverlayOpen(false)");
     expect(homeRouteSource).not.toContain("isOpen={isGenerating}");
     expect(homeRouteSource).not.toContain("onComponentAdded(result.component)");
+  });
+
+  it("receives the discovery tab mode from the app so editor back navigation preserves it", () => {
+    expect(homeRouteSource).toContain("briefMode: BriefPanelMode");
+    expect(homeRouteSource).toContain("onBriefModeChange: (mode: BriefPanelMode) => void");
+    expect(homeRouteSource).not.toContain('useState<BriefPanelMode>("recommend")');
+    expect(homeRouteSource).toContain("onBriefModeChange(mode)");
+    expect(homeRouteSource).toContain("mode={briefMode}");
   });
 
   it("presents generation as an abstract staged skeleton instead of concrete editor content", () => {

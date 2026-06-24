@@ -32,7 +32,7 @@ export type MotionParamConstraints = {
   min?: number;
   max?: number;
   step?: number;
-  unit?: "px" | "%" | "ms" | "s" | "deg" | "rem" | "vh" | "vw";
+  unit?: "px" | "%" | "ms" | "s" | "deg" | "rem" | "em" | "vh" | "vw" | "vmin";
   options?: { label: string; value: string | number | boolean }[];
   allowedFileTypes?: string[];
   maxLength?: number;
@@ -79,6 +79,8 @@ export type MotionDesignSpecBinding = {
   required?: boolean;
 };
 
+export type MotionTrigger = "load" | "hover" | "click" | "loop" | "swipe";
+
 export type MotionRecipeBinding = {
   recipeId: string;
   recipeName?: string;
@@ -87,7 +89,7 @@ export type MotionRecipeBinding = {
   targetRoles?: string[];
   targetSelectors?: string[];
   paramIds: string[];
-  trigger: "load" | "hover" | "click" | "loop";
+  trigger: MotionTrigger;
   source?: "builtin" | "extracted" | "model" | "fallback";
   confidence?: number;
 };

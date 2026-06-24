@@ -1,0 +1,8 @@
+{
+  "id": "jd-dynamic-island-siri-glow-expand",
+  "name": "灵动岛 Siri 彩色光带",
+  "category": "interaction",
+  "tags": ["iphone", "dynamic-island", "siri", "glow", "notification", "mobile"],
+  "useCases": ["system-notification-demo", "siri-glow-reference", "motion-reference"],
+  "moods": ["futuristic", "luminous", "smooth", "mobile"]
+}

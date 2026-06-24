@@ -17,6 +17,22 @@
       ]
     },
     {
+      "id": "horizontal-switch.channel-tab.enter",
+      "name": "横向切换 / 频道Tab",
+      "family": "horizontal-switch",
+      "sourceElement": "横向切换",
+      "variant": "channel-tab",
+      "sourceVariant": "频道Tab",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "horizontal-switch.channel-tab.position",
+        "horizontal-switch.channel-tab.size",
+        "horizontal-switch.channel-tab.opacity"
+      ]
+    },
+    {
       "id": "horizontal-switch.tabbar.enter",
       "name": "横向切换 / Tabbar底导",
       "family": "horizontal-switch",

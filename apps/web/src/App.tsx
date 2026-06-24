@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { HomeRoute } from "./routes/HomeRoute";
 import { EditorRoute } from "./routes/EditorRoute";
+import type { BriefPanelMode } from "./features/brief/BriefPanel";
 import { useProject } from "./state/useProject";
 import { useImportFlow } from "./state/useImportFlow";
 import { applyMotionRecipeToComponent, applyPatchToFiles, type MotionComponent } from "@motion-tool/core";
 import { hasRenderableSource } from "./features/library/sourceState";
 import type { MotionProject } from "./state/projectStore";
+import { atomicMotionFeedComponents } from "./services/atomicMotionGeneration";
 
 async function loadInitialComponents(): Promise<MotionComponent[]> {
   const [{ loadBuiltinComponents }, { workEasyComponents }] = await Promise.all([
@@ -13,7 +15,7 @@ async function loadInitialComponents(): Promise<MotionComponent[]> {
     import("./data/workeasyComponents")
   ]);
   const builtinComponents = await loadBuiltinComponents();
-  return [...builtinComponents, ...workEasyComponents];
+  return [...builtinComponents, ...workEasyComponents, ...atomicMotionFeedComponents];
 }
 
 async function hydrateBuiltinComponent(component: MotionComponent): Promise<MotionComponent> {
@@ -25,6 +27,11 @@ async function hydrateBuiltinComponent(component: MotionComponent): Promise<Moti
 function mergeComponents(base: MotionComponent[], additions: MotionComponent[]): MotionComponent[] {
   const seen = new Set(base.map((component) => component.id));
   return [...base, ...additions.filter((component) => !seen.has(component.id))];
+}
+
+export function removeComponentById(components: MotionComponent[], componentId: string): MotionComponent[] {
+  if (!components.some((component) => component.id === componentId)) return components;
+  return components.filter((component) => component.id !== componentId);
 }
 
 function componentFromProject(component: MotionComponent, project: MotionProject): MotionComponent {
@@ -63,6 +70,7 @@ export function App() {
   const [restoreComponentId, setRestoreComponentId] = useState<string | null>(null);
   const [generatedDraftComponent, setGeneratedDraftComponent] = useState<MotionComponent | null>(null);
   const [isGeneratedEditorOpen, setIsGeneratedEditorOpen] = useState(false);
+  const [homeBriefMode, setHomeBriefMode] = useState<BriefPanelMode>("recommend");
   const { project, startProject, updateParam, replay, resetParams } = useProject();
   const importFlow = useImportFlow();
 
@@ -139,12 +147,25 @@ export function App() {
     setIsGeneratedEditorOpen(true);
   }
 
+  function deleteComponent(componentId: string) {
+    setComponents((current) => removeComponentById(current, componentId));
+    setSelectedComponentId((current) => (current === componentId ? null : current));
+    setRestoreComponentId((current) => (current === componentId ? null : current));
+    if (generatedDraftComponent?.id === componentId) {
+      closeGeneratedEditor();
+    }
+  }
+
+  function deleteSelectedComponent() {
+    if (!selectedComponentId) return;
+    deleteComponent(selectedComponentId);
+    setView("home");
+  }
+
   function currentProjectComponent(): MotionComponent | null {
     if (!project) return null;
     const base =
-      generatedDraftComponent ??
-      components.find((component) => component.id === selectedComponentId) ??
-      null;
+      generatedDraftComponent ?? components.find((component) => component.id === selectedComponentId) ?? null;
     if (!base) return null;
     return componentFromProject(base, project);
   }
@@ -171,6 +192,7 @@ export function App() {
         onParamChange={updateParam}
         onReplay={replay}
         onResetParams={resetParams}
+        {...(selectedComponentId ? { onDelete: deleteSelectedComponent } : {})}
         recipeTargetComponents={components.filter((component) => component.id !== selectedComponentId)}
         onApplyRecipeToTarget={applyCurrentRecipeToTarget}
       />
@@ -183,6 +205,8 @@ export function App() {
         components={components}
         isLibraryLoading={isLibraryLoading}
         restoreComponentId={restoreComponentId}
+        briefMode={homeBriefMode}
+        onBriefModeChange={setHomeBriefMode}
         onSelectComponent={selectComponent}
         onLoadComponentSource={hydrateComponent}
         onRestoreComplete={clearRestoreComponentId}
@@ -205,7 +229,9 @@ export function App() {
               onParamChange={updateParam}
               onReplay={replay}
               onResetParams={resetParams}
-              recipeTargetComponents={components.filter((component) => component.id !== generatedDraftComponent?.id)}
+              recipeTargetComponents={components.filter(
+                (component) => component.id !== generatedDraftComponent?.id
+              )}
               onApplyRecipeToTarget={applyCurrentRecipeToTarget}
               onSave={saveGeneratedComponent}
               saveLabel="保存组件"

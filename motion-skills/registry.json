@@ -39,25 +39,25 @@
     {
       "id": "front-back-entry",
       "label": "前后进场",
-      "latestVersion": "0.0.0",
-      "active": false,
+      "latestVersion": "1.1.0",
+      "active": true,
       "variants": [
         "二级页跳转",
         "半弹层",
         "动作面板",
         "滑动操作"
       ],
-      "packPath": "",
-      "status": "incomplete",
-      "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"
+      "packPath": "front-back-entry/manifest.json",
+      "status": "active"
     },
     {
       "id": "horizontal-switch",
       "label": "横向切换",
-      "latestVersion": "1.3.0",
+      "latestVersion": "1.5.0",
       "active": true,
       "variants": [
         "Tab导航",
+        "频道Tab",
         "Tabbar底导",
         "开关",
         "指示器",
@@ -95,16 +95,13 @@
     {
       "id": "content-loading",
       "label": "内容加载",
-      "latestVersion": "0.0.0",
-      "active": false,
+      "latestVersion": "1.0.0",
+      "active": true,
       "variants": [
-        "骨架",
-        "全局",
-        "下拉"
+        "全局"
       ],
-      "packPath": "",
-      "status": "incomplete",
-      "reason": "缺少完整 token 行：Value / Delay / 动画类型 / 关键属性变化 / CSS Value"
+      "packPath": "content-loading/manifest.json",
+      "status": "active"
     }
   ]
 }

@@ -44,6 +44,84 @@ const manifest: MotionManifest = {
       status: "confirmed",
       constraints: { min: 0.2, max: 2, step: 0.01 },
       targets: []
+    },
+    {
+      id: "foregroundImage",
+      label: "前景层",
+      type: "image",
+      default: "",
+      status: "confirmed",
+      targets: []
+    },
+    {
+      id: "foregroundLayerRadius",
+      label: "前景层圆角",
+      type: "range",
+      default: 24,
+      status: "confirmed",
+      constraints: { min: 0, max: 120, step: 1, unit: "px" },
+      targets: [
+        {
+          kind: "css-variable",
+          file: "source/style.css",
+          selector: ".motion-skill-stage",
+          name: "--foreground-layer-radius"
+        }
+      ]
+    },
+    {
+      id: "foregroundLayerWidth",
+      label: "前景层宽度",
+      type: "range",
+      default: 330,
+      status: "confirmed",
+      constraints: { min: 16, max: 720, step: 1, unit: "px" },
+      targets: []
+    },
+    {
+      id: "foregroundLayerHeight",
+      label: "前景层高度",
+      type: "range",
+      default: 300,
+      status: "confirmed",
+      constraints: { min: 2, max: 1280, step: 1, unit: "px" },
+      targets: []
+    },
+    {
+      id: "stageWidth",
+      label: "页面宽度",
+      type: "range",
+      default: 375,
+      status: "confirmed",
+      constraints: { min: 80, max: 520, step: 1, unit: "px" },
+      targets: []
+    },
+    {
+      id: "stageHeight",
+      label: "页面高度",
+      type: "range",
+      default: 812,
+      status: "confirmed",
+      constraints: { min: 48, max: 1200, step: 1, unit: "px" },
+      targets: []
+    },
+    {
+      id: "backgroundLayerWidth",
+      label: "背景层宽度",
+      type: "range",
+      default: 375,
+      status: "confirmed",
+      constraints: { min: 80, max: 640, step: 1, unit: "px" },
+      targets: []
+    },
+    {
+      id: "backgroundLayerHeight",
+      label: "背景层高度",
+      type: "range",
+      default: 812,
+      status: "confirmed",
+      constraints: { min: 48, max: 1280, step: 1, unit: "px" },
+      targets: []
     }
   ],
   motionSkill: {
@@ -132,11 +210,131 @@ describe("AtomicMotionInspectorPanel", () => {
     );
 
     expect(html).toContain("Token 参数");
+    expect(html).not.toContain("通用参数");
+    expect(html).not.toContain("前景层圆角");
+    expect(html).not.toContain("页面宽度");
+    expect(html).not.toContain("页面高度");
+    expect(html).not.toContain("背景层宽度");
+    expect(html).not.toContain("背景层高度");
+    expect(html).not.toContain("前景层宽度");
+    expect(html).not.toContain("前景层高度");
     expect(html).toContain("Token");
     expect(html).toContain("时长");
     expect(html).toContain("延迟");
     expect(html).toContain("关键属性变化");
+    expect(html).not.toContain("已替换图片");
     expect(html).not.toContain("应用图层");
+  });
+
+  it("filters swipe-action params to the controls wired into the custom swipe motion", () => {
+    const swipeManifest: MotionManifest = {
+      ...manifest,
+      params: [
+        {
+          id: "frontBackEntrySwipeActionPosition1Duration",
+          label: "滑块1-位移时长",
+          type: "duration",
+          default: 300,
+          status: "confirmed",
+          constraints: { min: 120, max: 6000, step: 20, unit: "ms" },
+          targets: []
+        },
+        {
+          id: "frontBackEntrySwipeActionPosition1Keyframe1X",
+          label: "滑块1-位移关键帧 2X",
+          type: "range",
+          default: 86,
+          status: "confirmed",
+          constraints: { min: -800, max: 800, step: 1, unit: "px" },
+          targets: []
+        },
+        {
+          id: "frontBackEntrySwipeActionPosition5Duration",
+          label: "滑块5-位移时长",
+          type: "duration",
+          default: 200,
+          status: "confirmed",
+          constraints: { min: 120, max: 6000, step: 20, unit: "ms" },
+          targets: []
+        },
+        {
+          id: "frontBackEntrySwipeActionPosition5Delay",
+          label: "滑块5-位移延迟",
+          type: "range",
+          default: 0,
+          status: "confirmed",
+          constraints: { min: 0, max: 3000, step: 20, unit: "ms" },
+          targets: []
+        },
+        {
+          id: "frontBackEntrySwipeActionPosition5Easing",
+          label: "滑块5-位移曲线",
+          type: "easing",
+          default: "cubic-bezier(0, 0, 0.15, 1)",
+          status: "confirmed",
+          targets: []
+        },
+        {
+          id: "frontBackEntrySwipeActionPosition5Keyframe1X",
+          label: "滑块5-位移关键帧 2X",
+          type: "range",
+          default: -430,
+          status: "confirmed",
+          constraints: { min: -800, max: 800, step: 1, unit: "px" },
+          targets: []
+        }
+      ],
+      motionSkill: {
+        ...manifest.motionSkill!,
+        element: "前后进场",
+        variant: "滑动操作",
+        family: "front-back-entry",
+        recipeId: "front-back-entry.swipe-action.enter",
+        tokens: [
+          {
+            id: "front-back-entry.swipe-action.position-1",
+            token: "standard easing",
+            animationType: "滑块1-位移",
+            targetLayer: "滑块1",
+            value: "300ms",
+            delay: "0ms",
+            propertyChange: "position: x 0 → 86 → -86",
+            cssValue: "cubic-bezier(0, 0, 0.15, 1)",
+            property: "position",
+            durationParamId: "frontBackEntrySwipeActionPosition1Duration",
+            delayParamId: "",
+            easingParamId: "",
+            keyframeParamIds: ["frontBackEntrySwipeActionPosition1Keyframe1X"]
+          },
+          {
+            id: "front-back-entry.swipe-action.position-5",
+            token: "standard easing",
+            animationType: "滑块5-位移",
+            targetLayer: "滑块5",
+            value: "200ms",
+            delay: "0ms",
+            propertyChange: "position: x 0 → -430",
+            cssValue: "cubic-bezier(0, 0, 0.15, 1)",
+            property: "position",
+            durationParamId: "frontBackEntrySwipeActionPosition5Duration",
+            delayParamId: "frontBackEntrySwipeActionPosition5Delay",
+            easingParamId: "frontBackEntrySwipeActionPosition5Easing",
+            keyframeParamIds: ["frontBackEntrySwipeActionPosition5Keyframe1X"]
+          }
+        ]
+      }
+    };
+    const html = renderToStaticMarkup(
+      <AtomicMotionInspectorPanel section="params" manifest={swipeManifest} patch={patch} onChange={vi.fn()} />
+    );
+
+    expect(html).toContain("滑块5-位移");
+    expect(html).toContain("时长");
+    expect(html).toContain("缓动曲线");
+    expect(html).not.toContain("滑块1-位移");
+    expect(html).not.toContain("延迟");
+    expect(html).not.toContain("关键属性变化");
+    expect(html).not.toContain("-430");
   });
 
   it("labels horizontal switch duration as per-move timing", () => {

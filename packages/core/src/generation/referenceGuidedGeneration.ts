@@ -59,10 +59,10 @@ const DEFAULT_BUTTON_COLOR: SemanticGenerationColor = {
   value: "#2563eb"
 };
 const DEFAULT_MOBILE_PAGE_SIZE = {
-  stageWidth: 430,
-  stageHeight: 932,
-  backgroundLayerWidth: 500,
-  backgroundLayerHeight: 1060
+  stageWidth: 375,
+  stageHeight: 812,
+  backgroundLayerWidth: 375,
+  backgroundLayerHeight: 812
 };
 
 function unique<T>(values: T[]): T[] {

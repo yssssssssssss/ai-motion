@@ -18,7 +18,8 @@ const triggerLabels: Record<string, string> = {
   load: "加载",
   hover: "悬停",
   click: "点击",
-  loop: "循环"
+  loop: "循环",
+  swipe: "滑动"
 };
 
 function layerLabels(manifest: MotionManifest, layerIds: string[]): string {

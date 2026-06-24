@@ -1,0 +1,476 @@
+:root {
+  --stage-width: 720px;
+  --stage-height: 1556px;
+  --motion-duration: 10800ms;
+  --start-delay: 180ms;
+  --motion-easing: cubic-bezier(0.18, 0.86, 0.22, 1);
+  --island-width: 286px;
+  --island-height: 54px;
+  --notification-y: 168px;
+  --notification-width: 584px;
+  --weather-card-y: 236px;
+  --weather-card-width: 560px;
+  --glow-opacity: 0.9;
+  --window-radius: 54px;
+  --page-background: #050509;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--page-background);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.siri-demo {
+  width: var(--stage-width);
+  height: var(--stage-height);
+  position: relative;
+  overflow: hidden;
+  background: #000000;
+  transform-origin: center center;
+}
+
+.phone-shell {
+  position: absolute;
+  left: 48px;
+  top: 224px;
+  width: 624px;
+  height: 1120px;
+  border-radius: 74px 74px 14px 14px;
+  background: linear-gradient(145deg, #0d0f2a, #04040a 58%, #000000);
+  box-shadow:
+    0 0 34px rgb(64 39 184 / 0.48),
+    0 18px 42px rgb(0 0 0 / 0.76);
+}
+
+.screen {
+  position: absolute;
+  inset: 10px;
+  overflow: hidden;
+  border-radius: var(--window-radius) var(--window-radius) 8px 8px;
+  background: #0c0733;
+  color: #ffffff;
+  isolation: isolate;
+}
+
+.wallpaper {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 260px 560px at 84% 18%, rgb(111 63 255 / 0.78), transparent 64%),
+    radial-gradient(ellipse 420px 720px at 68% 44%, rgb(221 52 255 / 0.76), transparent 54%),
+    radial-gradient(ellipse 420px 520px at 4% 56%, rgb(85 123 255 / 0.48), transparent 56%),
+    radial-gradient(ellipse 700px 980px at 52% 82%, rgb(70 28 179 / 0.88), transparent 64%),
+    #14104c;
+}
+
+.status-bar,
+.app-icon,
+.dynamic-island,
+.siri-notification,
+.bottom-toolbar,
+.weather-card {
+  position: absolute;
+  z-index: 2;
+}
+
+.status-bar {
+  left: 48px;
+  right: 48px;
+  top: 42px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 28px;
+  font-weight: 800;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.58);
+}
+
+.status-icons {
+  font-size: 19px;
+  letter-spacing: 0;
+}
+
+.app-icon {
+  left: 58px;
+  top: 158px;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  opacity: 0.72;
+}
+
+.app-icon span {
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 26px, rgb(235 229 255 / 0.88) 28px 34px, transparent 36px),
+    linear-gradient(145deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.02));
+  box-shadow: inset 0 0 28px rgb(255 255 255 / 0.12);
+}
+
+.dynamic-island {
+  left: 50%;
+  top: 26px;
+  width: var(--island-width);
+  height: var(--island-height);
+  overflow: hidden;
+  border-radius: 999px;
+  background: #000000;
+  box-shadow: 0 3px 14px rgb(0 0 0 / 0.7);
+  transform: translateX(-50%);
+}
+
+.record-dot {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #ff403b;
+  transform: translateY(-50%);
+}
+
+.island-avatar {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 54% 42%, #ffffff 0 4px, transparent 5px),
+    conic-gradient(from 25deg, #35ddff, #9f5cff, #ff467f, #ffe24d, #35ddff);
+  box-shadow: 0 0 18px rgb(112 96 255 / 0.78);
+  transform: translateY(-50%) scale(0.62);
+}
+
+.island-glow {
+  position: absolute;
+  inset: -32px -28px auto -28px;
+  height: 52px;
+  border-radius: 50%;
+  opacity: 0;
+  background: linear-gradient(90deg, #12d7ff, #a45cff 30%, #ff3f7b 62%, #ffe94a);
+  filter: blur(10px) saturate(1.5);
+  transform: translateX(-72%);
+}
+
+.siri-notification {
+  left: 50%;
+  top: var(--notification-y);
+  width: var(--notification-width);
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  box-sizing: border-box;
+  padding: 18px 22px 18px 24px;
+  border: 1px solid rgb(255 255 255 / 0.13);
+  border-radius: 28px;
+  opacity: 0;
+  background: rgb(0 0 0 / 0.88);
+  box-shadow:
+    0 0 0 2px rgb(100 50 255 / 0.32),
+    0 12px 42px rgb(0 0 0 / 0.42);
+  transform: translateX(-50%) translateY(-22px) scale(0.94);
+}
+
+.siri-notification::after,
+.weather-card::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: -5px;
+  height: 10px;
+  border-radius: 999px;
+  opacity: 0.8;
+  background: linear-gradient(90deg, #1dd7ff, #aa64ff 38%, #ff5177 70%, #ffe657);
+  filter: blur(8px);
+}
+
+.notification-copy,
+.weather-card {
+  letter-spacing: 0;
+}
+
+.notification-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.notification-copy strong,
+.weather-card strong {
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.notification-copy span,
+.weather-card span {
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.68);
+  font-size: 13px;
+  line-height: 1.24;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.siri-notification i {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 40% 30%, #ffffff 0 5px, transparent 6px),
+    conic-gradient(from 30deg, #42e4ff, #a05cff, #ff4f83, #fff057, #42e4ff);
+  box-shadow: 0 0 24px rgb(101 90 255 / 0.75);
+}
+
+.bottom-toolbar {
+  left: 88px;
+  right: 88px;
+  bottom: 32px;
+  display: flex;
+  justify-content: space-between;
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+.dock-label {
+  position: absolute;
+  left: 50%;
+  top: -34px;
+  padding: 5px 13px 6px;
+  border-radius: 999px;
+  opacity: 0;
+  background: rgb(0 0 0 / 0.52);
+  color: rgb(255 255 255 / 0.82);
+  font-size: 14px;
+  line-height: 1;
+  transform: translateX(-50%) translateY(10px);
+}
+
+.bottom-toolbar span {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.88);
+  box-shadow: 0 0 18px rgb(255 255 255 / 0.22);
+}
+
+.weather-card {
+  left: 50%;
+  top: var(--weather-card-y);
+  width: var(--weather-card-width);
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-radius: 24px;
+  opacity: 0;
+  background:
+    linear-gradient(110deg, transparent 0 32%, rgb(255 255 255 / 0.42) 44%, transparent 56% 100%),
+    linear-gradient(135deg, rgb(48 205 255 / 0.94), rgb(71 105 255 / 0.94) 54%, rgb(159 84 255 / 0.9));
+  background-size: 240% 100%, 100% 100%;
+  box-shadow: 0 12px 42px rgb(34 136 255 / 0.44);
+  transform: translateX(-50%) translateY(-16px) scale(0.96);
+}
+
+.weather-card div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.weather-card b {
+  flex: 0 0 auto;
+  font-size: 46px;
+  line-height: 0.92;
+}
+
+.is-playing .island-glow {
+  animation: island-glow var(--motion-duration) linear var(--start-delay) infinite;
+}
+
+.is-playing .record-dot {
+  animation: record-dot-cycle var(--motion-duration) var(--motion-easing) var(--start-delay) infinite;
+}
+
+.is-playing .island-avatar {
+  animation: island-avatar-cycle var(--motion-duration) var(--motion-easing) var(--start-delay) infinite;
+}
+
+.is-playing .siri-notification {
+  animation: notification-enter var(--motion-duration) var(--motion-easing) var(--start-delay) infinite;
+}
+
+.is-playing .bottom-toolbar {
+  animation: toolbar-enter var(--motion-duration) var(--motion-easing) var(--start-delay) infinite;
+}
+
+.is-playing .dock-label {
+  animation: dock-label-cycle var(--motion-duration) var(--motion-easing) var(--start-delay) infinite;
+}
+
+.is-playing .weather-card {
+  animation: weather-card-enter var(--motion-duration) var(--motion-easing) var(--start-delay) infinite;
+}
+
+@keyframes island-glow {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateX(-72%);
+  }
+
+  9%,
+  18% {
+    opacity: var(--glow-opacity);
+  }
+
+  24% {
+    opacity: 0.36;
+    transform: translateX(72%);
+  }
+
+  31%,
+  100% {
+    opacity: 0;
+    transform: translateX(72%);
+  }
+}
+
+@keyframes record-dot-cycle {
+  0%,
+  54% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+
+  59%,
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.58);
+  }
+}
+
+@keyframes island-avatar-cycle {
+  0%,
+  55% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.62);
+  }
+
+  61%,
+  80% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+
+  88%,
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.72);
+  }
+}
+
+@keyframes notification-enter {
+  0%,
+  20% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-22px) scale(0.94);
+  }
+
+  26%,
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  56%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-14px) scale(0.96);
+  }
+}
+
+@keyframes toolbar-enter {
+  0%,
+  38% {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  45%,
+  78% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  84%,
+  100% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes dock-label-cycle {
+  0%,
+  43% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+
+  50%,
+  72% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  80%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+}
+
+@keyframes weather-card-enter {
+  0%,
+  62% {
+    background-position: 120% 0, 0 0;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-18px) scale(0.94);
+  }
+
+  69%,
+  88% {
+    background-position: 20% 0, 0 0;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  96%,
+  100% {
+    background-position: -50% 0, 0 0;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-14px) scale(0.96);
+  }
+}

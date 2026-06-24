@@ -86,6 +86,12 @@ function incompleteReason(rows: DesignerMotionRow[]): string {
   return `缺少完整 token 行：${[...missing].join(" / ")}`;
 }
 
+function recipeTrigger(element: string, variant: string): MotionSkillRecipe["trigger"] {
+  if (element === "内容反馈" && variant === "单选/多选") return "click";
+  if (element === "内容加载" && variant === "全局") return "loop";
+  return "load";
+}
+
 function tokenFromRow(row: DesignerMotionRow): AtomicMotionToken {
   const family = slugMotionId(row.element);
   const variant = slugMotionId(row.variant);
@@ -114,6 +120,10 @@ function tokenFromRow(row: DesignerMotionRow): AtomicMotionToken {
   };
 }
 
+function tokenWithId(token: AtomicMotionToken, id: string): AtomicMotionToken {
+  return { ...token, id };
+}
+
 function fingerprint(token: AtomicMotionToken): string {
   return JSON.stringify({
     property: token.property,
@@ -135,10 +145,19 @@ function compileFamily(element: string, rows: DesignerMotionRow[]): FamilyCompil
   const family = slugMotionId(element);
   const completeRows = rows.filter(isCompleteTokenRow);
   const tokensById = new Map<string, AtomicMotionToken>();
+  const baseIdCounts = new Map<string, number>();
+  const rawTokens = completeRows.map((row) => tokenFromRow(row));
+  for (const token of rawTokens) {
+    baseIdCounts.set(token.id, (baseIdCounts.get(token.id) ?? 0) + 1);
+  }
+  const seenBaseIds = new Map<string, number>();
 
-  for (const row of completeRows) {
-    const token = tokenFromRow(row);
-    tokensById.set(token.id, token);
+  for (const token of rawTokens) {
+    const duplicateCount = baseIdCounts.get(token.id) ?? 0;
+    const seenCount = seenBaseIds.get(token.id) ?? 0;
+    seenBaseIds.set(token.id, seenCount + 1);
+    const tokenId = duplicateCount > 1 ? `${token.id}-${seenCount + 1}` : token.id;
+    tokensById.set(tokenId, tokenWithId(token, tokenId));
   }
 
   const tokens = [...tokensById.values()];
@@ -159,7 +178,7 @@ function compileFamily(element: string, rows: DesignerMotionRow[]): FamilyCompil
     sourceVariant: sourceVariantByVariant.get(variant) ?? variant,
     targetRole: targetRoleByVariant.get(variant) ?? "unknown",
     targetLayer: targetLayerByVariant.get(variant) ?? "前景层",
-    trigger: "load",
+    trigger: recipeTrigger(element, sourceVariantByVariant.get(variant) ?? variant),
     tokenIds
   }));
 

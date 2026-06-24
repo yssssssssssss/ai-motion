@@ -9,6 +9,12 @@ import closeTokens from "../../../../motion-skills/close/tokens.json";
 import contentFeedbackManifest from "../../../../motion-skills/content-feedback/manifest.json";
 import contentFeedbackRecipes from "../../../../motion-skills/content-feedback/recipes.json";
 import contentFeedbackTokens from "../../../../motion-skills/content-feedback/tokens.json";
+import contentLoadingManifest from "../../../../motion-skills/content-loading/manifest.json";
+import contentLoadingRecipes from "../../../../motion-skills/content-loading/recipes.json";
+import contentLoadingTokens from "../../../../motion-skills/content-loading/tokens.json";
+import frontBackEntryManifest from "../../../../motion-skills/front-back-entry/manifest.json";
+import frontBackEntryRecipes from "../../../../motion-skills/front-back-entry/recipes.json";
+import frontBackEntryTokens from "../../../../motion-skills/front-back-entry/tokens.json";
 import horizontalSwitchManifest from "../../../../motion-skills/horizontal-switch/manifest.json";
 import horizontalSwitchRecipes from "../../../../motion-skills/horizontal-switch/recipes.json";
 import horizontalSwitchTokens from "../../../../motion-skills/horizontal-switch/tokens.json";
@@ -27,6 +33,11 @@ export const motionSkillPacks: Record<string, MotionSkillPack> = {
     tokens: containerTransformTokens.tokens,
     recipes: containerTransformRecipes.recipes
   } as MotionSkillPack,
+  "front-back-entry": {
+    manifest: frontBackEntryManifest,
+    tokens: frontBackEntryTokens.tokens,
+    recipes: frontBackEntryRecipes.recipes
+  } as MotionSkillPack,
   "horizontal-switch": {
     manifest: horizontalSwitchManifest,
     tokens: horizontalSwitchTokens.tokens,
@@ -36,6 +47,11 @@ export const motionSkillPacks: Record<string, MotionSkillPack> = {
     manifest: contentFeedbackManifest,
     tokens: contentFeedbackTokens.tokens,
     recipes: contentFeedbackRecipes.recipes
+  } as MotionSkillPack,
+  "content-loading": {
+    manifest: contentLoadingManifest,
+    tokens: contentLoadingTokens.tokens,
+    recipes: contentLoadingRecipes.recipes
   } as MotionSkillPack,
   close: {
     manifest: closeManifest,

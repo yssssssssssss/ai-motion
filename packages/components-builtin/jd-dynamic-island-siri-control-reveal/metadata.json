@@ -1,0 +1,8 @@
+{
+  "id": "jd-dynamic-island-siri-control-reveal",
+  "name": "灵动岛 Siri 控制栏联动",
+  "category": "interaction",
+  "tags": ["iphone", "dynamic-island", "siri", "notification", "toolbar", "mobile"],
+  "useCases": ["system-notification-demo", "siri-control-reference", "app-prototype", "motion-reference"],
+  "moods": ["futuristic", "coordinated", "smooth", "mobile"]
+}

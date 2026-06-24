@@ -50,7 +50,7 @@ const motionSkillRecipeSchema = z
     sourceVariant: z.string().min(1),
     targetRole: targetRoleSchema,
     targetLayer: z.string().min(1),
-    trigger: z.enum(["load", "hover", "click", "loop"]),
+    trigger: z.enum(["load", "hover", "click", "loop", "swipe"]),
     tokenIds: z.array(z.string().min(1)).min(1)
   })
   .strict();

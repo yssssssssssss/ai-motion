@@ -20,12 +20,16 @@ function camelId(parts: string[]): string {
     .join("");
 }
 
+function tokenCssId(token: AtomicMotionToken): string {
+  return token.id.replace(/[^a-z0-9\u4e00-\u9fa5]+/gi, "-").replace(/^-+|-+$/g, "");
+}
+
 function cssVarName(token: AtomicMotionToken, suffix: string): string {
-  return `--${token.family}-${token.variant}-${token.property}-${suffix}`;
+  return `--${tokenCssId(token)}-${suffix}`;
 }
 
 export function motionSkillParamId(token: AtomicMotionToken, suffix: string): string {
-  return camelId([token.family, token.variant, token.property, suffix]);
+  return camelId([token.id, suffix]);
 }
 
 type KeyframeParamDescriptor = {
@@ -125,6 +129,8 @@ export function motionSkillKeyframeParamIds(token: AtomicMotionToken): string[] 
 }
 
 function categoryFor(recipe: MotionSkillRecipe): MotionRecipeCategory {
+  if (recipe.trigger === "loop" || /loading|加载/i.test(`${recipe.family} ${recipe.sourceElement}`))
+    return "loop";
   return /popup|弹窗/i.test(`${recipe.family} ${recipe.sourceElement}`) ? "feedback" : "entrance";
 }
 
@@ -176,7 +182,7 @@ export function motionSkillRecipeToMotionRecipe(input: {
     (tokenId) => input.tokens.find((token) => token.id === tokenId) ?? []
   );
   const selector = "[data-motion=foregroundLayer]";
-  const keyframes = tokens.map((token) => `${token.family}-${token.variant}-${token.property}`);
+  const keyframes = tokens.map(tokenCssId);
   const params = tokens.flatMap(tokenParams);
 
   return {

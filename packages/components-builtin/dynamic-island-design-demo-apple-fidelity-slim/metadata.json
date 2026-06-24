@@ -1,0 +1,17 @@
+{
+  "id": "dynamic-island-design-demo-apple-fidelity-slim",
+  "name": "灵动岛 Apple 高保真纤薄版",
+  "category": "interaction",
+  "tags": [
+    "iphone",
+    "dynamic-island",
+    "apple-fidelity",
+    "liquid-glass",
+    "siri",
+    "weather",
+    "canvas",
+    "mobile"
+  ],
+  "useCases": ["dynamic-island-demo", "apple-fidelity-reference", "siri-motion-reference", "feed-preview"],
+  "moods": ["luminous", "precise", "smooth", "mobile"]
+}

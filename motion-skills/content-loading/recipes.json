@@ -1,0 +1,19 @@
+{
+  "recipes": [
+    {
+      "id": "content-loading.global.enter",
+      "name": "内容加载 / 全局",
+      "family": "content-loading",
+      "sourceElement": "内容加载",
+      "variant": "global",
+      "sourceVariant": "全局",
+      "targetRole": "unknown",
+      "targetLayer": "前景层",
+      "trigger": "loop",
+      "tokenIds": [
+        "content-loading.global.opacity",
+        "content-loading.global.scale"
+      ]
+    }
+  ]
+}

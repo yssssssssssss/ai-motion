@@ -161,6 +161,7 @@ export type {
   ApplyMotionRecipeToComponentInput,
   ExtractedMotionRecipe,
   MotionRecipeCacheEntry,
+  MotionTrigger,
   MotionRecipe,
   MotionRecipeCategory,
   MotionRecipeComposition,
@@ -231,7 +232,12 @@ export { scanSourceForParams } from "./analyze/ruleScanner";
 export { scanSourceForLayers } from "./analyze/layerScanner";
 export { suggestParams } from "./analyze/paramAdvisor";
 export { confirmValidParams } from "./analyze/validator";
-export { composeEditablePackageFiles, composeStandaloneHtmlFile } from "./export/exportPackage";
+export {
+  composeEditablePackageFiles,
+  composeEmbedPackageFiles,
+  composeStandaloneHtmlFile
+} from "./export/exportPackage";
+export type { EmbedPackageFileContent } from "./export/exportPackage";
 
 // ---- video conversion ----
 export type {

@@ -2,7 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 const DEV_HOST = "127.0.0.1";
-const DEV_PORT = 5173;
+const DEV_PORT = 5175;
 
 function readBody(req: import("node:http").IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {

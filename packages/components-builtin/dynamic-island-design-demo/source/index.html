@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Island Motion Restore</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell" data-motion-root>
+      <section class="motion-stage" aria-label="Dynamic Island motion restore demo">
+        <div class="phone" id="phone">
+          <div class="screen">
+            <div class="wallpaper">
+              <div class="orb orb-a"></div>
+              <div class="orb orb-b"></div>
+              <div class="orb orb-c"></div>
+              <div class="orb orb-d"></div>
+              <div class="grain"></div>
+            </div>
+
+            <div class="status-bar">
+              <span id="clock">4:12</span>
+              <span class="status-icons"><i></i><i></i><b></b></span>
+            </div>
+
+            <div class="siri-shortcut">
+              <span class="siri-ring"></span>
+              <span class="siri-text">Siri</span>
+            </div>
+
+            <div class="dynamic-island liquid-glass" aria-hidden="true">
+              <span class="record-dot"></span>
+              <span class="island-wave-glow"></span>
+              <span class="glass-wave"></span>
+              <span class="thinking-dots"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+
+            <div class="siri-dialog liquid-glass" aria-hidden="true">
+              <div class="dialog-avatar"></div>
+              <p>Hello, Aaron. I'm doing well, thanks<br />for asking. How can I help you<br />today?</p>
+              <span>Siri</span>
+              <div class="dialog-light glass-wave"></div>
+            </div>
+
+            <div class="weather-response" aria-hidden="true">
+              <p>It's currently clear and 74°F in New<br />York.</p>
+              <div class="weather-card">
+                <div>
+                  <span>New York, NY</span>
+                  <strong>74°</strong>
+                </div>
+                <div>
+                  <span class="sun">✹</span>
+                  <em>Clear</em>
+                  <small>H:74° L:62°</small>
+                </div>
+                <div class="weather-glow glass-wave"></div>
+              </div>
+            </div>
+
+            <div class="search-pill">⌕ Search</div>
+
+            <nav class="dock" aria-hidden="true">
+              <div class="app-icon app-store"><span>A</span><b>2</b></div>
+              <div class="app-icon safari"><span></span></div>
+              <div class="app-icon nav"><span></span><b>1</b></div>
+              <div class="app-icon message"><span></span><b>3</b></div>
+            </nav>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

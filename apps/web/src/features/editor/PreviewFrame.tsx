@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { MotionManifest, MotionPatch, MotionSource } from "@motion-tool/core";
-import { renderPreviewHtml } from "./previewHtml";
+import { renderPreviewHtml, shouldPreviewAutoplay } from "./previewHtml";
 
 export type PreviewPlaybackState = "playing" | "paused";
+export { shouldPreviewAutoplay };
 
 type Props = {
   source: MotionSource | null;
@@ -10,6 +11,7 @@ type Props = {
   patch: MotionPatch | null;
   playbackState: PreviewPlaybackState;
   replayToken?: number;
+  resetToken?: number;
 };
 
 export function previewPatchValues(manifest: MotionManifest, patch: MotionPatch): MotionPatch["values"] {
@@ -27,9 +29,17 @@ function imagePatchValues(manifest: MotionManifest, patch: MotionPatch | null): 
   );
 }
 
-export function PreviewFrame({ source, manifest, patch, playbackState, replayToken = 0 }: Props) {
+export function PreviewFrame({
+  source,
+  manifest,
+  patch,
+  playbackState,
+  replayToken = 0,
+  resetToken = 0
+}: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const lastReplayTokenRef = useRef(replayToken);
+  const lastResetTokenRef = useRef(resetToken);
   // 参数变化通过 postMessage 送进 iframe，srcDoc 只随源码/manifest 改变。
   // 这样拖动滑杆时不会重载 iframe，也就不会出现白屏闪烁。
   const html = useMemo(() => {
@@ -66,6 +76,15 @@ export function PreviewFrame({ source, manifest, patch, playbackState, replayTok
     );
   }, []);
 
+  const postReset = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      {
+        type: "motion-preview:reset"
+      },
+      "*"
+    );
+  }, []);
+
   const postPatch = useCallback(() => {
     if (!manifest || !patch) return;
     iframeRef.current?.contentWindow?.postMessage(
@@ -79,8 +98,9 @@ export function PreviewFrame({ source, manifest, patch, playbackState, replayTok
   }, [manifest, patch]);
 
   useEffect(() => {
-    postPlaybackState();
-  }, [postPlaybackState]);
+    if (shouldPreviewAutoplay(manifest)) postPlaybackState();
+    else postReset();
+  }, [manifest, postPlaybackState, postReset]);
 
   useEffect(() => {
     postPatch();
@@ -91,6 +111,12 @@ export function PreviewFrame({ source, manifest, patch, playbackState, replayTok
     lastReplayTokenRef.current = replayToken;
     postReplay();
   }, [postReplay, replayToken]);
+
+  useEffect(() => {
+    if (lastResetTokenRef.current === resetToken) return;
+    lastResetTokenRef.current = resetToken;
+    postReset();
+  }, [postReset, resetToken]);
 
   if (!html) {
     return <div className="preview-empty">请选择或导入一个动效源。</div>;
@@ -105,7 +131,8 @@ export function PreviewFrame({ source, manifest, patch, playbackState, replayTok
       className="preview-frame"
       onLoad={() => {
         postPatch();
-        postPlaybackState();
+        if (shouldPreviewAutoplay(manifest)) postPlaybackState();
+        else postReset();
       }}
     />
   );

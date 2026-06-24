@@ -1244,6 +1244,37 @@
   box-shadow: 0 0 18px rgba(168, 85, 247, 0.2);
 }
 
+.atomic-motion-trigger-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.atomic-motion-trigger-pill {
+  min-height: 34px;
+  border-color: rgba(216, 180, 254, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  font-weight: 740;
+  padding: 0 12px;
+}
+
+.atomic-motion-trigger-pill:hover {
+  border-color: rgba(216, 180, 254, 0.5);
+  background: rgba(126, 34, 206, 0.2);
+  color: #ffffff;
+  transform: none;
+}
+
+.atomic-motion-trigger-pill.is-on,
+.atomic-motion-trigger-pill.is-on:hover {
+  border-color: rgba(233, 213, 255, 0.64);
+  background: rgba(126, 34, 206, 0.34);
+  color: #ffffff;
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.2);
+}
+
 .atomic-motion-empty {
   min-height: 42px;
   display: inline-flex;

@@ -1,0 +1,8 @@
+{
+  "id": "jd-dynamic-island-siri-reference-replica",
+  "name": "灵动岛 Siri 高保真参考",
+  "category": "interaction",
+  "tags": ["iphone", "dynamic-island", "siri", "reference", "replica", "notification", "mobile"],
+  "useCases": ["siri-reference-replica", "dynamic-island-prototype", "motion-reference"],
+  "moods": ["luminous", "precise", "smooth", "mobile"]
+}

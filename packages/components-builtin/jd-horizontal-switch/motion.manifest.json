@@ -5,109 +5,138 @@
   "sourceKind": "builtin-component",
   "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
   "capabilities": ["builtin", "editable", "export-html"],
+  "motionRecipes": [
+    {
+      "recipeId": "horizontal-switch.tab-navigation",
+      "recipeName": "横向切换 / Tab导航",
+      "category": "transition",
+      "targetLayerIds": ["tabNavigation"],
+      "targetSelectors": [".tab-nav"],
+      "paramIds": ["tabGap", "indicatorWidth", "easing"],
+      "trigger": "click",
+      "source": "builtin",
+      "confidence": 1
+    },
+    {
+      "recipeId": "horizontal-switch.channel-tab",
+      "recipeName": "横向切换 / 频道Tab",
+      "category": "transition",
+      "targetLayerIds": ["channelTabs"],
+      "targetSelectors": [".channel-tabs"],
+      "paramIds": [
+        "channelMotionDuration",
+        "easing",
+        "channelTabLabel1",
+        "channelTabLabel2",
+        "channelTabLabel3",
+        "channelTabLabel4",
+        "channelTabLabel5",
+        "channelTabLabel6",
+        "channelTabLabelBg"
+      ],
+      "trigger": "click",
+      "source": "builtin",
+      "confidence": 1
+    },
+    {
+      "recipeId": "horizontal-switch.tabbar",
+      "recipeName": "横向切换 / Tabbar底导",
+      "category": "transition",
+      "targetLayerIds": ["bottomTabbar"],
+      "targetSelectors": [".bottom-tabbar"],
+      "paramIds": [
+        "bottomTabbarMotionDuration",
+        "bottomTabbarMotionEasing",
+        "bottomTabbarSizeEasing",
+        "bottomTabbarActiveColor",
+        "bottomTabbarActiveBg",
+        "bottomTabbarLabel1",
+        "bottomTabbarLabel2",
+        "bottomTabbarLabel3",
+        "bottomTabbarLabel4",
+        "bottomTabbarLabel5"
+      ],
+      "trigger": "click",
+      "source": "builtin",
+      "confidence": 1
+    }
+  ],
   "params": [
     {
-      "id": "cycleDuration",
-      "label": "循环时长",
-      "type": "duration",
-      "default": 3480,
-      "constraints": { "min": 1800, "max": 6000, "step": 40, "unit": "ms" },
+      "id": "tabGap",
+      "label": "Tab 间距",
+      "type": "range",
+      "default": 336,
+      "constraints": { "min": 160, "max": 480, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [
         {
           "kind": "css-variable",
           "file": "source/style.css",
           "selector": ":root",
-          "name": "--cycle-duration"
+          "name": "--tab-gap"
         }
       ]
     },
     {
-      "id": "slideDistance",
-      "label": "横滑距离",
+      "id": "tabStartX",
+      "label": "首个 Tab X",
       "type": "range",
-      "default": 1118,
+      "default": 398,
       "constraints": { "min": 0, "max": 1118, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--tab-start-x" }
+      ]
+    },
+    {
+      "id": "tabY",
+      "label": "Tab Y",
+      "type": "range",
+      "default": 118,
+      "constraints": { "min": 0, "max": 272, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--tab-y" }
+      ]
+    },
+    {
+      "id": "tabTextWidth",
+      "label": "文字宽度",
+      "type": "range",
+      "default": 160,
+      "constraints": { "min": 80, "max": 240, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
         {
           "kind": "css-variable",
           "file": "source/style.css",
           "selector": ":root",
-          "name": "--slide-distance"
+          "name": "--tab-text-width"
         }
       ]
     },
     {
-      "id": "tapX",
-      "label": "点击 X",
+      "id": "indicatorWidth",
+      "label": "短横线宽度",
       "type": "range",
-      "default": 362,
-      "constraints": { "min": 0, "max": 1118, "step": 1, "unit": "px" },
-      "status": "confirmed",
-      "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--tap-x" }
-      ]
-    },
-    {
-      "id": "tapY",
-      "label": "点击 Y",
-      "type": "range",
-      "default": 190,
-      "constraints": { "min": 0, "max": 520, "step": 1, "unit": "px" },
-      "status": "confirmed",
-      "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--tap-y" }
-      ]
-    },
-    {
-      "id": "tapSize",
-      "label": "点击范围",
-      "type": "range",
-      "default": 112,
-      "constraints": { "min": 40, "max": 180, "step": 1, "unit": "px" },
-      "status": "confirmed",
-      "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--tap-size" }
-      ]
-    },
-    {
-      "id": "navOverlayOpacity",
-      "label": "导航切换强度",
-      "type": "range",
-      "default": 1,
-      "constraints": { "min": 0, "max": 1, "step": 0.01 },
+      "default": 16,
+      "constraints": { "min": 8, "max": 48, "step": 1, "unit": "px" },
       "status": "confirmed",
       "targets": [
         {
           "kind": "css-variable",
           "file": "source/style.css",
           "selector": ":root",
-          "name": "--nav-overlay-opacity"
-        }
-      ]
-    },
-    {
-      "id": "windowRadius",
-      "label": "屏幕圆角",
-      "type": "range",
-      "default": 92,
-      "constraints": { "min": 0, "max": 160, "step": 1, "unit": "px" },
-      "status": "confirmed",
-      "targets": [
-        {
-          "kind": "css-variable",
-          "file": "source/style.css",
-          "selector": ":root",
-          "name": "--window-radius"
+          "name": "--tab-indicator-width"
         }
       ]
     },
     {
       "id": "easing",
-      "label": "横滑缓动",
+      "label": "切换缓动",
       "type": "easing",
-      "default": "cubic-bezier(0.2, 0.82, 0.22, 1)",
+      "default": "cubic-bezier(0.38, 0, 0.24, 1)",
       "status": "confirmed",
       "targets": [
         {
@@ -117,12 +146,259 @@
           "name": "--motion-easing"
         }
       ]
+    },
+    {
+      "id": "channelMotionDuration",
+      "label": "频道切换时长",
+      "type": "duration",
+      "default": 200,
+      "constraints": { "min": 80, "max": 600, "step": 10, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--channel-motion-duration"
+        }
+      ]
+    },
+    {
+      "id": "channelTabLabelBg",
+      "label": "频道文案底色",
+      "type": "color",
+      "default": "#ff0031",
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--channel-tab-label-bg"
+        }
+      ]
+    },
+    {
+      "id": "channelTabLabel1",
+      "label": "频道文案 1",
+      "type": "text",
+      "default": "推荐",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=channelTabLabel1]" }
+      ]
+    },
+    {
+      "id": "channelTabLabel2",
+      "label": "频道文案 2",
+      "type": "text",
+      "default": "秒杀",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=channelTabLabel2]" }
+      ]
+    },
+    {
+      "id": "channelTabLabel3",
+      "label": "频道文案 3",
+      "type": "text",
+      "default": "月黑风高",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=channelTabLabel3]" }
+      ]
+    },
+    {
+      "id": "channelTabLabel4",
+      "label": "频道文案 4",
+      "type": "text",
+      "default": "京东指数",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=channelTabLabel4]" }
+      ]
+    },
+    {
+      "id": "channelTabLabel5",
+      "label": "频道文案 5",
+      "type": "text",
+      "default": "大牌奥莱",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=channelTabLabel5]" }
+      ]
+    },
+    {
+      "id": "channelTabLabel6",
+      "label": "频道文案 6",
+      "type": "text",
+      "default": "临期清仓",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=channelTabLabel6]" }
+      ]
+    },
+    {
+      "id": "bottomTabbarMotionDuration",
+      "label": "底导切换时长",
+      "type": "duration",
+      "default": 300,
+      "constraints": { "min": 80, "max": 600, "step": 10, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--bottom-tabbar-motion-duration"
+        }
+      ]
+    },
+    {
+      "id": "bottomTabbarMotionEasing",
+      "label": "底导位移缓动",
+      "type": "easing",
+      "default": "cubic-bezier(0.38, 0, 0.24, 1)",
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--bottom-tabbar-motion-easing"
+        }
+      ]
+    },
+    {
+      "id": "bottomTabbarSizeEasing",
+      "label": "底导缩放缓动",
+      "type": "easing",
+      "default": "cubic-bezier(0.8, 0, 0.24, 1)",
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--bottom-tabbar-size-easing"
+        }
+      ]
+    },
+    {
+      "id": "bottomTabbarActiveColor",
+      "label": "底导选中色",
+      "type": "color",
+      "default": "#ff0f23",
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--bottom-tabbar-active-color"
+        }
+      ]
+    },
+    {
+      "id": "bottomTabbarActiveBg",
+      "label": "底导选中底色",
+      "type": "color",
+      "default": "#f2f4f7",
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--bottom-tabbar-active-bg"
+        }
+      ]
+    },
+    {
+      "id": "bottomTabbarLabel1",
+      "label": "底导文案 1",
+      "type": "text",
+      "default": "首页",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=bottomTabbarLabel1]" }
+      ]
+    },
+    {
+      "id": "bottomTabbarLabel2",
+      "label": "底导文案 2",
+      "type": "text",
+      "default": "首页",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=bottomTabbarLabel2]" }
+      ]
+    },
+    {
+      "id": "bottomTabbarLabel3",
+      "label": "底导文案 3",
+      "type": "text",
+      "default": "首页",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=bottomTabbarLabel3]" }
+      ]
+    },
+    {
+      "id": "bottomTabbarLabel4",
+      "label": "底导文案 4",
+      "type": "text",
+      "default": "首页",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=bottomTabbarLabel4]" }
+      ]
+    },
+    {
+      "id": "bottomTabbarLabel5",
+      "label": "底导文案 5",
+      "type": "text",
+      "default": "首页",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "html-text", "file": "source/index.html", "selector": "[data-motion=bottomTabbarLabel5]" }
+      ]
     }
   ],
   "groups": [
-    { "id": "timing", "label": "速度", "params": ["cycleDuration", "easing"] },
-    { "id": "trajectory", "label": "轨迹", "params": ["slideDistance"] },
-    { "id": "tap", "label": "点击", "params": ["tapX", "tapY", "tapSize"] },
-    { "id": "visual", "label": "视觉", "params": ["navOverlayOpacity", "windowRadius"] }
+    {
+      "id": "timing",
+      "label": "速度",
+      "params": ["easing", "channelMotionDuration", "bottomTabbarMotionDuration", "bottomTabbarMotionEasing", "bottomTabbarSizeEasing"]
+    },
+    { "id": "layout", "label": "布局", "params": ["tabStartX", "tabY", "tabGap", "tabTextWidth"] },
+    {
+      "id": "visual",
+      "label": "视觉",
+      "params": ["indicatorWidth", "channelTabLabelBg", "bottomTabbarActiveColor", "bottomTabbarActiveBg"]
+    },
+    {
+      "id": "channel",
+      "label": "频道",
+      "params": [
+        "channelTabLabel1",
+        "channelTabLabel2",
+        "channelTabLabel3",
+        "channelTabLabel4",
+        "channelTabLabel5",
+        "channelTabLabel6"
+      ]
+    },
+    {
+      "id": "tabbar",
+      "label": "底导",
+      "params": [
+        "bottomTabbarLabel1",
+        "bottomTabbarLabel2",
+        "bottomTabbarLabel3",
+        "bottomTabbarLabel4",
+        "bottomTabbarLabel5"
+      ]
+    }
   ]
 }

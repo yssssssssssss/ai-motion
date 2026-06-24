@@ -214,11 +214,22 @@ function parsePositionKeyframes(body: string): ObjectKeyframe[] {
 
   const xLane = lanes.find((item) => /^x\b/i.test(item)) ?? lanes[0]!;
   const yLane = lanes.find((item) => /^y\b/i.test(item)) ?? lanes[1]!;
-  const xs = parseNumberSequence(xLane, "position");
-  const ys = parseNumberSequence(yLane, "position");
+  const xs = parseNumberFrames(xLane, "position");
+  const ys = parseNumberFrames(yLane, "position");
   if (xs.length !== ys.length || xs.length < 2) throw new Error(`Invalid position keyframes: ${body}`);
 
-  return xs.map((x, index) => ({ x, y: ys[index]! }));
+  return xs.map((xFrame, index) => {
+    const yFrame = ys[index]!;
+    const x = typeof xFrame === "number" ? xFrame : xFrame.value;
+    const y = typeof yFrame === "number" ? yFrame : yFrame.value;
+    const xOffset = typeof xFrame === "number" ? undefined : xFrame.offsetMs;
+    const yOffset = typeof yFrame === "number" ? undefined : yFrame.offsetMs;
+    if (xOffset !== undefined && yOffset !== undefined && xOffset !== yOffset) {
+      throw new Error(`Mismatched position keyframe offsets: ${body}`);
+    }
+    const offsetMs = xOffset ?? yOffset;
+    return offsetMs === undefined ? { x, y } : { x, y, offsetMs };
+  });
 }
 
 export function parseKeyframes(value: string, property: AtomicMotionProperty): ParsedKeyframes {

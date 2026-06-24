@@ -140,7 +140,14 @@ describe("LayerReplacementPanel", () => {
 
     expect(layerReplacementParamIds(component.manifest)).toEqual(["backgroundImage", "foregroundImage"]);
     expect(component.manifest.params.map((param) => param.id)).toEqual(
-      expect.arrayContaining(["stageWidth", "stageHeight", "backgroundLayerWidth", "backgroundLayerHeight"])
+      expect.arrayContaining([
+        "stageWidth",
+        "stageHeight",
+        "backgroundLayerWidth",
+        "backgroundLayerHeight",
+        "foregroundLayerWidth",
+        "foregroundLayerHeight"
+      ])
     );
 
     const html = renderToStaticMarkup(
@@ -155,6 +162,9 @@ describe("LayerReplacementPanel", () => {
     expect(html).toContain("前景层");
     expect(html).toContain("动效目标：前景图层");
     expect(html).toContain("背景层尺寸");
+    expect(html).toContain("前景层尺寸");
+    expect(html).toContain("前景层宽度");
+    expect(html).toContain("前景层高度");
     expect(html.indexOf("背景层尺寸")).toBeLessThan(html.lastIndexOf("背景层"));
   });
 
@@ -172,7 +182,7 @@ describe("LayerReplacementPanel", () => {
     expect(html).toContain('role="alert"');
   });
 
-  it("renders the three supported background layer size presets", () => {
+  it("renders the supported background layer size presets", () => {
     const html = renderToStaticMarkup(
       <LayerReplacementPanel
         manifest={{
@@ -227,6 +237,8 @@ describe("LayerReplacementPanel", () => {
     );
 
     expect(html).toContain("背景层尺寸");
+    expect(html).toContain("标准 iPhone");
+    expect(html).toContain("375x812");
     expect(html).toContain("新常规 iPhone");
     expect(html).toContain("393x852");
     expect(html).toContain("450x960");

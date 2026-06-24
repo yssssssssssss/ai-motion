@@ -49,7 +49,7 @@ function createControlledGenerationHandler(input = {}) {
         buildControlledGenerationRequest,
         compileSemanticPatch,
         createGeneratedComponentFromPatch
-      } = await import("./assets/index-DHIjq5Ri.js");
+      } = await import("./assets/index-Cry8HZMC.js");
       const components = parsed.components.filter(isMotionComponent$1);
       const request = buildControlledGenerationRequest({ brief: parsed.brief, components });
       const patch = compileSemanticPatch(request);
@@ -317,7 +317,7 @@ function parseOpenAISourceDraftResponse(payload) {
 async function generateSemanticIntentV2(input) {
   const brief = input.brief.trim();
   if (!brief || !input.apiKey) return void 0;
-  const { parseSemanticIntentV2Payload } = await import("./assets/index-DHIjq5Ri.js");
+  const { parseSemanticIntentV2Payload } = await import("./assets/index-Cry8HZMC.js");
   const requestBody = JSON.stringify({
     model: input.model ?? "gpt-5.5",
     input: [
@@ -463,7 +463,7 @@ function createReferenceGuidedGenerationHandler(input = {}) {
         parseSemanticGenerationIntent,
         parseSemanticIntentV2Fallback,
         semanticIntentV2ToLegacyIntent
-      } = await import("./assets/index-DHIjq5Ri.js");
+      } = await import("./assets/index-Cry8HZMC.js");
       const components = parsed.components.filter(isMotionComponent);
       const semanticIntentV2 = await generateSemanticIntentV2({
         brief: parsed.brief,
@@ -830,6 +830,19 @@ function sendFile(res, filePath) {
   res.setHeader("Content-Type", MIME_TYPES[extname(filePath)] ?? "application/octet-stream");
   createReadStream(filePath).pipe(res);
 }
+function sendJson(res, statusCode, payload) {
+  if (res.headersSent || res.writableEnded) return;
+  res.statusCode = statusCode;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(payload));
+}
+function handleApiRequest(handler, req, res) {
+  handler(req, res).catch((error) => {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : "API request failed."
+    });
+  });
+}
 function distFile(distDir2, pathName) {
   const normalizedPath = normalize(pathName).replace(/^(\.\.(\/|\\|$))+/, "");
   const filePath = resolve(distDir2, `.${sep}${normalizedPath}`);
@@ -850,15 +863,15 @@ function createProductionServer(input) {
   return createServer((req, res) => {
     const pathName = requestPath(req);
     if (pathName === "/api/video/analyze") {
-      void videoAnalyzeHandler(req, res);
+      handleApiRequest(videoAnalyzeHandler, req, res);
       return;
     }
     if (pathName === "/api/generation/controlled") {
-      void controlledGenerationHandler(req, res);
+      handleApiRequest(controlledGenerationHandler, req, res);
       return;
     }
     if (pathName === "/api/generation/reference-guided") {
-      void referenceGuidedGenerationHandler(req, res);
+      handleApiRequest(referenceGuidedGenerationHandler, req, res);
       return;
     }
     if (req.method !== "GET" && req.method !== "HEAD") {

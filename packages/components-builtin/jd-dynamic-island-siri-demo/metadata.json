@@ -1,0 +1,8 @@
+{
+  "id": "jd-dynamic-island-siri-demo",
+  "name": "灵动岛组合通知与天气",
+  "category": "interaction",
+  "tags": ["iphone", "dynamic-island", "siri", "notification", "weather", "mobile"],
+  "useCases": ["system-notification-demo", "dynamic-island-motion-set", "app-prototype", "motion-reference"],
+  "moods": ["futuristic", "smooth", "mobile"]
+}

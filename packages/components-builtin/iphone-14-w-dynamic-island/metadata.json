@@ -1,0 +1,8 @@
+{
+  "id": "iphone-14-w-dynamic-island",
+  "name": "iPhone 14 灵动岛完整手机",
+  "category": "interaction",
+  "tags": ["iphone", "dynamic-island", "codepen-reference", "complete", "phone", "mobile"],
+  "useCases": ["dynamic-island-demo", "iphone-showcase", "feed-preview"],
+  "moods": ["polished", "ios", "interactive", "playful"]
+}

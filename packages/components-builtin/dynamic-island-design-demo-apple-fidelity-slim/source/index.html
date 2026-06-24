@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>灵动岛 Apple 高保真纤薄版</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell" data-motion-root>
+      <section class="motion-stage" aria-label="灵动岛 Apple 高保真纤薄版">
+        <div class="phone" id="phone">
+          <div class="screen">
+            <div class="wallpaper">
+              <div class="orb orb-a"></div>
+              <div class="orb orb-b"></div>
+              <div class="orb orb-c"></div>
+              <div class="orb orb-d"></div>
+              <div class="grain"></div>
+            </div>
+
+            <div class="status-bar">
+              <span id="clock">4:12</span>
+              <span class="status-icons"><i></i><i></i><b></b></span>
+            </div>
+
+            <div class="siri-shortcut">
+              <span class="siri-ring"></span>
+              <span class="siri-text">Siri</span>
+            </div>
+
+            <div class="dynamic-island-host" aria-hidden="true">
+              <div class="dynamic-island-shell liquid-glass" id="islandShell">
+                <span class="glass-layer glass-base"></span>
+                <span class="glass-layer glass-highlight"></span>
+                <span class="glass-layer glass-iris"></span>
+                <span class="glass-layer glass-edge"></span>
+                <span class="glass-layer glass-noise"></span>
+                <span class="record-dot" id="recordDot"></span>
+
+                <span class="siri-light-wrap" id="siriLightWrap">
+                  <canvas id="siriCanvas"></canvas>
+                </span>
+
+                <span class="compact-spinner" id="compactSpinner">
+                  <i></i><i></i><i></i><i></i><i></i><i></i>
+                </span>
+
+                <div class="card-content" id="siriCard">
+                  <div class="dialog-avatar"></div>
+                  <div class="dialog-copy">
+                    <p id="siriText">
+                      Hello, Aaron. I'm doing well, thanks<br />
+                      for asking. How can I help you today?
+                    </p>
+                    <span>Siri</span>
+                  </div>
+                </div>
+
+                <span class="bottom-wave-wrap" id="bottomWaveWrap">
+                  <canvas id="waveCanvas"></canvas>
+                </span>
+              </div>
+            </div>
+
+            <div class="weather-response" id="weatherResponse" aria-hidden="true">
+              <p>It's currently clear and 74°F in New York.</p>
+              <div class="weather-card" id="weatherCard">
+                <div>
+                  <span>New York, NY</span>
+                  <strong>74°</strong>
+                </div>
+                <div>
+                  <span class="sun">✹</span>
+                  <em>Clear</em>
+                  <small>H:74° L:62°</small>
+                </div>
+                <div class="weather-glow"></div>
+              </div>
+            </div>
+
+            <div class="search-pill" id="searchPill">⌕ Search</div>
+
+            <nav class="dock" id="dock" aria-hidden="true">
+              <div class="app-icon app-store"><span>A</span><b>2</b></div>
+              <div class="app-icon safari"><span></span></div>
+              <div class="app-icon nav"><span></span><b>1</b></div>
+              <div class="app-icon message"><span></span><b>3</b></div>
+            </nav>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./lightCanvas.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>

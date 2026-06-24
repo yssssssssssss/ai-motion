@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { MotionManifest, MotionPatch, MotionSource } from "@motion-tool/core";
-import { PreviewFrame, previewPatchValues } from "./PreviewFrame";
+import { PreviewFrame, previewPatchValues, shouldPreviewAutoplay } from "./PreviewFrame";
 
 const source: MotionSource = {
   id: "button",
@@ -163,5 +163,52 @@ describe("PreviewFrame", () => {
         values: { buttonColor: "#ff3366" }
       })
     ).toEqual({ buttonColor: "#ff3366" });
+  });
+
+  it("does not autoplay user-triggered recipe previews", () => {
+    expect(shouldPreviewAutoplay({ ...manifest, motionRecipes: [] })).toBe(true);
+    expect(
+      shouldPreviewAutoplay({
+        ...manifest,
+        motionRecipes: [
+          {
+            recipeId: "popup-close.all.enter",
+            recipeName: "弹窗关闭 / all",
+            category: "feedback",
+            targetLayerIds: ["foregroundLayer"],
+            paramIds: [],
+            trigger: "click"
+          }
+        ]
+      })
+    ).toBe(false);
+    expect(
+      shouldPreviewAutoplay({
+        ...manifest,
+        motionRecipes: [
+          {
+            recipeId: "front-back-entry.swipe-action.enter",
+            recipeName: "前后进场 / 滑动操作",
+            category: "transition",
+            targetLayerIds: ["foregroundLayer"],
+            paramIds: [],
+            trigger: "swipe"
+          }
+        ]
+      })
+    ).toBe(false);
+    expect(
+      shouldPreviewAutoplay({
+        ...manifest,
+        motionRecipes: [
+          {
+            recipeId: "load-motion",
+            targetLayerIds: ["foregroundLayer"],
+            paramIds: [],
+            trigger: "load"
+          }
+        ]
+      })
+    ).toBe(true);
   });
 });

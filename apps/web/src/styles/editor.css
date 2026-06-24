@@ -40,8 +40,24 @@
   background: #ffffff;
 }
 
-.editor-save-button {
+.editor-header-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-delete-button {
+  border-color: rgba(190, 18, 60, 0.2);
+  background: #ffffff;
+  color: #be123c;
+}
+
+.editor-delete-button:hover:not(:disabled),
+.editor-delete-button:focus-visible {
+  border-color: rgba(190, 18, 60, 0.36);
+  background: #fff1f2;
+  color: #9f1239;
 }
 
 .editor-shell.is-modal {
@@ -83,6 +99,10 @@
   padding: 26px;
 }
 
+.editor-preview.is-interaction-preview {
+  position: sticky;
+}
+
 .editor-preview .preview-frame {
   height: min(76vh, 760px);
   box-shadow: var(--shadow-lift);
@@ -113,6 +133,16 @@
   gap: 8px;
   width: 100%;
   min-width: 0;
+}
+
+.editor-preview.is-interaction-preview .preview-controls {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.editor-preview.is-interaction-preview .preview-reset-button {
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.08);
 }
 
 .primary-action {
@@ -724,7 +754,8 @@
   font-weight: 650;
 }
 
-.background-layer-size-panel {
+.background-layer-size-panel,
+.foreground-layer-size-panel {
   display: grid;
   gap: 10px;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
@@ -736,7 +767,8 @@
   gap: 3px;
 }
 
-.background-layer-size-panel strong {
+.background-layer-size-panel strong,
+.foreground-layer-size-panel strong {
   color: var(--text, #1d1d1f);
   font-size: 14px;
   line-height: 1.3;

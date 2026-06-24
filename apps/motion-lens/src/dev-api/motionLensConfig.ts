@@ -1,7 +1,7 @@
 import { responseEndpointCandidates } from "./motionLensAnalyze";
 
 type MotionLensConfigRequest = {
-  method?: string;
+  method?: string | undefined;
 };
 
 type MotionLensConfigResponse = {

@@ -1,0 +1,161 @@
+{
+  "version": "1.0",
+  "id": "dynamic-island-design-demo-apple-fidelity-slim",
+  "name": "灵动岛 Apple 高保真纤薄版",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "phoneMaxWidth",
+      "label": "手机最大宽度",
+      "type": "range",
+      "default": 390,
+      "constraints": { "min": 320, "max": 430, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--phone-max-width"
+        }
+      ]
+    },
+    {
+      "id": "shellWidth",
+      "label": "胶囊初始宽度",
+      "type": "range",
+      "default": 94,
+      "constraints": { "min": 74, "max": 132, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--shell-base-width"
+        },
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--shell-w" }
+      ]
+    },
+    {
+      "id": "shellHeight",
+      "label": "胶囊初始高度",
+      "type": "range",
+      "default": 29,
+      "constraints": { "min": 22, "max": 48, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--shell-base-height"
+        },
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--shell-h" }
+      ]
+    },
+    {
+      "id": "cardWidth",
+      "label": "展开卡片宽度",
+      "type": "range",
+      "default": 348,
+      "constraints": { "min": 286, "max": 386, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--card-width" }
+      ]
+    },
+    {
+      "id": "glowIntensity",
+      "label": "光效强度",
+      "type": "range",
+      "default": 1,
+      "constraints": { "min": 0, "max": 1, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--glow-intensity"
+        }
+      ]
+    },
+    {
+      "id": "motionEasing",
+      "label": "液态缓动",
+      "type": "easing",
+      "default": "cubic-bezier(.2,.9,.18,1)",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--motion-easing" }
+      ]
+    }
+  ],
+  "groups": [
+    { "id": "layout", "label": "布局", "params": ["phoneMaxWidth"] },
+    { "id": "island", "label": "灵动岛", "params": ["shellWidth", "shellHeight", "cardWidth"] },
+    { "id": "visual", "label": "光效", "params": ["glowIntensity"] },
+    { "id": "motion", "label": "动效", "params": ["motionEasing"] }
+  ],
+  "layers": [
+    {
+      "id": "phone-shell",
+      "label": "手机舞台",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "dynamic-island",
+      "label": "液态灵动岛",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "siri-light-canvas",
+      "label": "Siri 横向光效",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "siri-response-card",
+      "label": "Siri 回复卡片",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "bottom-wave-canvas",
+      "label": "底部海浪光效",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "dock",
+      "label": "底部 Dock",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "weather-card",
+      "label": "天气卡片",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    }
+  ]
+}

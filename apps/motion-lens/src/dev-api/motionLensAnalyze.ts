@@ -11,7 +11,7 @@ import { retrieveMotionKnowledge, type KnowledgeSearchHit } from "@motion-knowle
 import { withQualityDiagnostics } from "../quality";
 
 type MotionLensRequest = {
-  method?: string;
+  method?: string | undefined;
   setEncoding(encoding: "utf8"): void;
   on(event: "data", listener: (chunk: string) => void): void;
   on(event: "end", listener: () => void): void;

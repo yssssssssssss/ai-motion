@@ -22,6 +22,18 @@
     sans-serif;
 }
 
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #15101f;
+  --surface: #211831;
+  --line: #3d3154;
+  --ink: #f3eefb;
+  --muted: #b8abc9;
+  --accent: #b18cff;
+  --attention: #f0a85c;
+  --risk: #ff7f92;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -51,6 +63,8 @@ button {
   display: grid;
   grid-template-rows: 64px minmax(0, 1fr);
   overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 .topbar {
@@ -60,6 +74,16 @@ button {
   padding: 0 24px;
   border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.86);
+}
+
+[data-theme="dark"] .topbar {
+  background: rgba(26, 18, 40, 0.9);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .brand {
@@ -91,6 +115,11 @@ button {
   background: linear-gradient(135deg, var(--accent), #e1a041);
 }
 
+[data-theme="dark"] .brand-mark {
+  background: linear-gradient(135deg, #7d4dff, #e4b85f);
+  box-shadow: 0 0 24px rgba(177, 140, 255, 0.24);
+}
+
 .status-dot {
   display: inline-flex;
   align-items: center;
@@ -102,6 +131,23 @@ button {
   background: var(--surface);
   font-size: var(--font-xs);
   font-weight: 700;
+}
+
+.theme-toggle {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--font-xs);
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .theme-toggle {
+  background: rgba(177, 140, 255, 0.12);
+  color: #f3eefb;
 }
 
 .workspace {
@@ -2005,6 +2051,179 @@ dd {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .label-input,
+[data-theme="dark"] .detail-card input,
+[data-theme="dark"] .detail-card select,
+[data-theme="dark"] .detail-card textarea,
+[data-theme="dark"] .edit-controls input,
+[data-theme="dark"] .edit-controls select,
+[data-theme="dark"] .edit-controls textarea {
+  background: #1a1328;
+}
+
+[data-theme="dark"] .upload-box,
+[data-theme="dark"] .metric-grid div,
+[data-theme="dark"] .segmented,
+[data-theme="dark"] .manual-kind-menu button,
+[data-theme="dark"] .opportunity,
+[data-theme="dark"] .detail-tab.is-active,
+[data-theme="dark"] .analysis-grid span,
+[data-theme="dark"] .motion-description strong,
+[data-theme="dark"] .param-list span,
+[data-theme="dark"] .secondary-button,
+[data-theme="dark"] .danger-button,
+[data-theme="dark"] .preview-button {
+  background: #211831;
+}
+
+[data-theme="dark"] .gate-summary,
+[data-theme="dark"] .detail-card,
+[data-theme="dark"] .alternative-list article,
+[data-theme="dark"] .no-motion-list div {
+  background: rgba(33, 24, 49, 0.74);
+}
+
+[data-theme="dark"] .conclusion-card,
+[data-theme="dark"] .knowledge-ref-list span,
+[data-theme="dark"] .knowledge-summary span {
+  border-color: rgba(177, 140, 255, 0.28);
+  background: rgba(177, 140, 255, 0.1);
+  color: #d7c9ff;
+}
+
+[data-theme="dark"] .parameter-card.is-live,
+[data-theme="dark"] .review-flag,
+[data-theme="dark"] .source-llm-candidate-rule-recommendation {
+  color: #ffd4a3;
+}
+
+[data-theme="dark"] .source-llm-opportunity,
+[data-theme="dark"] .playback-button {
+  border-color: rgba(177, 140, 255, 0.34);
+  background: rgba(177, 140, 255, 0.12);
+  color: #d7c9ff;
+}
+
+[data-theme="dark"] .source-local-fallback,
+[data-theme="dark"] .source-manual-pending {
+  color: #c9bdd9;
+}
+
+[data-theme="dark"] .draft-frame {
+  border-color: rgba(177, 140, 255, 0.18);
+  background: #130d1e;
+  box-shadow: 0 22px 70px rgba(4, 2, 10, 0.48);
+}
+
+[data-theme="dark"] .draft-surface,
+[data-theme="dark"] .uploaded-draft {
+  background: #171020;
+}
+
+[data-theme="dark"] .mock-draft {
+  background: linear-gradient(135deg, rgba(177, 140, 255, 0.14), transparent 45%), #1a1328;
+}
+
+[data-theme="dark"] .mock-nav strong {
+  color: var(--ink);
+}
+
+[data-theme="dark"] .mock-kicker,
+[data-theme="dark"] .mock-line,
+[data-theme="dark"] .mock-grid span {
+  background: #3a2f4d;
+}
+
+[data-theme="dark"] .mock-title,
+[data-theme="dark"] .mock-cta {
+  background: #f3eefb;
+}
+
+[data-theme="dark"] .mock-visual {
+  background: linear-gradient(135deg, #7d4dff, #36a995 52%, #e4b85f);
+}
+
+[data-theme="dark"] .mock-feedback {
+  background: #251b36;
+  box-shadow: 0 12px 36px rgba(4, 2, 10, 0.4);
+}
+
+[data-theme="dark"] .manual-kind-menu {
+  border-color: rgba(177, 140, 255, 0.22);
+  background: rgba(33, 24, 49, 0.98);
+  box-shadow: 0 18px 42px rgba(4, 2, 10, 0.42);
+}
+
+[data-theme="dark"] .marker.is-active {
+  box-shadow:
+    0 0 0 5px rgba(21, 16, 31, 0.94),
+    0 0 0 9px rgba(240, 168, 92, 0.38),
+    0 18px 38px rgba(4, 2, 10, 0.5),
+    0 0 0 9999px rgba(8, 5, 13, 0.56);
+}
+
+[data-theme="dark"] .selection-box.is-pending,
+[data-theme="dark"] .manual-marker {
+  box-shadow: 0 0 0 4px rgba(21, 16, 31, 0.9);
+}
+
+[data-theme="dark"] .detail-section .section-title span,
+[data-theme="dark"] .source-pill,
+[data-theme="dark"] .source-banner,
+[data-theme="dark"] .detail-tabs {
+  background: rgba(184, 171, 201, 0.1);
+}
+
+[data-theme="dark"] .alternative-list small,
+[data-theme="dark"] .knowledge-ref-list span,
+[data-theme="dark"] .knowledge-summary span {
+  color: #d7c9ff;
+}
+
+[data-theme="dark"] .risk-list li,
+[data-theme="dark"] .error-box {
+  border-color: rgba(255, 127, 146, 0.34);
+  background: rgba(255, 127, 146, 0.1);
+  color: #ffc2cc;
+}
+
+[data-theme="dark"] .preview-card {
+  background: rgba(21, 16, 31, 0.84);
+}
+
+[data-theme="dark"] .fallback-overlay {
+  background: rgba(21, 16, 31, 0.78);
+}
+
+[data-theme="dark"] .toast-preview,
+[data-theme="dark"] .modal-preview {
+  background: #211831;
+}
+
+[data-theme="dark"] .skeleton-line,
+[data-theme="dark"] .toast-icon,
+[data-theme="dark"] .modal-icon,
+[data-theme="dark"] .progress-track,
+[data-theme="dark"] .empty-line {
+  background: rgba(184, 171, 201, 0.22);
+}
+
+[data-theme="dark"] .progress-fill {
+  background: #b18cff;
+}
+
+[data-theme="dark"] .progress-node,
+[data-theme="dark"] .empty-illustration {
+  border-color: rgba(177, 140, 255, 0.36);
+  background: #211831;
+}
+
+[data-theme="dark"] .empty-illustration {
+  background: rgba(177, 140, 255, 0.1);
 }
 
 @media (max-width: 1120px) {

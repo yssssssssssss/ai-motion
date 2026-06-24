@@ -1,0 +1,183 @@
+{
+  "version": "1.0",
+  "id": "jd-dynamic-island-siri-control-reveal",
+  "name": "灵动岛 Siri 控制栏联动",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "motionDuration",
+      "label": "循环时长",
+      "type": "duration",
+      "default": 9200,
+      "constraints": { "min": 3600, "max": 14000, "step": 100, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--motion-duration"
+        }
+      ]
+    },
+    {
+      "id": "startDelay",
+      "label": "启动延迟",
+      "type": "duration",
+      "default": 160,
+      "constraints": { "min": 0, "max": 1200, "step": 20, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--start-delay" }
+      ]
+    },
+    {
+      "id": "islandWidth",
+      "label": "灵动岛宽度",
+      "type": "range",
+      "default": 286,
+      "constraints": { "min": 180, "max": 430, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--island-width" }
+      ]
+    },
+    {
+      "id": "islandHeight",
+      "label": "灵动岛展开高度",
+      "type": "range",
+      "default": 108,
+      "constraints": { "min": 72, "max": 160, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--island-expanded-height"
+        }
+      ]
+    },
+    {
+      "id": "notificationY",
+      "label": "通知 Y",
+      "type": "range",
+      "default": 160,
+      "constraints": { "min": 110, "max": 320, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--notification-y"
+        }
+      ]
+    },
+    {
+      "id": "notificationWidth",
+      "label": "通知宽度",
+      "type": "range",
+      "default": 590,
+      "constraints": { "min": 420, "max": 650, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--notification-width"
+        }
+      ]
+    },
+    {
+      "id": "glowOpacity",
+      "label": "光带强度",
+      "type": "range",
+      "default": 0.9,
+      "constraints": { "min": 0, "max": 1, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--glow-opacity" }
+      ]
+    },
+    {
+      "id": "windowRadius",
+      "label": "屏幕圆角",
+      "type": "range",
+      "default": 54,
+      "constraints": { "min": 18, "max": 90, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--window-radius" }
+      ]
+    },
+    {
+      "id": "motionEasing",
+      "label": "缓动",
+      "type": "easing",
+      "default": "cubic-bezier(0.18, 0.86, 0.22, 1)",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--motion-easing" }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "timing",
+      "label": "速度",
+      "params": ["motionDuration", "startDelay", "motionEasing"]
+    },
+    {
+      "id": "layout",
+      "label": "布局",
+      "params": ["islandWidth", "islandHeight", "notificationY", "notificationWidth", "windowRadius"]
+    },
+    { "id": "visual", "label": "视觉", "params": ["glowOpacity"] }
+  ],
+  "layers": [
+    {
+      "id": "phone-shell",
+      "label": "手机屏幕",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "dynamic-island",
+      "label": "灵动岛",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "siri-notification",
+      "label": "Siri 通知",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "bottom-toolbar",
+      "label": "底部工具栏",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "status-card",
+      "label": "状态卡片",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    }
+  ]
+}

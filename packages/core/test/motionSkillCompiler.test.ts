@@ -249,6 +249,83 @@ describe("motion skill compiler", () => {
     expect(result.report).toContain("新增元素: 容器变换@1.0.0");
   });
 
+  it("compiles front-back entry variants from the base motion PDF without dropping repeated position rows", () => {
+    const result = compileMotionSkillsFromRows({
+      rows: [
+        {
+          元素: "前后进场",
+          梯度: "二级页跳转",
+          作用图层: "前景层",
+          Token: "ease out",
+          Value: "200ms",
+          Delay: "0ms",
+          动画类型: "位移",
+          关键属性变化: "position: x 0 → -375 | y 406 → 406",
+          "CSS Value": "(0.00, 0.00, 0.15, 1.00)"
+        },
+        {
+          梯度: "半弹层",
+          Token: "ease out",
+          Value: "300ms",
+          Delay: "0ms",
+          动画类型: "位移",
+          关键属性变化: "position: x 0 → 0(200ms) → 0 | y 0 → 480(200ms) → 460",
+          "CSS Value": "(0.00, 0.00, 0.15, 1.00)"
+        },
+        {
+          Token: "ease out",
+          Value: "200ms",
+          Delay: "0ms",
+          动画类型: "透明度-淡入",
+          关键属性变化: "opacity：0 → 100%",
+          "CSS Value": "(0.00, 0.00, 0.15, 1.00)"
+        },
+        {
+          梯度: "滑动操作",
+          Token: "ease out",
+          Value: "300ms",
+          Delay: "0ms",
+          动画类型: "滑块1-位移",
+          关键属性变化: "position: x 0 → 54(200ms) → -56 | y 0 → 0(200ms) → 0",
+          "CSS Value": "(0.00, 0.00, 0.15, 1.00)"
+        },
+        {
+          Token: "ease out",
+          Value: "200ms",
+          Delay: "0ms",
+          动画类型: "滑块2-位移",
+          关键属性变化: "position: x 0 → -112 | y 0 → 0",
+          "CSS Value": "(0.00, 0.00, 0.15, 1.00)"
+        }
+      ],
+      previousLock: null
+    });
+    const pack = result.packs["front-back-entry"];
+
+    expect(result.registry.elements[0]).toMatchObject({
+      id: "front-back-entry",
+      label: "前后进场",
+      active: true,
+      variants: ["二级页跳转", "半弹层", "滑动操作"]
+    });
+    expect(pack?.recipes.find((recipe) => recipe.variant === "half-sheet")?.tokenIds).toEqual([
+      "front-back-entry.half-sheet.position",
+      "front-back-entry.half-sheet.opacity"
+    ]);
+    expect(pack?.recipes.find((recipe) => recipe.variant === "swipe-action")?.tokenIds).toEqual([
+      "front-back-entry.swipe-action.position-1",
+      "front-back-entry.swipe-action.position-2"
+    ]);
+    expect(pack?.tokens.find((token) => token.id === "front-back-entry.half-sheet.position")).toMatchObject({
+      property: "position",
+      keyframes: [
+        { x: 0, y: 0 },
+        { x: 0, y: 480, offsetMs: 200 },
+        { x: 0, y: 460 }
+      ]
+    });
+  });
+
   it("compiles horizontal switch rows with color tokens", () => {
     const result = compileMotionSkillsFromRows({
       rows: [
@@ -295,6 +372,39 @@ describe("motion skill compiler", () => {
         })
       ])
     );
+  });
+
+  it("compiles content feedback selection as click-triggered", () => {
+    const result = compileMotionSkillsFromRows({
+      rows: [
+        {
+          元素: "内容反馈",
+          梯度: "单选/多选",
+          作用图层: "前景层",
+          Token: "standard easing",
+          Value: "200ms",
+          Delay: "0ms",
+          动画类型: "缩放",
+          关键属性变化: "scale：50 → 110%(133ms) →100%",
+          "CSS Value": "(0.38, 0.00, 0.24, 1.00)"
+        },
+        {
+          Token: "ease out",
+          Value: "200ms",
+          Delay: "0ms",
+          动画类型: "透明度-淡入",
+          关键属性变化: "opacity：0 → 100%",
+          "CSS Value": "(0.00, 0.00, 0.00, 1.00)"
+        }
+      ],
+      previousLock: null
+    });
+
+    expect(result.packs["content-feedback"]?.recipes[0]).toMatchObject({
+      id: "content-feedback.selection.enter",
+      sourceVariant: "单选/多选",
+      trigger: "click"
+    });
   });
 
   it("bumps the family version when visual token values change", () => {

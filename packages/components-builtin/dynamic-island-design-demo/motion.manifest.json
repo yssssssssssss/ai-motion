@@ -1,0 +1,121 @@
+{
+  "version": "1.0",
+  "id": "dynamic-island-design-demo",
+  "name": "灵动岛海浪光矩形展开",
+  "sourceKind": "builtin-component",
+  "runtime": {
+    "engine": "html",
+    "entry": "source/index.html",
+    "sandbox": "iframe",
+    "dependencies": [
+      { "name": "node", "version": ">=20" },
+      { "name": "vite", "version": "^5.4.0" }
+    ]
+  },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "phoneMaxWidth",
+      "label": "手机最大宽度",
+      "type": "range",
+      "default": 390,
+      "constraints": { "min": 300, "max": 430, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--phone-max-width"
+        }
+      ]
+    },
+    {
+      "id": "accentStart",
+      "label": "强调色起点",
+      "type": "color",
+      "default": "#7358ff",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--accent-start" }
+      ]
+    },
+    {
+      "id": "accentEnd",
+      "label": "强调色终点",
+      "type": "color",
+      "default": "#b04dff",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--accent-end" }
+      ]
+    },
+    {
+      "id": "softEasing",
+      "label": "柔和缓动",
+      "type": "easing",
+      "default": "cubic-bezier(.2,.9,.18,1)",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--ease-soft" }
+      ]
+    },
+    {
+      "id": "springEasing",
+      "label": "弹性缓动",
+      "type": "easing",
+      "default": "cubic-bezier(.2,1.35,.22,1)",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--ease-spring" }
+      ]
+    }
+  ],
+  "groups": [
+    { "id": "layout", "label": "布局", "params": ["phoneMaxWidth"] },
+    { "id": "visual", "label": "视觉", "params": ["accentStart", "accentEnd"] },
+    { "id": "motion", "label": "动效", "params": ["softEasing", "springEasing"] }
+  ],
+  "layers": [
+    {
+      "id": "phone-shell",
+      "label": "手机舞台",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "dynamic-island",
+      "label": "灵动岛",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "siri-dialog",
+      "label": "Siri 回复卡片",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "dock",
+      "label": "底部 Dock",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "weather-card",
+      "label": "天气卡片",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    }
+  ]
+}

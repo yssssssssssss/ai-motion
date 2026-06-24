@@ -25,6 +25,7 @@ import {
 } from "./manualAnnotation";
 
 type ViewMode = "blueprint" | "preview";
+type ThemeMode = "light" | "dark";
 type ReviewIntent = "designer-review" | "interaction-check" | "growth-review";
 type UploadedImage = {
   source: DesignSource;
@@ -57,6 +58,7 @@ const manualMenuWidthPx = 208;
 const manualMenuHeightPx = 260;
 const manualMenuMarginPx = 8;
 const manualPendingWarning = "已完成手动标注；点击「AI 分析手动标注」后生成机会点。";
+const themeStorageKey = "motion-lens-theme";
 
 const reviewIntents: Array<{ value: ReviewIntent; label: string; goalSuffix: string }> = [
   { value: "designer-review", label: "设计师评审", goalSuffix: "输出标注、理由、推荐参数和知识依据" },
@@ -221,6 +223,11 @@ function diagnosticMessage(error: unknown): string {
 function modelModeLabel(config: ModelConfig | null): string {
   if (!config) return "读取中";
   return config.mode === "llm-ready" ? "可调用模型" : "仅兜底";
+}
+
+function initialTheme(): ThemeMode {
+  if (typeof window === "undefined") return "light";
+  return window.localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light";
 }
 
 function recommendationSourceLabel(source: MotionOpportunity["recommendationSource"]): string {
@@ -700,6 +707,7 @@ export function App() {
   const [isPreviewPaused, setIsPreviewPaused] = useState(false);
   const [modelConfig, setModelConfig] = useState<ModelConfig | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTabId>("recommendation");
+  const [theme, setTheme] = useState<ThemeMode>(initialTheme);
   const effectiveGoalText = reviewGoalText(goalText, reviewIntent);
 
   useEffect(() => {
@@ -717,6 +725,10 @@ export function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(themeStorageKey, theme);
+  }, [theme]);
 
   const blueprint = useMemo(() => {
     if (importedBlueprint && !uploadedImage) {
@@ -1170,7 +1182,7 @@ export function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-theme={theme}>
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
@@ -1179,7 +1191,17 @@ export function App() {
             <p>动效机会洞察 · 设计师评审版</p>
           </div>
         </div>
-        <span className="status-dot">AI 辅助 P1</span>
+        <div className="topbar-actions">
+          <button
+            className="theme-toggle"
+            type="button"
+            aria-pressed={theme === "dark"}
+            onClick={() => setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"))}
+          >
+            {theme === "dark" ? "浅色模式" : "暗黑模式"}
+          </button>
+          <span className="status-dot">AI 辅助 P1</span>
+        </div>
       </header>
 
       <section className="workspace">

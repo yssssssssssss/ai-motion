@@ -426,6 +426,34 @@ function AtomicMotionSummary({ manifest }: { manifest: MotionManifest }) {
   );
 }
 
+function effectiveAtomicToken(
+  manifest: MotionManifest,
+  token: MotionSkillTokenBinding
+): MotionSkillTokenBinding | null {
+  const motionSkill = manifest.motionSkill;
+  if (
+    motionSkill?.family === "front-back-entry" &&
+    motionSkill.variant === "滑动操作" &&
+    token.id !== "front-back-entry.swipe-action.position-5"
+  ) {
+    return null;
+  }
+
+  if (
+    motionSkill?.family === "front-back-entry" &&
+    motionSkill.variant === "滑动操作" &&
+    token.id === "front-back-entry.swipe-action.position-5"
+  ) {
+    return {
+      ...token,
+      delayParamId: "",
+      keyframeParamIds: []
+    };
+  }
+
+  return token;
+}
+
 function AtomicTokenFields({
   manifest,
   patch,
@@ -438,11 +466,14 @@ function AtomicTokenFields({
   const motionSkill = manifest.motionSkill;
   if (!motionSkill) return null;
 
+  const tokens = (motionSkill.tokens ?? []).flatMap((token) => effectiveAtomicToken(manifest, token) ?? []);
+  if (tokens.length === 0) return null;
+
   return (
     <div className="atomic-token-list">
-      {(motionSkill.tokens ?? []).map((token) => {
+      {tokens.map((token) => {
         const durationParam = paramById(manifest, token.durationParamId);
-        const delayParam = paramById(manifest, token.delayParamId);
+        const delayParam = token.delayParamId ? paramById(manifest, token.delayParamId) : null;
         const easingParam = paramById(manifest, token.easingParamId);
 
         return (
@@ -460,29 +491,35 @@ function AtomicTokenFields({
                 <span>动画类型</span>
                 <strong>{token.animationType}</strong>
               </div>
-              {editableNumberField({
-                label: durationLabel(token),
-                param: durationParam,
-                patch,
-                fallback: token.value,
-                onChange
-              })}
-              {editableNumberField({
-                label: "延迟",
-                param: delayParam,
-                patch,
-                fallback: token.delay,
-                onChange
-              })}
-              <EasingCurveField
-                label="缓动曲线"
-                param={easingParam}
-                patch={patch}
-                fallback={token.cssValue}
-                sourceText={token.cssValue}
-                onChange={onChange}
-              />
-              {fieldForKeyframe({ token, manifest, patch, onChange })}
+              {durationParam
+                ? editableNumberField({
+                    label: durationLabel(token),
+                    param: durationParam,
+                    patch,
+                    fallback: token.value,
+                    onChange
+                  })
+                : null}
+              {delayParam
+                ? editableNumberField({
+                    label: "延迟",
+                    param: delayParam,
+                    patch,
+                    fallback: token.delay,
+                    onChange
+                  })
+                : null}
+              {easingParam ? (
+                <EasingCurveField
+                  label="缓动曲线"
+                  param={easingParam}
+                  patch={patch}
+                  fallback={token.cssValue}
+                  sourceText={token.cssValue}
+                  onChange={onChange}
+                />
+              ) : null}
+              {token.keyframeParamIds.length > 0 ? fieldForKeyframe({ token, manifest, patch, onChange }) : null}
             </div>
           </article>
         );
@@ -514,7 +551,9 @@ export function AtomicMotionInspectorPanel({ manifest, patch, onChange, onReset,
         </div>
       ) : null}
 
-      {showParams ? <AtomicTokenFields manifest={manifest} patch={patch} onChange={onChange} /> : null}
+      {showParams ? (
+        <AtomicTokenFields manifest={manifest} patch={patch} onChange={onChange} />
+      ) : null}
     </section>
   );
 }

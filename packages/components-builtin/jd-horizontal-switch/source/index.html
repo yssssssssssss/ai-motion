@@ -12,9 +12,70 @@
       <div class="shell-frame"></div>
       <div class="screen-window">
         <div class="screen-layer start-screen"></div>
-        <div class="screen-layer end-screen"></div>
-        <div class="end-nav-overlay"></div>
-        <div class="tap-ripple"></div>
+        <nav class="tab-nav" aria-label="频道导航">
+          <button class="tab-item" type="button" aria-selected="false" data-tab="0">推荐</button>
+          <button class="tab-item is-active" type="button" aria-selected="true" data-tab="1">新品</button>
+          <span class="tab-indicator" aria-hidden="true"></span>
+        </nav>
+        <nav class="channel-tabs" aria-label="频道 tab" data-motion="channelTabs">
+          <span class="channel-active-bg" aria-hidden="true"></span>
+          <button class="channel-tab" type="button" aria-pressed="false" data-channel="0">
+            <span class="channel-icon channel-icon-star" aria-hidden="true"></span>
+            <span class="channel-label" data-motion="channelTabLabel1">推荐</span>
+          </button>
+          <button class="channel-tab is-active" type="button" aria-pressed="true" data-channel="1">
+            <span class="channel-icon channel-icon-alarm" aria-hidden="true"></span>
+            <span class="channel-label" data-motion="channelTabLabel2">秒杀</span>
+          </button>
+          <button class="channel-tab" type="button" aria-pressed="false" data-channel="2">
+            <span class="channel-icon channel-icon-moon" aria-hidden="true"></span>
+            <span class="channel-label" data-motion="channelTabLabel3">月黑风高</span>
+          </button>
+          <button class="channel-tab" type="button" aria-pressed="false" data-channel="3">
+            <span class="channel-icon channel-icon-chart" aria-hidden="true"></span>
+            <span class="channel-label" data-motion="channelTabLabel4">京东指数</span>
+          </button>
+          <button class="channel-tab" type="button" aria-pressed="false" data-channel="4">
+            <span class="channel-icon channel-icon-sale" aria-hidden="true"></span>
+            <span class="channel-label" data-motion="channelTabLabel5">大牌奥莱</span>
+          </button>
+          <button class="channel-tab" type="button" aria-pressed="false" data-channel="5">
+            <span class="channel-icon channel-icon-basket" aria-hidden="true"></span>
+            <span class="channel-label" data-motion="channelTabLabel6">临期清仓</span>
+          </button>
+        </nav>
+        <nav class="bottom-tabbar" aria-label="底部导航" data-motion="bottomTabbar">
+          <span class="joy-agent" aria-hidden="true">
+            <img
+              class="joy-agent-image"
+              src="https://img20.360buyimg.com/img/jfs/t1/458414/18/12592/185791/6a394f58F40ad981b/0276210210a38efd.png"
+              alt=""
+            />
+          </span>
+          <span class="bottom-tabbar-panel">
+            <span class="bottom-tabbar-active-bg" aria-hidden="true"></span>
+            <button class="bottom-tabbar-item is-active" type="button" aria-pressed="true" data-bottom-tab="0">
+              <span class="bottom-tabbar-icon" aria-hidden="true"></span>
+              <span class="bottom-tabbar-label" data-motion="bottomTabbarLabel1">首页</span>
+            </button>
+            <button class="bottom-tabbar-item" type="button" aria-pressed="false" data-bottom-tab="1">
+              <span class="bottom-tabbar-icon" aria-hidden="true"></span>
+              <span class="bottom-tabbar-label" data-motion="bottomTabbarLabel2">首页</span>
+            </button>
+            <button class="bottom-tabbar-item" type="button" aria-pressed="false" data-bottom-tab="2">
+              <span class="bottom-tabbar-icon" aria-hidden="true"></span>
+              <span class="bottom-tabbar-label" data-motion="bottomTabbarLabel3">首页</span>
+            </button>
+            <button class="bottom-tabbar-item" type="button" aria-pressed="false" data-bottom-tab="3">
+              <span class="bottom-tabbar-icon" aria-hidden="true"></span>
+              <span class="bottom-tabbar-label" data-motion="bottomTabbarLabel4">首页</span>
+            </button>
+            <button class="bottom-tabbar-item" type="button" aria-pressed="false" data-bottom-tab="4">
+              <span class="bottom-tabbar-icon" aria-hidden="true"></span>
+              <span class="bottom-tabbar-label" data-motion="bottomTabbarLabel5">首页</span>
+            </button>
+          </span>
+        </nav>
       </div>
     </main>
     <script src="./script.js"></script>

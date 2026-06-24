@@ -166,7 +166,7 @@ export function groupParameters(manifest: MotionManifest): GroupedSection[] {
   }));
 }
 
-function ParamControl({
+export function ParamControl({
   param,
   value,
   onChange

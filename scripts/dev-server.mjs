@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const webRoot = resolve(repoRoot, "apps/web");
-const ports = [5173, 5174];
+const ports = [5175, 5174];
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, {

@@ -1,0 +1,108 @@
+{
+  "version": "1.0",
+  "id": "iphone-14-w-dynamic-island",
+  "name": "iPhone 14 灵动岛完整手机",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "sceneSize",
+      "label": "整体尺寸",
+      "type": "range",
+      "default": 7,
+      "constraints": { "min": 5, "max": 12, "step": 0.1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--size" }
+      ]
+    },
+    {
+      "id": "phoneHeight",
+      "label": "手机高度",
+      "type": "range",
+      "default": 80,
+      "constraints": { "min": 48, "max": 104, "step": 1, "unit": "em" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--height" }
+      ]
+    },
+    {
+      "id": "notchDuration",
+      "label": "灵动岛过渡时长",
+      "type": "duration",
+      "default": 333,
+      "constraints": { "min": 120, "max": 1200, "step": 1, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--notch-duration"
+        }
+      ]
+    },
+    {
+      "id": "notchWidth",
+      "label": "灵动岛宽度",
+      "type": "range",
+      "default": 33.3,
+      "constraints": { "min": 22, "max": 58, "step": 0.1, "unit": "%" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--notch-width" }
+      ]
+    },
+    {
+      "id": "scenePadding",
+      "label": "舞台边距",
+      "type": "range",
+      "default": 5,
+      "constraints": { "min": 0, "max": 10, "step": 0.5, "unit": "vmin" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--scene-pad" }
+      ]
+    }
+  ],
+  "groups": [
+    { "id": "layout", "label": "布局", "params": ["sceneSize", "phoneHeight", "scenePadding"] },
+    { "id": "island", "label": "灵动岛", "params": ["notchDuration", "notchWidth"] }
+  ],
+  "layers": [
+    {
+      "id": "phone",
+      "label": "手机主体",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "dynamic-island",
+      "label": "灵动岛",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "screen",
+      "label": "手机界面",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "palette",
+      "label": "配色控制",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    }
+  ]
+}

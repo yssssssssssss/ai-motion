@@ -5,6 +5,7 @@ import {
   type BriefParseResult,
   type MotionComponent,
   type MotionComponentMetadata,
+  type MotionTrigger,
   type Recommendation
 } from "@motion-tool/core";
 import { AtomicMotionPanel } from "../features/brief/AtomicMotionPanel";
@@ -18,7 +19,11 @@ import { ImportChecklistPanel } from "../features/import/ImportChecklistPanel";
 import { UploadMetadataPanel } from "../features/import/UploadMetadataPanel";
 import { UnifiedUploadPanel } from "../features/import/UnifiedUploadPanel";
 import { parseBrief } from "../services/briefParserClient";
-import { generateAtomicMotionComponent, motionSkillElements } from "../services/atomicMotionGeneration";
+import {
+  atomicMotionTriggerRule,
+  generateAtomicMotionComponent,
+  motionSkillElements
+} from "../services/atomicMotionGeneration";
 import { loadControlledGenerationCandidates } from "../services/generationCandidates";
 import { generateReferenceGuidedComponent } from "../services/referenceGuidedGenerationClient";
 
@@ -29,6 +34,8 @@ type HomeRouteProps = {
   components: MotionComponent[];
   isLibraryLoading?: boolean;
   restoreComponentId?: string | null;
+  briefMode: BriefPanelMode;
+  onBriefModeChange: (mode: BriefPanelMode) => void;
   onSelectComponent: (componentId: string) => void;
   onLoadComponentSource: (component: MotionComponent) => Promise<MotionComponent>;
   onRestoreComplete?: () => void;
@@ -200,6 +207,8 @@ export function HomeRoute({
   components,
   isLibraryLoading = false,
   restoreComponentId,
+  briefMode,
+  onBriefModeChange,
   onSelectComponent,
   onLoadComponentSource,
   onRestoreComplete,
@@ -209,7 +218,6 @@ export function HomeRoute({
 }: HomeRouteProps) {
   const [brief, setBrief] = useState(DEFAULT_BRIEF);
   const [isBriefPristine, setIsBriefPristine] = useState(true);
-  const [briefMode, setBriefMode] = useState<BriefPanelMode>("recommend");
   const [parseResult, setParseResult] = useState<BriefParseResult | null>(null);
   const [isRecommending, setIsRecommending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -222,6 +230,8 @@ export function HomeRoute({
   const firstAtomicElement = motionSkillElements.find((element) => element.active) ?? motionSkillElements[0];
   const [atomicElementId, setAtomicElementId] = useState(firstAtomicElement?.id ?? "");
   const [atomicVariant, setAtomicVariant] = useState(firstAtomicElement?.variants[0] ?? "");
+  const firstAtomicTriggerRule = atomicMotionTriggerRule(firstAtomicElement?.id ?? "", firstAtomicElement?.variants[0]);
+  const [atomicTrigger, setAtomicTrigger] = useState<MotionTrigger>(firstAtomicTriggerRule.defaultTrigger);
 
   const aiMatchIds = useMemo(
     () => new Set(recommendations.map((item) => item.componentId)),
@@ -305,19 +315,32 @@ export function HomeRoute({
   }
 
   function changeBriefMode(mode: BriefPanelMode) {
-    setBriefMode(mode);
+    onBriefModeChange(mode);
     setGenerationStatus(null);
   }
 
   function selectAtomicElement(elementId: string) {
     const element = motionSkillElements.find((item) => item.id === elementId);
+    const variant = element?.variants[0] ?? "";
+    const triggerRule = atomicMotionTriggerRule(elementId, variant);
     setAtomicElementId(elementId);
-    setAtomicVariant(element?.variants[0] ?? "");
+    setAtomicVariant(variant);
+    setAtomicTrigger(triggerRule.defaultTrigger);
+  }
+
+  function selectAtomicVariant(variant: string) {
+    const triggerRule = atomicMotionTriggerRule(atomicElementId, variant);
+    setAtomicVariant(variant);
+    setAtomicTrigger(triggerRule.defaultTrigger);
   }
 
   function generateAtomicMotionDraft() {
     try {
-      const component = generateAtomicMotionComponent({ elementId: atomicElementId, variant: atomicVariant });
+      const component = generateAtomicMotionComponent({
+        elementId: atomicElementId,
+        variant: atomicVariant,
+        trigger: atomicTrigger
+      });
       onGeneratedComponentReady(component);
       setGenerationStatus("原子动效草稿已生成，保存后入库");
     } catch (error) {
@@ -372,7 +395,7 @@ export function HomeRoute({
             selectedElementId={atomicElementId}
             selectedVariant={atomicVariant}
             onSelectElement={selectAtomicElement}
-            onSelectVariant={setAtomicVariant}
+            onSelectVariant={selectAtomicVariant}
           />
         }
       />
@@ -390,6 +413,7 @@ export function HomeRoute({
       />
       <ComponentFeed
         components={components}
+        scope={briefMode === "atomic" ? "atomic-motion" : "all"}
         isLoading={isLibraryLoading}
         aiMatchIds={aiMatchIds}
         onLoadComponentSource={onLoadComponentSource}

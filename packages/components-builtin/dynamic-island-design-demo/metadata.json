@@ -1,0 +1,8 @@
+{
+  "id": "dynamic-island-design-demo",
+  "name": "灵动岛海浪光矩形展开",
+  "category": "interaction",
+  "tags": ["iphone", "dynamic-island", "siri", "weather", "dock", "mobile"],
+  "useCases": ["dynamic-island-demo", "siri-motion-reference", "mobile-system-motion", "feed-preview"],
+  "moods": ["luminous", "smooth", "mobile", "futuristic"]
+}

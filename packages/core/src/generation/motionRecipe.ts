@@ -39,6 +39,7 @@ export type MotionRecipeCategory = (typeof motionRecipeCategories)[number];
 export type MotionRecipeParamKind = (typeof motionRecipeParamKinds)[number];
 export type MotionRecipeSource = "builtin" | "extracted" | "model" | "fallback";
 export type MotionRecipeComposition = "single" | "sequence" | "parallel";
+export type MotionTrigger = "load" | "hover" | "click" | "loop" | "swipe";
 
 export type MotionRecipeParam = {
   id: string;
@@ -68,7 +69,7 @@ export type MotionRecipe = {
   id: string;
   name: string;
   category: MotionRecipeCategory;
-  trigger: "load" | "hover" | "click" | "loop";
+  trigger: MotionTrigger;
   timeline: MotionRecipeTimeline;
   targets: MotionRecipeTarget[];
   params: MotionRecipeParam[];
@@ -77,6 +78,7 @@ export type MotionRecipe = {
     keyframes: string[];
     selectors: string[];
     replay: true;
+    replayMode?: "once";
   };
   constraints: {
     requiresReplaceableTargets: true;
@@ -155,7 +157,7 @@ export const motionRecipeSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   category: z.enum(motionRecipeCategories),
-  trigger: z.enum(["load", "hover", "click", "loop"]),
+  trigger: z.enum(["load", "hover", "click", "loop", "swipe"]),
   timeline: z.object({
     keyframes: z.array(z.string().min(1)).min(1),
     durationParamId: z.string().min(1),
@@ -168,7 +170,8 @@ export const motionRecipeSchema = z.object({
     cssVariables: z.array(z.string().min(1)).min(1),
     keyframes: z.array(z.string().min(1)).min(1),
     selectors: z.array(z.string().min(1)).min(1),
-    replay: z.literal(true)
+    replay: z.literal(true),
+    replayMode: z.literal("once").optional()
   }),
   constraints: z.object({
     requiresReplaceableTargets: z.literal(true)
@@ -773,17 +776,47 @@ function injectAnimationRule(input: {
   return `${input.css.trimEnd()}\n\n${rule}\n`;
 }
 
-function replayProtocol(trigger: MotionRecipe["trigger"], selector: string): string {
+function replayProtocol(trigger: MotionRecipe["trigger"], selector: string, replayOnce: boolean): string {
   const escapedSelector = selector.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+  const replayGuard = replayOnce ? `
+    if (root.dataset.motionPlayed === "true") return;
+    root.dataset.motionPlayed = "true";` : "";
+  const swipeProtocol =
+    trigger === "swipe"
+      ? `
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+  const swipeThresholdPx = 48;
+  const swipeTarget = root instanceof HTMLElement ? root : target;
+  if (swipeTarget instanceof HTMLElement) {
+    swipeTarget.addEventListener("pointerdown", (event) => {
+      swipeStartX = event.clientX;
+      swipeStartY = event.clientY;
+    });
+    swipeTarget.addEventListener("pointerup", (event) => {
+      const deltaX = event.clientX - swipeStartX;
+      const deltaY = event.clientY - swipeStartY;
+      if (Math.abs(deltaX) < swipeThresholdPx || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+      if (deltaX < 0) replay();
+      else reverse();
+    });
+  }`
+      : "";
   return `(() => {
   const root = document.querySelector("[data-motion-root]");
   const target = document.querySelector("${escapedSelector}");
 
   function replay() {
     if (!(root instanceof HTMLElement)) return;
+${replayGuard}
     root.classList.remove("is-playing");
     void root.offsetWidth;
     root.classList.add("is-playing");
+  }
+
+  function reverse() {
+    if (!(root instanceof HTMLElement)) return;
+    root.classList.remove("is-playing");
   }
 
   window.motionReplay = replay;
@@ -801,12 +834,18 @@ function replayProtocol(trigger: MotionRecipe["trigger"], selector: string): str
 
   ${trigger === "click" ? "if (target instanceof HTMLElement) target.addEventListener(\"click\", replay);" : ""}
   ${trigger === "load" || trigger === "loop" ? "requestAnimationFrame(replay);" : ""}
+  ${swipeProtocol}
 })();`;
 }
 
-function ensureReplayProtocol(js: string, trigger: MotionRecipe["trigger"], selector: string): string {
+function ensureReplayProtocol(
+  js: string,
+  trigger: MotionRecipe["trigger"],
+  selector: string,
+  recipe: MotionRecipe
+): string {
   if (/window\.motionReplay|motionReplay\s*=/.test(js)) return js;
-  return `${js.trimEnd()}\n\n${replayProtocol(trigger, selector)}\n`;
+  return `${js.trimEnd()}\n\n${replayProtocol(trigger, selector, recipe.bindings.replayMode === "once")}\n`;
 }
 
 function kindForPath(path: string): SourceFile["kind"] {
@@ -850,7 +889,7 @@ function applyMotionRecipeToFiles(input: {
     recipe: input.recipe,
     trigger: input.trigger
   });
-  const js = ensureReplayProtocol(jsFile?.content ?? "", input.trigger, targetSelector);
+  const js = ensureReplayProtocol(jsFile?.content ?? "", input.trigger, targetSelector, input.recipe);
 
   return upsertFile(
     upsertFile(upsertFile(input.sourceFiles, htmlFile?.path ?? "source/index.html", html), cssFile?.path ?? "source/style.css", css),

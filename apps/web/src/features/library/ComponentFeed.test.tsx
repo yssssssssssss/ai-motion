@@ -101,6 +101,53 @@ describe("ComponentFeed", () => {
     expect(html).toContain("feed-health-badge");
   });
 
+  it("shows only atomic motion components in atomic motion scope", () => {
+    const atomicByTag = {
+      ...makeComponent(2),
+      id: "atomic-by-tag",
+      name: "Atomic by tag",
+      tags: ["generated", "atomic-motion"],
+      useCases: ["demo"]
+    } satisfies MotionComponent;
+    const atomicByUseCase = {
+      ...makeComponent(3),
+      id: "atomic-by-use-case",
+      name: "Atomic by use case",
+      tags: ["generated"],
+      useCases: ["atomic-motion"]
+    } satisfies MotionComponent;
+    const html = renderToStaticMarkup(
+      <ComponentFeed
+        components={[makeComponent(1), atomicByTag, atomicByUseCase]}
+        scope="atomic-motion"
+        aiMatchIds={new Set()}
+        onLoadComponentSource={async (component) => component}
+        onSelect={() => {}}
+      />
+    );
+
+    expect(html).toContain("浏览原子动效参数组件");
+    expect(html).toContain("Atomic by tag");
+    expect(html).toContain("Atomic by use case");
+    expect(html).not.toContain("Component 1");
+    expect(html).not.toContain('aria-label="组件筛选"');
+  });
+
+  it("does not render delete actions in feed cards", () => {
+    const html = renderToStaticMarkup(
+      <ComponentFeed
+        components={[makeComponent(1), makeComponent(2)]}
+        aiMatchIds={new Set()}
+        onLoadComponentSource={async (component) => component}
+        onSelect={() => {}}
+      />
+    );
+
+    expect(html).not.toContain("feed-card-delete");
+    expect(html).not.toContain('aria-label="删除 Component 1"');
+    expect(html).not.toContain('aria-label="删除 Component 2"');
+  });
+
   it("renders compact generation readiness metadata", () => {
     const component = {
       ...makeComponent(1),
@@ -207,7 +254,8 @@ describe("ComponentFeed", () => {
           {
             path: "source/index.html",
             kind: "html" as const,
-            content: '<main data-motion-root class="product-screen"><button class="button">开始</button></main>'
+            content:
+              '<main data-motion-root class="product-screen"><button class="button">开始</button></main>'
           },
           {
             path: "source/style.css",

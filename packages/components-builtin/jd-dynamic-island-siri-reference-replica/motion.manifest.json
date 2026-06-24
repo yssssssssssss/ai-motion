@@ -1,0 +1,203 @@
+{
+  "version": "1.0",
+  "id": "jd-dynamic-island-siri-reference-replica",
+  "name": "灵动岛 Siri 高保真参考",
+  "sourceKind": "builtin-component",
+  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
+  "capabilities": ["builtin", "editable", "export-html"],
+  "params": [
+    {
+      "id": "motionDuration",
+      "label": "循环时长",
+      "type": "duration",
+      "default": 18430,
+      "constraints": { "min": 7200, "max": 26000, "step": 10, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--motion-duration"
+        }
+      ]
+    },
+    {
+      "id": "startDelay",
+      "label": "启动延迟",
+      "type": "duration",
+      "default": 80,
+      "constraints": { "min": 0, "max": 1200, "step": 20, "unit": "ms" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--start-delay" }
+      ]
+    },
+    {
+      "id": "islandExpandedWidth",
+      "label": "灵动岛展开宽度",
+      "type": "range",
+      "default": 296,
+      "constraints": { "min": 220, "max": 410, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--island-expanded-width"
+        }
+      ]
+    },
+    {
+      "id": "islandExpandedHeight",
+      "label": "灵动岛展开高度",
+      "type": "range",
+      "default": 116,
+      "constraints": { "min": 82, "max": 168, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--island-expanded-height"
+        }
+      ]
+    },
+    {
+      "id": "glowOpacity",
+      "label": "光带强度",
+      "type": "range",
+      "default": 1,
+      "constraints": { "min": 0, "max": 1, "step": 0.01 },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--glow-opacity" }
+      ]
+    },
+    {
+      "id": "glowTravel",
+      "label": "光带扫动距离",
+      "type": "range",
+      "default": 244,
+      "constraints": { "min": 120, "max": 420, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--glow-travel" }
+      ]
+    },
+    {
+      "id": "notificationY",
+      "label": "通知 Y",
+      "type": "range",
+      "default": 132,
+      "constraints": { "min": 104, "max": 260, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--notification-y"
+        }
+      ]
+    },
+    {
+      "id": "notificationWidth",
+      "label": "通知宽度",
+      "type": "range",
+      "default": 572,
+      "constraints": { "min": 420, "max": 604, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--notification-width"
+        }
+      ]
+    },
+    {
+      "id": "dockRevealY",
+      "label": "底部栏入场距离",
+      "type": "range",
+      "default": 38,
+      "constraints": { "min": 8, "max": 90, "step": 1, "unit": "px" },
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--dock-reveal-y" }
+      ]
+    },
+    {
+      "id": "motionEasing",
+      "label": "缓动",
+      "type": "easing",
+      "default": "cubic-bezier(0.16, 0.9, 0.18, 1)",
+      "status": "confirmed",
+      "targets": [
+        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--motion-easing" }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "timing",
+      "label": "速度",
+      "params": ["motionDuration", "startDelay", "motionEasing"]
+    },
+    {
+      "id": "island",
+      "label": "灵动岛",
+      "params": ["islandExpandedWidth", "islandExpandedHeight", "glowOpacity", "glowTravel"]
+    },
+    {
+      "id": "notification",
+      "label": "通知",
+      "params": ["notificationY", "notificationWidth", "dockRevealY"]
+    }
+  ],
+  "layers": [
+    {
+      "id": "phone-shell",
+      "label": "手机屏幕",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "dynamic-island",
+      "label": "灵动岛胶囊",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "island-light-scan",
+      "label": "灵动岛光带",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "siri-notification",
+      "label": "Siri 通知",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "bottom-control-dock",
+      "label": "底部控制栏",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    }
+  ]
+}

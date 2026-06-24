@@ -12,10 +12,12 @@ import { createEmptyPatch } from "../../state/projectStore";
 import { hasRenderableSource } from "./sourceState";
 
 type Filter = "all" | "workeasy" | "native" | "uploaded" | "buttons" | "cards" | "checkboxes";
+type FeedScope = "all" | "atomic-motion";
 
 type Props = {
   components: MotionComponent[];
   aiMatchIds: Set<string>;
+  scope?: FeedScope;
   isLoading?: boolean;
   onLoadComponentSource: (component: MotionComponent) => Promise<MotionComponent>;
   restoreComponentId?: string | null | undefined;
@@ -137,6 +139,10 @@ function matchesFilter(component: MotionComponent, filter: Filter): boolean {
   return component.tags.includes(filter);
 }
 
+function isAtomicMotionComponent(component: MotionComponent): boolean {
+  return component.tags.includes("atomic-motion") || component.useCases.includes("atomic-motion");
+}
+
 function componentPreviewHtml(component: MotionComponent): string {
   return renderPreviewHtml({
     source: component.source,
@@ -230,6 +236,7 @@ function LazyFeedPreview({
 export function ComponentFeed({
   components,
   aiMatchIds,
+  scope = "all",
   isLoading = false,
   onLoadComponentSource,
   restoreComponentId,
@@ -237,7 +244,15 @@ export function ComponentFeed({
   onRestoreComplete
 }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
-  const visible = useMemo(() => components.filter((component) => matchesFilter(component, filter)), [components, filter]);
+  const isAtomicScope = scope === "atomic-motion";
+  const visible = useMemo(
+    () =>
+      components.filter((component) => {
+        if (!isAtomicMotionComponent(component)) return !isAtomicScope && matchesFilter(component, filter);
+        return isAtomicScope || matchesFilter(component, filter);
+      }),
+    [components, filter, isAtomicScope]
+  );
 
   useLayoutEffect(() => {
     if (!restoreComponentId) return;
@@ -256,21 +271,27 @@ export function ComponentFeed({
       <div className="feed-header">
         <div>
           <p className="eyebrow">组件库</p>
-          <h2>浏览所有动效组件</h2>
-          <p className="muted">你可以直接浏览组件，也可以先输入需求，让智能推荐帮你高亮匹配项。</p>
+          <h2>{isAtomicScope ? "浏览原子动效参数组件" : "浏览所有动效组件"}</h2>
+          <p className="muted">
+            {isAtomicScope
+              ? "当前仅展示原子动效参数生成和归档的动效组件。"
+              : "你可以直接浏览组件，也可以先输入需求，让智能推荐帮你高亮匹配项。"}
+          </p>
         </div>
-        <div className="feed-filters" aria-label="组件筛选">
-          {filters.map((item) => (
-            <button
-              className={item.id === filter ? "filter-pill is-on" : "filter-pill"}
-              key={item.id}
-              type="button"
-              onClick={() => setFilter(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+        {!isAtomicScope ? (
+          <div className="feed-filters" aria-label="组件筛选">
+            {filters.map((item) => (
+              <button
+                className={item.id === filter ? "filter-pill is-on" : "filter-pill"}
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
       {isLoading ? (
         <div className="feed-loading" aria-label="组件库加载中">

@@ -12,6 +12,14 @@ type RenderPreviewInput = {
   mode?: "full" | "thumbnail" | "editor";
 };
 
+const userTriggeredPreviewTriggers = new Set(["click", "hover", "swipe"]);
+
+export function shouldPreviewAutoplay(manifest: MotionManifest | null): boolean {
+  const recipes = manifest?.motionRecipes ?? [];
+  if (recipes.length === 0) return true;
+  return recipes.some((recipe) => !userTriggeredPreviewTriggers.has(recipe.trigger));
+}
+
 const THUMBNAIL_STYLE = `<style data-motion-preview="thumbnail">
 html,
 body {
@@ -41,10 +49,12 @@ body {
 }
 </style>`;
 
-const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
+function thumbnailScript(autoplay: boolean): string {
+  return `<script data-motion-preview="thumbnail">
 (() => {
   const stageClass = "motion-preview-stage";
   const thumbnailReplayPauseMs = 800;
+  const shouldAutoplay = ${autoplay ? "true" : "false"};
   let loopTimer = 0;
 
   function ensureStage() {
@@ -77,6 +87,11 @@ const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
+  function parseCssOffsetValue(value) {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
   function getDeclaredStageSize(element) {
     const candidates = [element, document.documentElement, document.body].filter(Boolean);
 
@@ -90,11 +105,52 @@ const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
     return null;
   }
 
+  function getThumbnailFocus(element) {
+    const candidates = [element, document.documentElement, document.body].filter(Boolean);
+
+    for (const candidate of candidates) {
+      const style = getComputedStyle(candidate);
+      const width = parseCssPixelValue(style.getPropertyValue("--thumbnail-focus-width"));
+      const height = parseCssPixelValue(style.getPropertyValue("--thumbnail-focus-height"));
+      if (!width || !height) continue;
+
+      return {
+        x: parseCssOffsetValue(style.getPropertyValue("--thumbnail-focus-x")),
+        y: parseCssOffsetValue(style.getPropertyValue("--thumbnail-focus-y")),
+        width,
+        height,
+        radius: parseCssOffsetValue(style.getPropertyValue("--thumbnail-focus-radius"))
+      };
+    }
+
+    return null;
+  }
+
   function fixElementSize(element, size) {
     element.style.width = \`\${size.width}px\`;
     element.style.height = \`\${size.height}px\`;
     element.style.maxWidth = "none";
     element.style.maxHeight = "none";
+  }
+
+  function resetThumbnailFocus(stage, content) {
+    stage.style.overflow = "";
+    stage.style.borderRadius = "";
+    if (!(content instanceof HTMLElement)) return;
+    content.style.position = "";
+    content.style.left = "";
+    content.style.top = "";
+    content.style.transform = "";
+  }
+
+  function applyThumbnailFocus(stage, content, focus) {
+    fixElementSize(stage, focus);
+    stage.style.overflow = "hidden";
+    stage.style.borderRadius = \`\${Math.max(0, focus.radius)}px\`;
+    content.style.position = "absolute";
+    content.style.left = \`\${-focus.x}px\`;
+    content.style.top = \`\${-focus.y}px\`;
+    content.style.transform = "none";
   }
 
   function measureContent(stage) {
@@ -129,14 +185,22 @@ const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
     stage.style.height = "";
 
     if (content instanceof HTMLElement) {
+      resetThumbnailFocus(stage, content);
       const declaredSize = getDeclaredStageSize(content);
       if (declaredSize) {
         fixElementSize(content, declaredSize);
+        const focus = getThumbnailFocus(content);
+        if (focus) {
+          applyThumbnailFocus(stage, content, focus);
+          return focus;
+        }
+
         fixElementSize(stage, declaredSize);
         return declaredSize;
       }
     }
 
+    resetThumbnailFocus(stage, content);
     const measuredSize = measureContent(stage);
     fixElementSize(stage, measuredSize);
     return measuredSize;
@@ -272,7 +336,7 @@ const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
   scheduleFit();
   window.setTimeout(fitThumbnail, 80);
   ensureMotionPreviewProtocol();
-  requestAnimationFrame(() => requestAnimationFrame(scheduleThumbnailLoop));
+  if (shouldAutoplay) requestAnimationFrame(() => requestAnimationFrame(scheduleThumbnailLoop));
 
   function scheduleFit() {
     // 双 rAF 后再测量，等动画首帧的 transform 落地，避免初始状态测出过小尺寸
@@ -280,6 +344,7 @@ const THUMBNAIL_SCRIPT = `<script data-motion-preview="thumbnail">
   }
 })();
 </script>`;
+}
 
 const EDITOR_STYLE = `<style data-motion-preview="editor">
 html,
@@ -522,6 +587,24 @@ const EDITOR_SCRIPT = `<script data-motion-preview="editor">
     }
   }
 
+  function resetMotionPreview() {
+    isPreviewPlaying = false;
+    window.clearTimeout(loopTimer);
+    if (typeof window.motionReverse === "function") window.motionReverse();
+    const root = document.querySelector("[data-motion-root]");
+    if (root instanceof HTMLElement) {
+      root.classList.remove("is-playing");
+      delete root.dataset.motionPlayed;
+    }
+    for (const element of document.querySelectorAll("*")) {
+      element.style.animationPlayState = "";
+    }
+    if (document.getAnimations) {
+      for (const animation of document.getAnimations({ subtree: true })) animation.cancel();
+    }
+    scheduleFit();
+  }
+
   function ensureMotionPreviewProtocol() {
     if (typeof window.motionReplay !== "function") window.motionReplay = fallbackReplay;
     if (typeof window.motionPause !== "function") window.motionPause = fallbackPause;
@@ -620,6 +703,10 @@ const EDITOR_SCRIPT = `<script data-motion-preview="editor">
     const data = event.data;
     if (!data) return;
     if (data.type === "motion-preview:patch") applyMotionPreviewPatch(data.values, data.params);
+    if (data.type === "motion-preview:reset") {
+      resetMotionPreview();
+      return;
+    }
     if (data.type !== "motion-preview:playback") return;
     if (data.action === "play") setPreviewPlayback("playing");
     if (data.action === "pause") setPreviewPlayback("paused");
@@ -674,16 +761,17 @@ function inlineLocalAssets(html: string, files: Record<string, string>): string 
     });
 }
 
-function addThumbnailLayout(html: string): string {
+function addThumbnailLayout(html: string, autoplay: boolean): string {
   const htmlWithStyle = /<\/head\s*>/i.test(html)
     ? html.replace(/<\/head\s*>/i, `${THUMBNAIL_STYLE}</head>`)
     : `${THUMBNAIL_STYLE}${html}`;
+  const script = thumbnailScript(autoplay);
 
   if (/<\/body\s*>/i.test(htmlWithStyle)) {
-    return htmlWithStyle.replace(/<\/body\s*>/i, `${THUMBNAIL_SCRIPT}</body>`);
+    return htmlWithStyle.replace(/<\/body\s*>/i, `${script}</body>`);
   }
 
-  return `${htmlWithStyle}${THUMBNAIL_SCRIPT}`;
+  return `${htmlWithStyle}${script}`;
 }
 
 function addEditorLayout(html: string): string {
@@ -715,7 +803,7 @@ export function renderPreviewHtml({ source, manifest, patch, mode = "full" }: Re
   const patchedFiles = applyPatchToFiles({ files, manifest, patch });
   const html = inlineLocalAssets(patchedFiles[source.entry] ?? "", patchedFiles);
   const safeHtml = injectCspIfImported(html, source);
-  if (mode === "thumbnail") return addThumbnailLayout(safeHtml);
+  if (mode === "thumbnail") return addThumbnailLayout(safeHtml, shouldPreviewAutoplay(manifest));
   if (mode === "editor") return addEditorLayout(safeHtml);
   return safeHtml;
 }

@@ -67,6 +67,11 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain("width: fit-content");
     expect(html).toContain('style.getPropertyValue("--stage-width")');
     expect(html).toContain('style.getPropertyValue("--stage-height")');
+    expect(html).toContain('style.getPropertyValue("--thumbnail-focus-width")');
+    expect(html).toContain('style.getPropertyValue("--thumbnail-focus-height")');
+    expect(html).toContain("function applyThumbnailFocus(stage, content, focus)");
+    expect(html).toContain('stage.style.overflow = "hidden"');
+    expect(html).toContain('content.style.transform = "none"');
     expect(html).toContain("fixElementSize(content, declaredSize)");
     expect(html).toContain("fitThumbnail();");
     expect(html).toContain("window.setTimeout(fitThumbnail, 80)");
@@ -80,6 +85,29 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain('root.classList.add("is-playing")');
     expect(html).not.toContain("animation-play-state: paused !important");
     expect(html).not.toContain("transition: none !important");
+  });
+
+  it("does not autoplay click-triggered thumbnails", () => {
+    const html = renderPreviewHtml({
+      source,
+      manifest: {
+        ...manifest,
+        motionRecipes: [
+          {
+            recipeId: "button.click",
+            recipeName: "Button click",
+            targetLayerIds: ["button"],
+            paramIds: [],
+            trigger: "click"
+          }
+        ]
+      },
+      patch,
+      mode: "thumbnail"
+    });
+
+    expect(html).toContain("const shouldAutoplay = false");
+    expect(html).toContain("if (shouldAutoplay) requestAnimationFrame");
   });
 
   it("keeps full previews free of thumbnail layout styles", () => {
@@ -137,6 +165,11 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain("animation.play()");
     expect(html).toContain('data.action === "pause"');
     expect(html).toContain('data.action === "play"');
+    expect(html).toContain('data.type === "motion-preview:reset"');
+    expect(html).toContain("function resetMotionPreview()");
+    expect(html).toContain('if (typeof window.motionReverse === "function") window.motionReverse()');
+    expect(html).toContain('root.classList.remove("is-playing")');
+    expect(html).toContain("delete root.dataset.motionPlayed");
     expect(html).toContain("requestAnimationFrame(() => requestAnimationFrame(schedulePlaybackLoop))");
     expect(html).toContain('data.action === "replay"');
     expect(html).toContain("replayMotion();");

@@ -21,8 +21,15 @@ const backgroundLayerSizeParamIds = [
   "backgroundLayerWidth",
   "backgroundLayerHeight"
 ] as const;
+const foregroundLayerSizeParamIds = ["foregroundLayerWidth", "foregroundLayerHeight"] as const;
 
 const backgroundLayerSizePresets: BackgroundLayerSizePreset[] = [
+  {
+    id: "iphone-375",
+    label: "标准 iPhone",
+    stage: { width: 375, height: 812 },
+    background: { width: 375, height: 812 }
+  },
   {
     id: "iphone-modern",
     label: "新常规 iPhone",
@@ -123,6 +130,14 @@ function backgroundLayerSizeParams(manifest: MotionManifest): MotionParam[] {
   });
 }
 
+function foregroundLayerSizeParams(manifest: MotionManifest): MotionParam[] {
+  const paramsById = new Map(manifest.params.map((param) => [param.id, param]));
+  return foregroundLayerSizeParamIds.flatMap((id) => {
+    const param = paramsById.get(id);
+    return param?.status === "confirmed" ? [param] : [];
+  });
+}
+
 function activeBackgroundLayerSizePreset(params: MotionParam[], patch: MotionPatch): string {
   const values = Object.fromEntries(params.map((param) => [param.id, currentValue(param, patch)]));
   const preset = backgroundLayerSizePresets.find((item) => {
@@ -184,6 +199,69 @@ function BackgroundLayerSizePanel({
   );
 }
 
+function LayerSizeField({
+  param,
+  patch,
+  onChange
+}: {
+  param: MotionParam;
+  patch: MotionPatch;
+  onChange: (paramId: string, value: unknown) => void;
+}) {
+  const value = Number(currentValue(param, patch));
+  const constraints = param.constraints;
+  const hasRange = constraints && typeof constraints.min === "number" && typeof constraints.max === "number";
+
+  return (
+    <label className="field layer-size-field">
+      <span>{param.label}</span>
+      <div className="atomic-slider-row">
+        {hasRange ? (
+          <input
+            type="range"
+            min={constraints.min}
+            max={constraints.max}
+            step={constraints.step ?? 1}
+            value={Number.isFinite(value) ? value : Number(param.default)}
+            onChange={(event) => onChange(param.id, Number(event.target.value))}
+          />
+        ) : null}
+        <input
+          type="number"
+          min={constraints?.min}
+          max={constraints?.max}
+          step={constraints?.step ?? 1}
+          value={Number.isFinite(value) ? value : Number(param.default)}
+          onChange={(event) => onChange(param.id, Number(event.target.value))}
+        />
+      </div>
+    </label>
+  );
+}
+
+function ForegroundLayerSizePanel({
+  params,
+  patch,
+  onChange
+}: {
+  params: MotionParam[];
+  patch: MotionPatch;
+  onChange: (paramId: string, value: unknown) => void;
+}) {
+  if (params.length === 0) return null;
+
+  return (
+    <div className="foreground-layer-size-panel" aria-label="前景层尺寸">
+      <strong>前景层尺寸</strong>
+      <div className="field-list">
+        {params.map((param) => (
+          <LayerSizeField key={param.id} param={param} patch={patch} onChange={onChange} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function LayerReplacementPanel({
   manifest,
   patch,
@@ -195,7 +273,9 @@ export function LayerReplacementPanel({
   const params = manifest.params.filter(isLayerParam);
   const trackedLayers = recipeTrackedLayers(manifest);
   const sizeParams = backgroundLayerSizeParams(manifest);
-  if (params.length === 0 && trackedLayers.length === 0 && sizeParams.length === 0) return null;
+  const foregroundSizeParams = foregroundLayerSizeParams(manifest);
+  if (params.length === 0 && trackedLayers.length === 0 && sizeParams.length === 0 && foregroundSizeParams.length === 0)
+    return null;
   const errors = uploadErrorByParamId ?? localUploadErrors;
 
   function setUploadError(paramId: string, message: string | null) {
@@ -216,6 +296,7 @@ export function LayerReplacementPanel({
         <h2>替换素材与图层</h2>
       </div>
       <BackgroundLayerSizePanel params={sizeParams} patch={patch} onChange={onChange} />
+      <ForegroundLayerSizePanel params={foregroundSizeParams} patch={patch} onChange={onChange} />
       {params.length > 0 ? (
         <div className="field-list">
           {params.map((param) => {

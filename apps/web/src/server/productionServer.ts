@@ -35,6 +35,25 @@ function sendFile(res: ServerResponse, filePath: string) {
   createReadStream(filePath).pipe(res);
 }
 
+function sendJson(res: ServerResponse, statusCode: number, payload: unknown) {
+  if (res.headersSent || res.writableEnded) return;
+  res.statusCode = statusCode;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(payload));
+}
+
+function handleApiRequest(
+  handler: (req: IncomingMessage, res: ServerResponse) => Promise<void>,
+  req: IncomingMessage,
+  res: ServerResponse
+) {
+  handler(req, res).catch((error: unknown) => {
+    sendJson(res, 500, {
+      error: error instanceof Error ? error.message : "API request failed."
+    });
+  });
+}
+
 function distFile(distDir: string, pathName: string): string | undefined {
   const normalizedPath = normalize(pathName).replace(/^(\.\.(\/|\\|$))+/, "");
   const filePath = resolve(distDir, `.${sep}${normalizedPath}`);
@@ -59,17 +78,17 @@ export function createProductionServer(input: ProductionServerInput) {
     const pathName = requestPath(req);
 
     if (pathName === "/api/video/analyze") {
-      void videoAnalyzeHandler(req, res);
+      handleApiRequest(videoAnalyzeHandler, req, res);
       return;
     }
 
     if (pathName === "/api/generation/controlled") {
-      void controlledGenerationHandler(req, res);
+      handleApiRequest(controlledGenerationHandler, req, res);
       return;
     }
 
     if (pathName === "/api/generation/reference-guided") {
-      void referenceGuidedGenerationHandler(req, res);
+      handleApiRequest(referenceGuidedGenerationHandler, req, res);
       return;
     }
 

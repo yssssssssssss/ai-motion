@@ -1,0 +1,16 @@
+{
+  "id": "front-back-entry",
+  "name": "前后进场",
+  "version": "1.1.0",
+  "source": "designer-csv",
+  "variants": [
+    "二级页跳转",
+    "半弹层",
+    "动作面板",
+    "滑动操作"
+  ],
+  "defaultVariant": "detail-page",
+  "tokenFile": "tokens.json",
+  "recipeFile": "recipes.json",
+  "skillFile": "skill.md"
+}

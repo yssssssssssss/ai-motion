@@ -46,6 +46,38 @@ describe("motionManifestSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts viewport and font-relative CSS units used by builtin components", () => {
+    const result = motionManifestSchema.safeParse({
+      version: "1.0",
+      id: "iphone-dynamic-island",
+      name: "iPhone Dynamic Island",
+      sourceKind: "builtin-component",
+      runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+      params: [
+        {
+          id: "phoneHeight",
+          label: "Phone height",
+          type: "range",
+          default: 80,
+          status: "confirmed",
+          constraints: { min: 48, max: 104, step: 1, unit: "em" },
+          targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--height" }]
+        },
+        {
+          id: "scenePadding",
+          label: "Scene padding",
+          type: "range",
+          default: 5,
+          status: "confirmed",
+          constraints: { min: 0, max: 10, step: 0.5, unit: "vmin" },
+          targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--scene-pad" }]
+        }
+      ]
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("accepts explicit design spec bindings and layer inventory", () => {
     const result = motionManifestSchema.safeParse({
       version: "1.0",
@@ -99,5 +131,29 @@ describe("motionManifestSchema", () => {
     if (!result.success) return;
     expect(result.data.designSpecs?.[0]?.id).toBe("ecommerce-transition-motion-skill");
     expect(result.data.layers?.map((layer) => layer.id)).toEqual(["product-card", "stage-shell"]);
+  });
+
+  it("accepts swipe motion recipe bindings", () => {
+    const result = motionManifestSchema.safeParse({
+      version: "1.0",
+      id: "swipe-motion",
+      name: "Swipe Motion",
+      sourceKind: "builtin-component",
+      runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+      params: [],
+      motionRecipes: [
+        {
+          recipeId: "swipe-motion.enter",
+          recipeName: "Swipe Motion",
+          category: "transition",
+          targetLayerIds: ["foregroundLayer"],
+          paramIds: [],
+          trigger: "swipe",
+          source: "model"
+        }
+      ]
+    });
+
+    expect(result.success).toBe(true);
   });
 });

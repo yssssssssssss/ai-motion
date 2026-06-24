@@ -52,7 +52,7 @@ export const motionParamSchema = z.object({
       min: z.number().optional(),
       max: z.number().optional(),
       step: z.number().optional(),
-      unit: z.enum(["px", "%", "ms", "s", "deg", "rem", "vh", "vw"]).optional(),
+      unit: z.enum(["px", "%", "ms", "s", "deg", "rem", "em", "vh", "vw", "vmin"]).optional(),
       options: z
         .array(z.object({ label: z.string(), value: z.union([z.string(), z.number(), z.boolean()]) }))
         .optional(),
@@ -84,7 +84,7 @@ const motionRecipeBindingSchema = z.object({
   targetRoles: z.array(z.string().min(1)).optional(),
   targetSelectors: z.array(z.string().min(1)).optional(),
   paramIds: z.array(z.string().min(1)),
-  trigger: z.enum(["load", "hover", "click", "loop"]),
+  trigger: z.enum(["load", "hover", "click", "loop", "swipe"]),
   source: z.enum(["builtin", "extracted", "model", "fallback"]).optional(),
   confidence: z.number().min(0).max(1).optional()
 });

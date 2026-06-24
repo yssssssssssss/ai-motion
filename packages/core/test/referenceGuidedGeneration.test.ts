@@ -459,10 +459,10 @@ window.motionSeek = function motionSeek() {};`
     expect(result.coverage.missing).toEqual([]);
     expect(html).toContain('data-motion="backgroundLayer"');
     expect(html).not.toContain("<button");
-    expect(css).toContain("--stage-width: 430px");
-    expect(css).toContain("--stage-height: 932px");
-    expect(css).toContain("--background-layer-width: 500px");
-    expect(css).toContain("--background-layer-height: 1060px");
+    expect(css).toContain("--stage-width: 375px");
+    expect(css).toContain("--stage-height: 812px");
+    expect(css).toContain("--background-layer-width: 375px");
+    expect(css).toContain("--background-layer-height: 812px");
     expect(css).toContain("width: var(--background-layer-width)");
     expect(css).toContain("height: var(--background-layer-height)");
     expect(css).toContain("left: calc((100% - var(--background-layer-width)) / 2)");

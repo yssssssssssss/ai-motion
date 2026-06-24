@@ -1,0 +1,65 @@
+{
+  "recipes": [
+    {
+      "id": "front-back-entry.detail-page.enter",
+      "name": "前后进场 / 二级页跳转",
+      "family": "front-back-entry",
+      "sourceElement": "前后进场",
+      "variant": "detail-page",
+      "sourceVariant": "二级页跳转",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "front-back-entry.detail-page.position"
+      ]
+    },
+    {
+      "id": "front-back-entry.half-sheet.enter",
+      "name": "前后进场 / 半弹层",
+      "family": "front-back-entry",
+      "sourceElement": "前后进场",
+      "variant": "half-sheet",
+      "sourceVariant": "半弹层",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "front-back-entry.half-sheet.position",
+        "front-back-entry.half-sheet.opacity"
+      ]
+    },
+    {
+      "id": "front-back-entry.action-panel.enter",
+      "name": "前后进场 / 动作面板",
+      "family": "front-back-entry",
+      "sourceElement": "前后进场",
+      "variant": "action-panel",
+      "sourceVariant": "动作面板",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "front-back-entry.action-panel.position"
+      ]
+    },
+    {
+      "id": "front-back-entry.swipe-action.enter",
+      "name": "前后进场 / 滑动操作",
+      "family": "front-back-entry",
+      "sourceElement": "前后进场",
+      "variant": "swipe-action",
+      "sourceVariant": "滑动操作",
+      "targetRole": "screen",
+      "targetLayer": "前景层",
+      "trigger": "load",
+      "tokenIds": [
+        "front-back-entry.swipe-action.position-1",
+        "front-back-entry.swipe-action.position-2",
+        "front-back-entry.swipe-action.position-3",
+        "front-back-entry.swipe-action.position-4",
+        "front-back-entry.swipe-action.position-5"
+      ]
+    }
+  ]
+}

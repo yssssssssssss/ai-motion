@@ -18,6 +18,10 @@
     "motion-lens:test": "pnpm --filter @motion-lens/app test && pnpm --filter @motion-lens/core test && pnpm --filter @motion-knowledge/base test",
     "motion-lens:typecheck": "pnpm --filter @motion-lens/app typecheck && pnpm --filter @motion-lens/core typecheck && pnpm --filter @motion-knowledge/base typecheck",
     "motion-lens:build": "pnpm --filter @motion-lens/app build",
+    "motion-copilot:dev": "pnpm --filter @motion-copilot/app dev",
+    "motion-copilot:test": "pnpm --filter @motion-copilot/core test && pnpm --filter @motion-copilot/app test",
+    "motion-copilot:typecheck": "pnpm --filter @motion-copilot/app typecheck && pnpm --filter @motion-copilot/core typecheck",
+    "motion-copilot:build": "pnpm --filter @motion-copilot/app build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -26,6 +30,7 @@
     "gen:workeasy": "node scripts/generate-workeasy-components.mjs",
     "gen:workeasy:check": "node scripts/generate-workeasy-components.mjs && git diff --exit-code -- apps/web/src/data/workeasyComponents.generated.ts",
     "motion:compile": "node scripts/compile-motion-skills.mjs",
+    "verify:dynamic-island-demo": "node scripts/verify-dynamic-island-design-demo-node.mjs",
     "deploy:cloud": "node scripts/deploy-cloud.mjs",
     "prepare": "husky"
   },
