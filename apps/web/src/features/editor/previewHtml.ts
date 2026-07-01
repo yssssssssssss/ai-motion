@@ -652,6 +652,11 @@ const EDITOR_SCRIPT = `<script data-motion-preview="editor">
   }
 
   function forEachTargetElement(selector, callback) {
+    if (selector === ":root") {
+      callback(document.documentElement);
+      return;
+    }
+
     try {
       for (const element of document.querySelectorAll(selector)) {
         if (element instanceof HTMLElement || element instanceof SVGElement) callback(element);

@@ -10,9 +10,10 @@ import {
 import { renderPreviewHtml } from "../editor/previewHtml";
 import { createEmptyPatch } from "../../state/projectStore";
 import { hasRenderableSource } from "./sourceState";
+import { isAtomicMotionComponent } from "../../services/componentScope";
 
 type Filter = "all" | "workeasy" | "native" | "uploaded" | "buttons" | "cards" | "checkboxes";
-type FeedScope = "all" | "atomic-motion";
+type FeedScope = "non-atomic" | "atomic-motion";
 
 type Props = {
   components: MotionComponent[];
@@ -139,10 +140,6 @@ function matchesFilter(component: MotionComponent, filter: Filter): boolean {
   return component.tags.includes(filter);
 }
 
-function isAtomicMotionComponent(component: MotionComponent): boolean {
-  return component.tags.includes("atomic-motion") || component.useCases.includes("atomic-motion");
-}
-
 function componentPreviewHtml(component: MotionComponent): string {
   return renderPreviewHtml({
     source: component.source,
@@ -236,7 +233,7 @@ function LazyFeedPreview({
 export function ComponentFeed({
   components,
   aiMatchIds,
-  scope = "all",
+  scope = "non-atomic",
   isLoading = false,
   onLoadComponentSource,
   restoreComponentId,
@@ -248,8 +245,9 @@ export function ComponentFeed({
   const visible = useMemo(
     () =>
       components.filter((component) => {
-        if (!isAtomicMotionComponent(component)) return !isAtomicScope && matchesFilter(component, filter);
-        return isAtomicScope || matchesFilter(component, filter);
+        const isAtomicComponent = isAtomicMotionComponent(component);
+        if (isAtomicScope) return isAtomicComponent;
+        return !isAtomicComponent && matchesFilter(component, filter);
       }),
     [components, filter, isAtomicScope]
   );
@@ -271,7 +269,7 @@ export function ComponentFeed({
       <div className="feed-header">
         <div>
           <p className="eyebrow">组件库</p>
-          <h2>{isAtomicScope ? "浏览原子动效参数组件" : "浏览所有动效组件"}</h2>
+          <h2>{isAtomicScope ? "浏览原子动效参数组件" : "浏览非原子动效组件"}</h2>
           <p className="muted">
             {isAtomicScope
               ? "当前仅展示原子动效参数生成和归档的动效组件。"

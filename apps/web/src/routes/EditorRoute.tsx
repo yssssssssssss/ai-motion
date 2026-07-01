@@ -25,6 +25,7 @@ type EditorRouteProps = {
   onParamChange: (paramId: string, value: unknown) => void;
   onReplay: () => void;
   onResetParams?: () => void;
+  onResetParamIds?: (paramIds: string[]) => void;
   variant?: "page" | "modal";
   onDelete?: () => void;
   onSave?: () => void;
@@ -88,6 +89,7 @@ export function EditorRoute({
   onParamChange,
   onReplay,
   onResetParams,
+  onResetParamIds,
   variant = "page",
   onDelete,
   onSave,
@@ -96,7 +98,7 @@ export function EditorRoute({
   onApplyRecipeToTarget
 }: EditorRouteProps) {
   const [playbackState, setPlaybackState] = useState<PreviewPlaybackState>("playing");
-  const [parameterMode, setParameterMode] = useState<ParameterMode>("plus");
+  const [parameterMode, setParameterMode] = useState<ParameterMode>("pro");
   const [plusValues, setPlusValues] = useState<PlusPatchValues>({});
   const [replayToken, setReplayToken] = useState(0);
   const [resetToken, setResetToken] = useState(0);
@@ -125,10 +127,10 @@ export function EditorRoute({
 
   useEffect(() => {
     setPlaybackState(canAutoplayPreview ? "playing" : "paused");
-    setParameterMode("plus");
+    setParameterMode(isAtomicMotion ? "plus" : "pro");
     setPlusValues({});
     setInspectorTab("info");
-  }, [canAutoplayPreview, project?.id]);
+  }, [canAutoplayPreview, isAtomicMotion, project?.id]);
 
   function replayFromStart() {
     setPlaybackState("playing");
@@ -338,6 +340,7 @@ export function EditorRoute({
                   manifest={project?.manifest ?? null}
                   patch={project?.patch ?? null}
                   onChange={updateProParam}
+                  {...(onResetParamIds ? { onReset: onResetParamIds } : {})}
                 />
               ) : null}
               {inspectorTab === "related" ? <ReadinessDiagnosisPanel component={readinessComponent} /> : null}

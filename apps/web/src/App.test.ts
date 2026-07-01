@@ -89,9 +89,11 @@ describe("App bundle boundaries", () => {
     expect(appSource).toContain("applyMotionRecipeToComponent");
     expect(appSource).toContain("applyCurrentRecipeToTarget");
     expect(appSource).toContain("onApplyRecipeToTarget={applyCurrentRecipeToTarget}");
+    expect(appSource).toContain("isNonAtomicMotionComponent");
     expect(appSource).toMatch(
       /function applyCurrentRecipeToTarget[\s\S]*handleGeneratedComponentReady\(generated\)/
     );
+    expect(appSource).toMatch(/recipeTargetComponents=\{components\.filter\([\s\S]*isNonAtomicMotionComponent/);
   });
 
   it("renders a generated page-transition draft in the editor modal contract", () => {
@@ -176,6 +178,15 @@ describe("EditorRoute interaction-triggered previews", () => {
     expect(html).not.toContain(">播放<");
     expect(html).not.toContain(">暂停<");
     expect(html).not.toContain(">重播<");
+  });
+});
+
+describe("EditorRoute non-atomic code component editing", () => {
+  it("defaults non-atomic components to the full Pro parameter surface", () => {
+    const editorSource = readFileSync(new URL("./routes/EditorRoute.tsx", import.meta.url), "utf8");
+
+    expect(editorSource).toContain('useState<ParameterMode>("pro")');
+    expect(editorSource).toContain('setParameterMode(isAtomicMotion ? "plus" : "pro")');
   });
 });
 

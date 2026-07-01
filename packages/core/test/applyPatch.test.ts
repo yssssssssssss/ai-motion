@@ -146,6 +146,41 @@ describe("applyPatchToFiles", () => {
     expect(files["source/style.css"]).toContain("background: var(--hero-image, none) center / cover no-repeat");
   });
 
+  it("does not patch externalized stylesheet references as if they were css", () => {
+    const files = applyPatchToFiles({
+      files: {
+        "source/index.html": '<link rel="stylesheet" href="./assets.css" />',
+        "source/assets.css": "/assets/product-assets.css"
+      },
+      manifest: {
+        version: "1.0",
+        id: "external-assets",
+        name: "External assets",
+        sourceKind: "builtin-component",
+        runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
+        params: [
+          {
+            id: "detailCardImage",
+            label: "Detail card image",
+            type: "image",
+            default: "",
+            status: "confirmed",
+            targets: [
+              { kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--detail-card" }
+            ]
+          }
+        ]
+      },
+      patch: {
+        id: "patch-external-assets",
+        sourceManifestId: "external-assets",
+        values: { detailCardImage: "data:image/png;base64,NEWCARD" }
+      }
+    });
+
+    expect(files["source/assets.css"]).toBe("/assets/product-assets.css");
+  });
+
   it("updates css property targets", () => {
     const files = applyPatchToFiles({
       files: {

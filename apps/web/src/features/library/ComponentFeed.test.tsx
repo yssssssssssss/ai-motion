@@ -133,6 +133,47 @@ describe("ComponentFeed", () => {
     expect(html).not.toContain('aria-label="组件筛选"');
   });
 
+  it("excludes atomic motion components from the default non-atomic feed", () => {
+    const atomicByMotionSkill = {
+      ...makeComponent(2),
+      id: "atomic-by-motion-skill",
+      name: "Atomic by motionSkill",
+      manifest: {
+        ...makeComponent(2).manifest,
+        motionSkill: {
+          source: "designer-csv",
+          element: "horizontal-switch",
+          variant: "频道Tab",
+          family: "horizontal-switch",
+          version: "1.0",
+          recipeId: "horizontal-switch.channel-tab",
+          tokenIds: []
+        }
+      }
+    } satisfies MotionComponent;
+    const atomicByTag = {
+      ...makeComponent(3),
+      id: "atomic-by-tag",
+      name: "Atomic by tag",
+      tags: ["generated", "atomic-motion"],
+      useCases: ["demo"]
+    } satisfies MotionComponent;
+
+    const html = renderToStaticMarkup(
+      <ComponentFeed
+        components={[makeComponent(1), atomicByMotionSkill, atomicByTag]}
+        aiMatchIds={new Set()}
+        onLoadComponentSource={async (component) => component}
+        onSelect={() => {}}
+      />
+    );
+
+    expect(html).toContain("浏览非原子动效组件");
+    expect(html).toContain("Component 1");
+    expect(html).not.toContain("Atomic by motionSkill");
+    expect(html).not.toContain("Atomic by tag");
+  });
+
   it("does not render delete actions in feed cards", () => {
     const html = renderToStaticMarkup(
       <ComponentFeed

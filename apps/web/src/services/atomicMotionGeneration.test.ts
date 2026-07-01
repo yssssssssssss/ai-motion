@@ -307,6 +307,8 @@ describe("atomic motion generation service", () => {
     expect(channelTabSource).toContain("background: #ff0031;");
     expect(channelTabSource).toContain("transform: translateX(42px);");
     expect(channelTabSource).toContain("channel-icon-alarm");
+    expect(channelTabSource).toContain("--channel-tab-icon-1");
+    expect(channelTabSource).toContain("background-image: var(--channel-tab-icon-6)");
     expect(channelTabSource.match(/data:image\/png;base64,/g)).toHaveLength(6);
     expect(channelTabSource).not.toContain('content: "SALE"');
     expect(channelTabSource).not.toContain("clip-path: polygon");
@@ -324,8 +326,19 @@ describe("atomic motion generation service", () => {
     expect(channelTabSource).not.toContain("requestAnimationFrame(replay);");
     expect(channelTabComponent.manifest.params).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ id: "channelTabIcon1", type: "image" }),
+        expect.objectContaining({ id: "channelTabIcon6", type: "image" }),
         expect.objectContaining({ id: "channelTabLabel1", type: "text" }),
         expect.objectContaining({ id: "channelTabLabel6", type: "text" })
+      ])
+    );
+    expect(channelTabComponent.manifest.params.map((param) => param.id)).not.toContain("foregroundImage");
+    expect(channelTabComponent.manifest.params.map((param) => param.id)).not.toContain("backgroundImage");
+    expect(channelTabComponent.manifest.layers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "foregroundLayer", replaceable: false }),
+        expect.objectContaining({ id: "channelTabIconLayer1", paramId: "channelTabIcon1", replaceable: true }),
+        expect.objectContaining({ id: "channelTabIconLayer6", paramId: "channelTabIcon6", replaceable: true })
       ])
     );
 
@@ -395,6 +408,11 @@ describe("atomic motion generation service", () => {
     expect(segmentedSource).toContain("track.dataset.activeIndex = String(activeIndex)");
     expect(segmentedSource).toContain("var(--horizontal-switch-segmented-position-keyframe-1, 72px)");
     expect(segmentedSource).toContain("var(--horizontal-switch-segmented-size-keyframe-1-width, 92px)");
+    expect(segmentedSource).toContain(
+      "100% { transform: translateX(var(--horizontal-switch-segmented-position-keyframe-1, 72px)); width: var(--horizontal-switch-segmented-size-keyframe-2-width, 72px); }"
+    );
+    expect(segmentedSource).toContain('track.addEventListener("animationend", settle);');
+    expect(segmentedSource).not.toContain("100% { transform: translateX(72px); width: 72px; }");
     expect(segmentedSource).toContain(".motion-switch-segmented-track.is-moving-right::after");
     expect(segmentedSource).toContain(".motion-switch-segmented-track.is-moving-left::after");
     expect(segmentedSource).toContain("track.classList.add(directionClass)");

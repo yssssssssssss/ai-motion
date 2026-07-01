@@ -68,6 +68,27 @@ const targetComponent: MotionComponent = {
   }
 };
 
+const atomicTargetComponent: MotionComponent = {
+  ...targetComponent,
+  id: "atomic-target",
+  name: "原子频道Tab",
+  tags: ["generated", "atomic-motion"],
+  useCases: ["atomic-motion"],
+  manifest: {
+    ...targetComponent.manifest,
+    id: "atomic-target-manifest",
+    motionSkill: {
+      source: "designer-csv",
+      element: "horizontal-switch",
+      variant: "频道Tab",
+      family: "horizontal-switch",
+      version: "1.0",
+      recipeId: "horizontal-switch.channel-tab",
+      tokenIds: []
+    }
+  }
+};
+
 describe("MotionRecipePanel", () => {
   it("renders recipe category, trigger, target layers, and params", () => {
     const html = renderToStaticMarkup(<MotionRecipePanel manifest={manifest} />);
@@ -92,6 +113,19 @@ describe("MotionRecipePanel", () => {
     expect(html).toContain("目标卡片");
     expect(html).toContain("卡片层");
     expect(html).toContain("应用动效");
+  });
+
+  it("excludes atomic motion components from apply-to-component targets", () => {
+    const html = renderToStaticMarkup(
+      <MotionRecipePanel
+        manifest={manifest}
+        targetComponents={[atomicTargetComponent, targetComponent]}
+        onApplyToTarget={vi.fn()}
+      />
+    );
+
+    expect(html).toContain("目标卡片");
+    expect(html).not.toContain("原子频道Tab");
   });
 
   it("renders nothing when no recipe binding exists", () => {

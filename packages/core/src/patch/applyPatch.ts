@@ -129,6 +129,8 @@ function applyCssProperty(content: string, selector: string, property: string, v
 }
 
 function applyTarget(content: string, target: MotionTarget, param: MotionParam, value: unknown): string {
+  if (/^(?:\/assets\/|\/@fs\/|https?:\/\/)/.test(content.trim())) return content;
+
   if (target.kind === "html-text") return applyHtmlText(content, target.selector, value);
   if (target.kind === "html-attribute")
     return applyAttribute(content, target.selector, target.attribute, value);

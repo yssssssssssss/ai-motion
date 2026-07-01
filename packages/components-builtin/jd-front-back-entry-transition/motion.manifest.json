@@ -3,15 +3,28 @@
   "id": "jd-front-back-entry-transition",
   "name": "前后进场代码动效",
   "sourceKind": "builtin-component",
-  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
-  "capabilities": ["builtin", "editable", "export-html"],
+  "runtime": {
+    "engine": "html",
+    "entry": "source/index.html",
+    "sandbox": "iframe"
+  },
+  "capabilities": [
+    "builtin",
+    "editable",
+    "export-html"
+  ],
   "params": [
     {
       "id": "cycleDuration",
       "label": "循环时长",
       "type": "duration",
       "default": 2640,
-      "constraints": { "min": 1400, "max": 5000, "step": 40, "unit": "ms" },
+      "constraints": {
+        "min": 1400,
+        "max": 5000,
+        "step": 40,
+        "unit": "ms"
+      },
       "status": "confirmed",
       "targets": [
         {
@@ -27,7 +40,12 @@
       "label": "进入距离",
       "type": "range",
       "default": 520,
-      "constraints": { "min": 0, "max": 1118, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 0,
+        "max": 1118,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
         {
@@ -43,7 +61,12 @@
       "label": "退出距离",
       "type": "range",
       "default": -520,
-      "constraints": { "min": -1118, "max": 0, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": -1118,
+        "max": 0,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
         {
@@ -59,10 +82,21 @@
       "label": "目标页图片",
       "type": "image",
       "default": null,
-      "constraints": { "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"] },
+      "constraints": {
+        "allowedFileTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ]
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/assets.css", "selector": ":root", "name": "--orders-content" }
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--orders-content"
+        }
       ]
     },
     {
@@ -70,7 +104,11 @@
       "label": "过渡泛白",
       "type": "range",
       "default": 0.72,
-      "constraints": { "min": 0, "max": 0.9, "step": 0.01 },
+      "constraints": {
+        "min": 0,
+        "max": 0.9,
+        "step": 0.01
+      },
       "status": "confirmed",
       "targets": [
         {
@@ -86,7 +124,12 @@
       "label": "屏幕圆角",
       "type": "range",
       "default": 92,
-      "constraints": { "min": 0, "max": 160, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 0,
+        "max": 160,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
         {
@@ -114,9 +157,107 @@
     }
   ],
   "groups": [
-    { "id": "timing", "label": "速度", "params": ["cycleDuration", "easing"] },
-    { "id": "trajectory", "label": "轨迹", "params": ["enterDistance", "exitDistance"] },
-    { "id": "assets", "label": "素材", "params": ["ordersContentImage"] },
-    { "id": "visual", "label": "视觉", "params": ["transitionOpacity", "windowRadius"] }
+    {
+      "id": "timing",
+      "label": "速度",
+      "params": [
+        "cycleDuration",
+        "easing"
+      ]
+    },
+    {
+      "id": "trajectory",
+      "label": "轨迹",
+      "params": [
+        "enterDistance",
+        "exitDistance"
+      ]
+    },
+    {
+      "id": "assets",
+      "label": "素材",
+      "params": [
+        "ordersContentImage"
+      ]
+    },
+    {
+      "id": "visual",
+      "label": "视觉",
+      "params": [
+        "transitionOpacity",
+        "windowRadius"
+      ]
+    }
+  ],
+  "layers": [
+    {
+      "id": "shell-frame",
+      "label": "手机外框",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--shell-frame"
+        }
+      ]
+    },
+    {
+      "id": "screen-window",
+      "label": "屏幕窗口",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "mine-content",
+      "label": "当前页内容",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--mine-content"
+        }
+      ]
+    },
+    {
+      "id": "orders-content",
+      "label": "目标页内容",
+      "kind": "image",
+      "replaceable": true,
+      "required": true,
+      "paramId": "ordersContentImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--orders-content"
+        }
+      ]
+    },
+    {
+      "id": "screen-wash",
+      "label": "过渡泛白层",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--transition-opacity"
+        }
+      ]
+    }
   ]
 }

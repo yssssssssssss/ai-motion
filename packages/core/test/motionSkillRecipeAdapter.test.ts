@@ -760,6 +760,8 @@ describe("motion skill recipe adapter", () => {
     expect(channelTabSource).toContain("background: #ff0031;");
     expect(channelTabSource).toContain("transform: translateX(42px);");
     expect(channelTabSource).toContain("channel-icon-alarm");
+    expect(channelTabSource).toContain("--channel-tab-icon-1");
+    expect(channelTabSource).toContain("background-image: var(--channel-tab-icon-6)");
     expect(channelTabSource.match(/data:image\/png;base64,/g) ?? []).toHaveLength(6);
     expect(channelTabSource).not.toContain('content: "SALE"');
     expect(channelTabSource).not.toContain("clip-path: polygon");
@@ -779,10 +781,41 @@ describe("motion skill recipe adapter", () => {
     expect(channelTabSource).toContain(".motion-switch-channel-tab.is-activating");
     expect(componentByRecipe["horizontal-switch.channel-tab.enter"]?.manifest.params).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ id: "channelTabIcon1", type: "image" }),
+        expect.objectContaining({ id: "channelTabIcon6", type: "image" }),
         expect.objectContaining({ id: "channelTabLabel1", default: "推荐" }),
         expect.objectContaining({ id: "channelTabLabel6", default: "临期清仓" })
       ])
     );
+    expect(
+      componentByRecipe["horizontal-switch.channel-tab.enter"]?.manifest.params.map((param) => param.id)
+    ).not.toContain("backgroundImage");
+    expect(
+      componentByRecipe["horizontal-switch.channel-tab.enter"]?.manifest.params.map((param) => param.id)
+    ).not.toContain("foregroundImage");
+    expect(componentByRecipe["horizontal-switch.channel-tab.enter"]?.manifest.layers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "foregroundLayer", replaceable: false }),
+        expect.objectContaining({ id: "channelTabIconLayer1", paramId: "channelTabIcon1", replaceable: true }),
+        expect.objectContaining({ id: "channelTabIconLayer6", paramId: "channelTabIcon6", replaceable: true })
+      ])
+    );
+    expect(
+      applyPatchToFiles({
+        files: Object.fromEntries(
+          componentByRecipe["horizontal-switch.channel-tab.enter"]!.source.files.map((file) => [
+            file.path,
+            file.content
+          ])
+        ),
+        manifest: componentByRecipe["horizontal-switch.channel-tab.enter"]!.manifest,
+        patch: {
+          id: "channel-tab-icons",
+          sourceManifestId: componentByRecipe["horizontal-switch.channel-tab.enter"]!.manifest.id,
+          values: { channelTabIcon3: "data:image/png;base64,ICON3" }
+        }
+      })["source/style.css"]
+    ).toContain('--channel-tab-icon-3: url("data:image/png;base64,ICON3");');
     expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain("motion-switch-text-tabs");
     expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain("--stage-width: 374px");
     expect(cssByRecipe["horizontal-switch.tab-navigation.enter"]).toContain("left: 24px;");
@@ -967,7 +1000,7 @@ describe("motion skill recipe adapter", () => {
       ".motion-skill-horizontal-switch-segmented .motion-skill-foreground {\n  display: none;"
     );
     expect(cssByRecipe["horizontal-switch.segmented.enter"]).toContain(
-      "100% { transform: translateX(72px); }"
+      "100% { transform: translateX(var(--horizontal-switch-segmented-position-keyframe-1, 72px)); width: var(--horizontal-switch-segmented-size-keyframe-2-width, 72px); }"
     );
     expect(cssByRecipe["horizontal-switch.segmented.enter"]).toContain(
       "40% { width: var(--horizontal-switch-segmented-size-keyframe-1-width, 92px);"
@@ -980,6 +1013,9 @@ describe("motion skill recipe adapter", () => {
     );
     expect(cssByRecipe["horizontal-switch.segmented.enter"]).toContain(
       ".motion-switch-segmented-track.is-moving-left::after"
+    );
+    expect(cssByRecipe["horizontal-switch.segmented.enter"]).not.toContain(
+      ".is-playing [data-motion=foregroundLayer]"
     );
     expect(cssByRecipe["horizontal-switch.segmented.enter"]).not.toContain("is-pressing");
   });

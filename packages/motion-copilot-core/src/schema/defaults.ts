@@ -33,7 +33,8 @@ function baseDocument(
       height: 720,
       background: "#eef2f6",
       backgroundFit: "cover",
-      backgroundPosition: "center"
+      backgroundPosition: "center",
+      showSafeArea: false
     },
     elements: [element],
     layers,
@@ -499,17 +500,26 @@ export function applyDocumentPatch(document: MotionDocument, patch: MotionDocume
       ? requestedLayerId
       : nextLayers.find((layer) => layer.editable)?.id;
 
-  return {
+  const visualSource =
+    patch.removeLayerId && nextBase.visualSource && !nextLayers.some((layer) => layer.editable)
+      ? undefined
+      : nextBase.visualSource;
+
+  const result: MotionDocument = {
     ...nextBase,
     ...(patch.stage ? { stage: { ...nextBase.stage, ...patch.stage } } : {}),
     elements: [nextElement],
     layers: nextLayers,
-    ...(selectedLayerId ? { selectedLayerId } : {}),
     appliedPresets: patch.appliedPresets ? clone(patch.appliedPresets) : (nextBase.appliedPresets ?? []),
     presetResolutions: patch.presetResolutions
       ? clone(patch.presetResolutions)
       : (nextBase.presetResolutions ?? []),
     timeline: patch.timeline ? { ...nextBase.timeline, ...patch.timeline } : nextBase.timeline,
-    guidelineSuggestions: []
+    guidelineSuggestions: [],
+    ...(visualSource ? { visualSource } : {})
   };
+  if (selectedLayerId) result.selectedLayerId = selectedLayerId;
+  else delete result.selectedLayerId;
+  if (!visualSource) delete result.visualSource;
+  return result;
 }

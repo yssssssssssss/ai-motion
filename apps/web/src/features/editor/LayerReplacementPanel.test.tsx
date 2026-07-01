@@ -6,6 +6,7 @@ import {
   LayerReplacementPanel,
   backgroundLayerSizePatch,
   layerReplacementParamIds,
+  layerReplacementResetParamIds,
   readLayerFileAsDataUrl
 } from "./LayerReplacementPanel";
 
@@ -118,6 +119,54 @@ describe("LayerReplacementPanel", () => {
     expect(html).not.toContain("时长");
   });
 
+  it("marks image layers as uploaded only after a user replacement exists", () => {
+    const defaultHtml = renderToStaticMarkup(
+      <LayerReplacementPanel
+        manifest={manifest}
+        patch={{ id: "patch", sourceManifestId: "layered", values: {} }}
+        onChange={vi.fn()}
+      />
+    );
+    const uploadedHtml = renderToStaticMarkup(
+      <LayerReplacementPanel
+        manifest={manifest}
+        patch={{ id: "patch", sourceManifestId: "layered", values: { heroImage: "data:image/png;base64,abc" } }}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(defaultHtml).toContain("未上传，使用默认图层");
+    expect(defaultHtml).toContain("layer-upload-status--default");
+    expect(defaultHtml).not.toContain("已上传图层");
+    expect(uploadedHtml).toContain("已上传图层");
+    expect(uploadedHtml).toContain("layer-upload-status--uploaded");
+  });
+
+  it("renders a reset action for layer defaults when available", () => {
+    const pristineHtml = renderToStaticMarkup(
+      <LayerReplacementPanel
+        manifest={manifest}
+        patch={{ id: "patch", sourceManifestId: "layered", values: {} }}
+        onChange={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+    const dirtyHtml = renderToStaticMarkup(
+      <LayerReplacementPanel
+        manifest={manifest}
+        patch={{ id: "patch", sourceManifestId: "layered", values: { heroImage: "data:image/png;base64,abc" } }}
+        onChange={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+
+    expect(pristineHtml).toContain("恢复默认");
+    expect(pristineHtml).toContain("disabled");
+    expect(dirtyHtml).toContain("恢复默认");
+    expect(dirtyHtml).not.toContain("disabled");
+    expect(layerReplacementResetParamIds(manifest)).toEqual(["heroImage", "headline"]);
+  });
+
   it("renders nothing when a component has no replaceable layers", () => {
     const patch: MotionPatch = { id: "patch", sourceManifestId: "layered", values: {} };
     expect(
@@ -129,6 +178,44 @@ describe("LayerReplacementPanel", () => {
         />
       )
     ).toBe("");
+  });
+
+  it("shows non-replaceable code layers as an inventory", () => {
+    const html = renderToStaticMarkup(
+      <LayerReplacementPanel
+        manifest={{
+          ...manifest,
+          params: [],
+          motionRecipes: [],
+          layers: [
+            {
+              id: "screen-window",
+              label: "屏幕窗口",
+              kind: "structure",
+              replaceable: false,
+              required: true,
+              targets: []
+            },
+            {
+              id: "coupon-popup",
+              label: "弹窗图片",
+              kind: "image",
+              replaceable: true,
+              required: true,
+              targets: []
+            }
+          ]
+        }}
+        patch={{ id: "patch", sourceManifestId: "layered", values: {} }}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(html).toContain("图层清单");
+    expect(html).toContain("屏幕窗口");
+    expect(html).toContain("结构层 · 结构");
+    expect(html).toContain("弹窗图片");
+    expect(html).toContain("可替换 · 图片");
   });
 
   it("renders background and foreground upload entries for atomic motion drafts", () => {
@@ -166,6 +253,41 @@ describe("LayerReplacementPanel", () => {
     expect(html).toContain("前景层宽度");
     expect(html).toContain("前景层高度");
     expect(html.indexOf("背景层尺寸")).toBeLessThan(html.lastIndexOf("背景层"));
+  });
+
+  it("renders six channel tab icon uploads instead of a foreground image upload", () => {
+    const component = generateAtomicMotionComponent({
+      elementId: "horizontal-switch",
+      variant: "频道Tab",
+      now: 1717747200000
+    });
+    const paramIds = layerReplacementParamIds(component.manifest);
+    const html = renderToStaticMarkup(
+      <LayerReplacementPanel
+        manifest={component.manifest}
+        patch={{ id: "patch", sourceManifestId: component.manifest.id, values: {} }}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(paramIds).toEqual([
+      "channelTabIcon1",
+      "channelTabIcon2",
+      "channelTabIcon3",
+      "channelTabIcon4",
+      "channelTabIcon5",
+      "channelTabIcon6",
+      "channelTabLabel1",
+      "channelTabLabel2",
+      "channelTabLabel3",
+      "channelTabLabel4",
+      "channelTabLabel5",
+      "channelTabLabel6"
+    ]);
+    expect(paramIds).not.toContain("foregroundImage");
+    expect(html).toContain("频道 Icon 1");
+    expect(html).toContain("频道 Icon 6");
+    expect(html.match(/未上传，使用默认图层/g) ?? []).toHaveLength(6);
   });
 
   it("shows image upload failures instead of failing silently", () => {

@@ -22,6 +22,8 @@
     "motion-copilot:test": "pnpm --filter @motion-copilot/core test && pnpm --filter @motion-copilot/app test",
     "motion-copilot:typecheck": "pnpm --filter @motion-copilot/app typecheck && pnpm --filter @motion-copilot/core typecheck",
     "motion-copilot:build": "pnpm --filter @motion-copilot/app build",
+    "motion-copilot:morph": "node scripts/motion-copilot-morph.mjs",
+    "zero:diagnose": "node scripts/zero-layer-diagnose.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -31,6 +33,9 @@
     "gen:workeasy:check": "node scripts/generate-workeasy-components.mjs && git diff --exit-code -- apps/web/src/data/workeasyComponents.generated.ts",
     "motion:compile": "node scripts/compile-motion-skills.mjs",
     "verify:dynamic-island-demo": "node scripts/verify-dynamic-island-design-demo-node.mjs",
+    "verify:embed-package": "node scripts/verify-embed-package-e2e.mjs",
+    "verify:nutui-embed": "node scripts/verify-nutui-react-embed.mjs",
+    "verify:zero-visual-export": "node scripts/verify-zero-visual-export.mjs",
     "deploy:cloud": "node scripts/deploy-cloud.mjs",
     "prepare": "husky"
   },

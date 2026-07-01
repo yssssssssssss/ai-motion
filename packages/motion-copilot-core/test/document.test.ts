@@ -10,6 +10,7 @@ import {
   evaluateGuidelines,
   exportHtmlCss,
   exportStandaloneHtml,
+  generateCompositionDraft,
   layerById,
   primaryElement
 } from "../src";
@@ -43,7 +44,9 @@ describe("Motion Copilot document", () => {
     });
     expect(document.selectedLayerId).toBe("user-text-1");
     expect(layerById(document, "user-text-1")).toBeDefined();
-    expect(layerById(applyDocumentPatch(document, { removeLayerId: "user-text-1" }), "user-text-1")).toBeUndefined();
+    const removed = applyDocumentPatch(document, { removeLayerId: "user-text-1" });
+    expect(layerById(removed, "user-text-1")).toBeUndefined();
+    expect(removed.selectedLayerId).toBe("modal-title");
   });
 
   it("exports image fit and layer animation metadata", () => {
@@ -88,6 +91,74 @@ describe("Motion Copilot document", () => {
     expect(button.element?.role).toBe("button");
     expect(button.timeline?.trigger).toBe("click");
     expect(button.timeline?.direction).toBe("move-inside");
+  });
+
+  it("generates deterministic composition draft steps from a prompt", () => {
+    const document = createDefaultDocument("modal");
+    const draft = generateCompositionDraft({
+      prompt: "做一个弹窗进场，标题先出现，按钮稍后轻弹",
+      document
+    });
+
+    expect(draft.summary).toBe("已生成 4 个结构化编排片段");
+    expect(draft.warnings).toEqual([]);
+    expect(draft.corrections).toEqual([]);
+    expect(draft.issues).toEqual([]);
+    expect(draft.steps.map((step) => step.label)).toEqual(["弹窗反馈", "进入屏幕", "进入屏幕", "点赞弹跳"]);
+    expect(draft.explanations.map((item) => item.title)).toEqual([
+      "图片位 · 弹窗反馈",
+      "标题 · 进入屏幕",
+      "正文 · 进入屏幕",
+      "主按钮 · 点赞弹跳"
+    ]);
+    expect(draft.explanations[0]?.reason).toContain("主体容器进场");
+    expect(draft.steps[0]).toMatchObject({
+      layerId: "modal-image",
+      timing: "sequential",
+      delayMs: 0,
+      durationMs: 260,
+      initial: { y: 24, scale: 0.96, opacity: 0 },
+      animate: { y: 0, scale: 1, opacity: 1 },
+      easing: { type: "spring" }
+    });
+    expect(draft.steps[1]).toMatchObject({
+      layerId: "modal-title",
+      timing: "parallel",
+      delayMs: 80
+    });
+    expect(draft.steps[2]).toMatchObject({
+      layerId: "modal-body",
+      timing: "parallel",
+      delayMs: 40
+    });
+    expect(draft.steps[3]).toMatchObject({
+      layerId: "modal-primary",
+      timing: "parallel",
+      delayMs: 60,
+      easing: { type: "spring" }
+    });
+    expect(generateCompositionDraft({ prompt: "做一个弹窗进场，标题先出现，按钮稍后轻弹", document })).toEqual(draft);
+  });
+
+  it("explains skipped draft steps when they conflict with existing composition slots", () => {
+    const document = createDefaultDocument("modal");
+    const existing = generateCompositionDraft({
+      prompt: "做一个弹窗进场，标题先出现，按钮稍后轻弹",
+      document
+    });
+    const next = generateCompositionDraft({
+      prompt: "做一个弹窗进场，标题先出现，按钮稍后轻弹",
+      document,
+      existingSteps: [existing.steps[0]!]
+    });
+
+    expect(next.summary).toBe("已生成 3 个结构化编排片段");
+    expect(next.steps.map((step) => step.label)).toEqual(["进入屏幕", "进入屏幕", "点赞弹跳"]);
+    expect(next.corrections).toHaveLength(1);
+    expect(next.corrections[0]).toMatchObject({
+      title: "已跳过「弹窗反馈」"
+    });
+    expect(next.corrections[0]?.reason).toContain("避免后续片段覆盖已有编排");
   });
 
   it("warns about inappropriate spring usage", () => {
@@ -139,6 +210,30 @@ describe("Motion Copilot document", () => {
     ]);
   });
 
+  it("maps exit-final selected-layer presets to a fade-out layer motion", () => {
+    const document = applyAppMotionPreset(createDefaultDocument("modal"), "exit-final", {
+      target: "selected-layer"
+    });
+    const layer = layerById(document, "modal-title");
+
+    expect(layer?.motion).toMatchObject({
+      preset: "fade",
+      durationMs: 90,
+      delayMs: 0,
+      scaleFrom: 1,
+      opacityFrom: 1,
+      opacityTo: 0,
+      easing: { type: "classic", preset: "accelerate" }
+    });
+
+    const output = exportHtmlCss(document);
+    expect(output.html).toContain("--mc-layer-opacity-from:1");
+    expect(output.html).toContain("--mc-layer-opacity-to:0");
+    expect(output.css).toContain(
+      "@keyframes mc-free-fade { from { opacity: var(--mc-layer-opacity-from, 0); } to { opacity: var(--mc-layer-opacity-to, 1); } }"
+    );
+  });
+
   it("explains when a selected-layer preset cannot be applied", () => {
     const document = {
       ...createDefaultDocument("modal"),
@@ -146,6 +241,19 @@ describe("Motion Copilot document", () => {
     };
     const next = applyAppMotionPreset(document, "horizontal-switch", { target: "selected-layer" });
 
+    expect(next.appliedPresets).toEqual([]);
+    expect(next.presetResolutions).toEqual([
+      expect.objectContaining({ title: "未应用图层动效", action: "adjusted" })
+    ]);
+  });
+
+  it("does not apply selected-layer presets to hidden layers", () => {
+    const document = applyDocumentPatch(createDefaultDocument("background"), {
+      layer: { id: "bg-layer", hidden: true }
+    });
+    const next = applyAppMotionPreset(document, "horizontal-switch", { target: "selected-layer" });
+
+    expect(layerById(next, "bg-layer")?.motion).toBeUndefined();
     expect(next.appliedPresets).toEqual([]);
     expect(next.presetResolutions).toEqual([
       expect.objectContaining({ title: "未应用图层动效", action: "adjusted" })

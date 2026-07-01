@@ -5,6 +5,7 @@ import {
   type MotionComponent
 } from "@motion-tool/core";
 import { hasRenderableSource } from "../features/library/sourceState";
+import { isNonAtomicMotionComponent } from "./componentScope";
 
 const GENERATION_PREFETCH_LIMIT = 6;
 const GENERATION_CANDIDATE_LIMIT = 3;
@@ -40,10 +41,11 @@ export async function loadControlledGenerationCandidates({
   components,
   onLoadComponentSource
 }: LoadControlledGenerationCandidatesInput): Promise<MotionComponent[]> {
-  const byId = componentById(components);
+  const candidateComponents = components.filter(isNonAtomicMotionComponent);
+  const byId = componentById(candidateComponents);
   const pinnedReferences = resolveReferenceComponents({
     brief,
-    components,
+    components: candidateComponents,
     limit: GENERATION_CANDIDATE_LIMIT
   })
     .map((reference) => byId.get(reference.componentId))
@@ -52,7 +54,7 @@ export async function loadControlledGenerationCandidates({
     ...pinnedReferences,
     ...recommendComponents({
       brief,
-      components,
+      components: candidateComponents,
       limit: GENERATION_PREFETCH_LIMIT
     })
       .map((recommendation) => byId.get(recommendation.componentId))

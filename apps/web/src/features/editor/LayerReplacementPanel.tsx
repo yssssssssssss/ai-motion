@@ -5,6 +5,7 @@ type Props = {
   manifest: MotionManifest | null;
   patch: MotionPatch | null;
   onChange: (paramId: string, value: unknown) => void;
+  onReset?: (paramIds: string[]) => void;
   uploadErrorByParamId?: Record<string, string>;
 };
 
@@ -87,7 +88,18 @@ function recipeRoleForParam(manifest: MotionManifest, param: MotionParam): strin
 }
 
 export function layerReplacementParamIds(manifest: MotionManifest): string[] {
-  return manifest.params.filter(isLayerParam).map((param) => param.id);
+  const layerParamIds = new Set(
+    (manifest.layers ?? [])
+      .filter((layer) => layer.replaceable && layer.paramId)
+      .map((layer) => layer.paramId as string)
+  );
+  const layerParamIdsInOrder = manifest.params
+    .filter((param) => layerParamIds.has(param.id))
+    .map((param) => param.id);
+  const looseLayerParamIds = manifest.params
+    .filter((param) => isLayerParam(param) && !layerParamIds.has(param.id))
+    .map((param) => param.id);
+  return [...layerParamIdsInOrder, ...looseLayerParamIds];
 }
 
 const recipeRoleLabels: Record<string, string> = {
@@ -118,8 +130,18 @@ function recipeTrackedLayers(manifest: MotionManifest): MotionLayer[] {
   );
 }
 
+function manifestLayerInventory(manifest: MotionManifest): MotionLayer[] {
+  return (manifest.layers ?? []).filter((layer) => !layer.paramId);
+}
+
 function currentValue(param: MotionParam, patch: MotionPatch): unknown {
   return patch.values[param.id] ?? param.default;
+}
+
+function hasUploadedLayerValue(param: MotionParam, patch: MotionPatch): boolean {
+  if (!Object.prototype.hasOwnProperty.call(patch.values, param.id)) return false;
+  const value = patch.values[param.id];
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function backgroundLayerSizeParams(manifest: MotionManifest): MotionParam[] {
@@ -136,6 +158,16 @@ function foregroundLayerSizeParams(manifest: MotionManifest): MotionParam[] {
     const param = paramsById.get(id);
     return param?.status === "confirmed" ? [param] : [];
   });
+}
+
+export function layerReplacementResetParamIds(manifest: MotionManifest): string[] {
+  return [
+    ...new Set([
+      ...layerReplacementParamIds(manifest),
+      ...backgroundLayerSizeParams(manifest).map((param) => param.id),
+      ...foregroundLayerSizeParams(manifest).map((param) => param.id)
+    ])
+  ];
 }
 
 function activeBackgroundLayerSizePreset(params: MotionParam[], patch: MotionPatch): string {
@@ -266,15 +298,27 @@ export function LayerReplacementPanel({
   manifest,
   patch,
   onChange,
+  onReset,
   uploadErrorByParamId
 }: Props) {
   const [localUploadErrors, setLocalUploadErrors] = useState<Record<string, string>>({});
   if (!manifest || !patch) return null;
   const params = manifest.params.filter(isLayerParam);
   const trackedLayers = recipeTrackedLayers(manifest);
+  const inventoryLayers = manifestLayerInventory(manifest);
   const sizeParams = backgroundLayerSizeParams(manifest);
   const foregroundSizeParams = foregroundLayerSizeParams(manifest);
-  if (params.length === 0 && trackedLayers.length === 0 && sizeParams.length === 0 && foregroundSizeParams.length === 0)
+  const resetParamIds = layerReplacementResetParamIds(manifest);
+  const hasResettableOverrides = resetParamIds.some((paramId) =>
+    Object.prototype.hasOwnProperty.call(patch.values, paramId)
+  );
+  if (
+    params.length === 0 &&
+    trackedLayers.length === 0 &&
+    inventoryLayers.length === 0 &&
+    sizeParams.length === 0 &&
+    foregroundSizeParams.length === 0
+  )
     return null;
   const errors = uploadErrorByParamId ?? localUploadErrors;
 
@@ -289,12 +333,28 @@ export function LayerReplacementPanel({
     });
   }
 
+  function resetLayerDefaults() {
+    if (!onReset || resetParamIds.length === 0) return;
+    setLocalUploadErrors((current) => {
+      const resetIds = new Set(resetParamIds);
+      return Object.fromEntries(Object.entries(current).filter(([paramId]) => !resetIds.has(paramId)));
+    });
+    onReset(resetParamIds);
+  }
+
   return (
     <section className="layer-panel" aria-label="图层替换">
       <div className="panel-header compact-panel-header">
         <p className="eyebrow">图层替换</p>
         <h2>替换素材与图层</h2>
       </div>
+      {onReset && resetParamIds.length > 0 ? (
+        <div className="field-toolbar">
+          <button type="button" className="ghost" disabled={!hasResettableOverrides} onClick={resetLayerDefaults}>
+            恢复默认
+          </button>
+        </div>
+      ) : null}
       <BackgroundLayerSizePanel params={sizeParams} patch={patch} onChange={onChange} />
       <ForegroundLayerSizePanel params={foregroundSizeParams} patch={patch} onChange={onChange} />
       {params.length > 0 ? (
@@ -306,6 +366,7 @@ export function LayerReplacementPanel({
 
             if (param.type === "image") {
               const uploadError = errors[param.id];
+              const hasUploadedLayer = hasUploadedLayerValue(param, patch);
 
               return (
                 <label className="field layer-field" key={param.id}>
@@ -334,10 +395,18 @@ export function LayerReplacementPanel({
                               ? error.message
                               : "图片读取失败，请重新选择图片。"
                           );
-                        });
+                      });
                     }}
                   />
-                  <output>{typeof value === "string" && value.trim() ? "已替换图片" : "使用默认图层"}</output>
+                  <output
+                    className={`layer-upload-status ${
+                      hasUploadedLayer ? "layer-upload-status--uploaded" : "layer-upload-status--default"
+                    }`}
+                    aria-label={hasUploadedLayer ? `${label}已上传图层` : `${label}未上传图层`}
+                  >
+                    <span className="layer-upload-status__dot" aria-hidden="true" />
+                    {hasUploadedLayer ? "已上传图层" : "未上传，使用默认图层"}
+                  </output>
                   {uploadError ? (
                     <small className="layer-upload-error" role="alert">
                       {uploadError}
@@ -368,6 +437,19 @@ export function LayerReplacementPanel({
             <article className="recipe-layer-item" key={layer.id}>
               <strong>{layer.label}</strong>
               <span>{recipeRoleForLayer(manifest, layer) ?? "动效图层"}</span>
+            </article>
+          ))}
+        </div>
+      ) : null}
+      {inventoryLayers.length > 0 ? (
+        <div className="layer-inventory-list" aria-label="图层清单">
+          {inventoryLayers.map((layer) => (
+            <article className="recipe-layer-item" key={layer.id}>
+              <strong>{layer.label}</strong>
+              <span>
+                {layer.replaceable ? "可替换" : "结构层"} ·{" "}
+                {layer.kind === "image" ? "图片" : layer.kind === "text" ? "文案" : "结构"}
+              </span>
             </article>
           ))}
         </div>

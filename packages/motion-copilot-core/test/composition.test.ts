@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { computeCompositionStepWindows, createClassicEasing, evaluateComposition, exportCompositionHtml, type CompositionStep } from "../src";
+import {
+  computeCompositionStepWindows,
+  createClassicEasing,
+  createDefaultDocument,
+  evaluateComposition,
+  exportCompositionHtml,
+  exportCompositionHandoffMarkdown,
+  exportCompositionJson,
+  isCompositionJsonExport,
+  validateCompositionJsonExport,
+  type CompositionStep
+} from "../src";
 
 function step(overrides: Partial<CompositionStep> & { id: string }): CompositionStep {
   return {
@@ -117,5 +128,154 @@ describe("evaluateComposition", () => {
     expect(html).toContain("opacity: 0.2");
     expect(html).toContain("opacity: 0.8");
     expect(html).toContain("cubic-bezier(0.25, 0.8, 0.35, 1)");
+  });
+
+  it("exports a stable composition json handoff with layer bindings and computed windows", () => {
+    const document = createDefaultDocument("modal");
+    const track = evaluateComposition([
+      step({
+        id: "title-in",
+        target: "selected-layer",
+        layerId: "modal-title",
+        layerName: "标题",
+        durationMs: 240
+      }),
+      step({
+        id: "image-transform",
+        presetId: "container-transform",
+        label: "容器变化",
+        slot: "scene",
+        target: "selected-layer",
+        layerId: "modal-image",
+        layerName: "图片位",
+        timing: "parallel",
+        delayMs: 80,
+        durationMs: 340,
+        initial: { scale: 0.96, opacity: 0 },
+        animate: { scale: 1, opacity: 1 },
+        easing: createClassicEasing("standard")
+      })
+    ]);
+
+    const json = exportCompositionJson(document, track);
+    const payload = JSON.parse(json) as {
+      schemaVersion: string;
+      stage: { width: number; height: number };
+      layers: Array<{ id: string; name: string }>;
+      timeline: {
+        totalDurationMs: number;
+        lanes: Array<{ id: string; label: string; stepIds: string[] }>;
+        steps: Array<{
+          id: string;
+          laneId: string;
+          startMs: number;
+          endMs: number;
+          binding: { type: string; layerId?: string; layerName?: string };
+          initial?: { scale?: number; opacity?: number };
+        }>;
+      };
+    };
+
+    expect(payload.schemaVersion).toBe("motion-copilot.composition.v1");
+    expect(payload.stage).toMatchObject({ width: 430, height: 720 });
+    expect(payload.layers.map((layer) => layer.id)).toContain("modal-title");
+    expect(payload.timeline.totalDurationMs).toBe(420);
+    expect(payload.timeline.lanes).toEqual([
+      { id: "layer:modal-title", label: "标题", binding: { type: "layer", layerId: "modal-title", layerName: "标题" }, stepIds: ["title-in"] },
+      { id: "layer:modal-image", label: "图片位", binding: { type: "layer", layerId: "modal-image", layerName: "图片位" }, stepIds: ["image-transform"] }
+    ]);
+    expect(payload.timeline.steps[0]).toMatchObject({
+      id: "title-in",
+      laneId: "layer:modal-title",
+      startMs: 0,
+      endMs: 240,
+      binding: { type: "layer", layerId: "modal-title", layerName: "标题" }
+    });
+    expect(payload.timeline.steps[1]).toMatchObject({
+      id: "image-transform",
+      laneId: "layer:modal-image",
+      startMs: 80,
+      endMs: 420,
+      initial: { scale: 0.96, opacity: 0 }
+    });
+    expect(json).not.toContain("目标对象");
+    expect(json).not.toContain("主目标");
+    expect(json).not.toContain("选中图层");
+  });
+
+  it("exports a developer-readable handoff markdown table", () => {
+    const document = createDefaultDocument("modal");
+    const track = evaluateComposition([
+      step({
+        id: "title-in",
+        target: "selected-layer",
+        layerId: "modal-title",
+        layerName: "标题",
+        durationMs: 240,
+        initial: { x: 0, y: 24, opacity: 0 },
+        animate: { x: 0, y: 0, opacity: 1 },
+        easing: createClassicEasing("decelerate")
+      }),
+      step({
+        id: "image-transform",
+        presetId: "container-transform",
+        label: "容器变化",
+        slot: "scene",
+        target: "selected-layer",
+        layerId: "modal-image",
+        layerName: "图片位",
+        timing: "parallel",
+        delayMs: 80,
+        durationMs: 340,
+        initial: { scale: 0.96, opacity: 0 },
+        animate: { scale: 1, opacity: 1 },
+        easing: createClassicEasing("standard")
+      })
+    ]);
+
+    const markdown = exportCompositionHandoffMarkdown(document, track);
+
+    expect(markdown).toContain("# Motion Copilot 编排参数表");
+    expect(markdown).toContain("| 总时长 | 420ms |");
+    expect(markdown).toContain("| 标题 | text |");
+    expect(markdown).toContain("| 1 | 标题 | 进入屏幕 | enter-screen | trajectory | 串行 | 0ms | 240ms | 240ms | classic/decelerate");
+    expect(markdown).toContain("| 2 | 图片位 | 容器变化 | container-transform | scene | 并行 | 80ms | 420ms | 340ms | classic/standard");
+    expect(markdown).toContain("x:0px, y:24px, opacity:0");
+    expect(markdown).not.toContain("目标对象");
+    expect(markdown).not.toContain("主目标");
+    expect(markdown).not.toContain("选中图层");
+  });
+
+  it("validates composition json exports at runtime", () => {
+    const document = createDefaultDocument("modal");
+    const track = evaluateComposition([
+      step({
+        id: "title-in",
+        target: "selected-layer",
+        layerId: "modal-title",
+        layerName: "标题"
+      })
+    ]);
+    const payload = JSON.parse(exportCompositionJson(document, track));
+
+    expect(validateCompositionJsonExport(payload)).toEqual({ valid: true, issues: [] });
+    expect(isCompositionJsonExport(payload)).toBe(true);
+
+    const invalid = {
+      ...payload,
+      schemaVersion: "wrong",
+      stage: { ...payload.stage, width: 0 },
+      timeline: {
+        ...payload.timeline,
+        steps: [{ ...payload.timeline.steps[0], endMs: 10 }]
+      }
+    };
+
+    const result = validateCompositionJsonExport(invalid);
+    expect(result.valid).toBe(false);
+    expect(result.issues.map((item) => item.path)).toContain("$.schemaVersion");
+    expect(result.issues.map((item) => item.path)).toContain("$.stage.width");
+    expect(result.issues.map((item) => item.path)).toContain("$.timeline.steps[0]");
+    expect(isCompositionJsonExport(invalid)).toBe(false);
   });
 });

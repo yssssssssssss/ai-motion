@@ -44,7 +44,7 @@ describe("jd product transition code component", () => {
     ).toBe(true);
   });
 
-  it("declares generation specs and non-replaceable code layers", () => {
+  it("declares generation specs and manageable code layers", () => {
     const manifest = JSON.parse(readComponentFile("motion.manifest.json"));
 
     expect(manifest.designSpecs?.map((spec) => spec.id)).toEqual(["ecommerce-transition-motion-skill"]);
@@ -56,8 +56,20 @@ describe("jd product transition code component", () => {
       "home-card",
       "detail-card"
     ]);
-    expect(manifest.layers.every((layer) => layer.replaceable === false)).toBe(true);
     expect(manifest.layers.every((layer) => layer.required === true)).toBe(true);
+    expect(manifest.layers.filter((layer) => layer.replaceable).map((layer) => layer.id)).toEqual([
+      "home-frame",
+      "detail-frame",
+      "home-card",
+      "detail-card"
+    ]);
+    expect(manifest.layers.find((layer) => layer.id === "home-frame")).toMatchObject({
+      paramId: "homeFrameImage"
+    });
+    expect(manifest.params.map((param) => param.id)).toEqual(
+      expect.arrayContaining(["homeFrameImage", "detailFrameImage", "homeCardImage", "detailCardImage"])
+    );
+    expect(manifest.motionSkill).toBeUndefined();
   });
 
   it("matches the replacement split-layer artboard and editable geometry", () => {

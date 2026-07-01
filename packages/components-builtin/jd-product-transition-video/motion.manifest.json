@@ -3,15 +3,28 @@
   "id": "jd-product-transition-video",
   "name": "商品详情转场代码动效",
   "sourceKind": "builtin-component",
-  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
-  "capabilities": ["builtin", "editable", "export-html"],
+  "runtime": {
+    "engine": "html",
+    "entry": "source/index.html",
+    "sandbox": "iframe"
+  },
+  "capabilities": [
+    "builtin",
+    "editable",
+    "export-html"
+  ],
   "params": [
     {
       "id": "transitionDuration",
       "label": "转场速度",
       "type": "duration",
       "default": 620,
-      "constraints": { "min": 220, "max": 1400, "step": 20, "unit": "ms" },
+      "constraints": {
+        "min": 220,
+        "max": 1400,
+        "step": 20,
+        "unit": "ms"
+      },
       "status": "confirmed",
       "targets": [
         {
@@ -27,10 +40,20 @@
       "label": "点击停顿",
       "type": "duration",
       "default": 110,
-      "constraints": { "min": 0, "max": 300, "step": 10, "unit": "ms" },
+      "constraints": {
+        "min": 0,
+        "max": 300,
+        "step": 10,
+        "unit": "ms"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--start-delay" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--start-delay"
+        }
       ]
     },
     {
@@ -38,10 +61,20 @@
       "label": "轨迹中点 X",
       "type": "range",
       "default": 24,
-      "constraints": { "min": 0, "max": 180, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 0,
+        "max": 180,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-x" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--mid-x"
+        }
       ]
     },
     {
@@ -49,10 +82,20 @@
       "label": "轨迹中点 Y",
       "type": "range",
       "default": 365,
-      "constraints": { "min": 180, "max": 760, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 180,
+        "max": 760,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-y" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--mid-y"
+        }
       ]
     },
     {
@@ -60,10 +103,19 @@
       "label": "中途缩放",
       "type": "range",
       "default": 0.96,
-      "constraints": { "min": 0.7, "max": 1.25, "step": 0.01 },
+      "constraints": {
+        "min": 0.7,
+        "max": 1.25,
+        "step": 0.01
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--mid-scale" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--mid-scale"
+        }
       ]
     },
     {
@@ -71,10 +123,20 @@
       "label": "终态宽度",
       "type": "range",
       "default": 708,
-      "constraints": { "min": 520, "max": 740, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 520,
+        "max": 740,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-width" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--end-width"
+        }
       ]
     },
     {
@@ -82,10 +144,20 @@
       "label": "终态高度",
       "type": "range",
       "default": 1020,
-      "constraints": { "min": 650, "max": 1100, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 650,
+        "max": 1100,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-height" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--end-height"
+        }
       ]
     },
     {
@@ -93,10 +165,20 @@
       "label": "终态 X",
       "type": "range",
       "default": 20,
-      "constraints": { "min": 0, "max": 100, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-x" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--end-x"
+        }
       ]
     },
     {
@@ -104,10 +186,20 @@
       "label": "终态 Y",
       "type": "range",
       "default": 88,
-      "constraints": { "min": 40, "max": 360, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 40,
+        "max": 360,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--end-y" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--end-y"
+        }
       ]
     },
     {
@@ -115,17 +207,149 @@
       "label": "压暗强度",
       "type": "range",
       "default": 0.72,
-      "constraints": { "min": 0, "max": 0.9, "step": 0.01 },
+      "constraints": {
+        "min": 0,
+        "max": 0.9,
+        "step": 0.01
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--dim-opacity" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--dim-opacity"
+        }
+      ]
+    },
+    {
+      "id": "homeFrameImage",
+      "label": "首页屏幕图片",
+      "type": "image",
+      "default": null,
+      "constraints": {
+        "allowedFileTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ]
+      },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--home-frame"
+        }
+      ]
+    },
+    {
+      "id": "detailFrameImage",
+      "label": "详情屏幕图片",
+      "type": "image",
+      "default": null,
+      "constraints": {
+        "allowedFileTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ]
+      },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--detail-frame"
+        }
+      ]
+    },
+    {
+      "id": "homeCardImage",
+      "label": "首页商品卡片图片",
+      "type": "image",
+      "default": null,
+      "constraints": {
+        "allowedFileTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ]
+      },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--home-card"
+        }
+      ]
+    },
+    {
+      "id": "detailCardImage",
+      "label": "详情商品卡片图片",
+      "type": "image",
+      "default": null,
+      "constraints": {
+        "allowedFileTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ]
+      },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--detail-card"
+        }
       ]
     }
   ],
   "groups": [
-    { "id": "timing", "label": "速度", "params": ["transitionDuration", "startDelay"] },
-    { "id": "trajectory", "label": "轨迹", "params": ["midX", "midY", "midScale", "endX", "endY"] },
-    { "id": "shape", "label": "形变", "params": ["endWidth", "endHeight", "dimOpacity"] }
+    {
+      "id": "timing",
+      "label": "速度",
+      "params": [
+        "transitionDuration",
+        "startDelay"
+      ]
+    },
+    {
+      "id": "trajectory",
+      "label": "轨迹",
+      "params": [
+        "midX",
+        "midY",
+        "midScale",
+        "endX",
+        "endY"
+      ]
+    },
+    {
+      "id": "shape",
+      "label": "形变",
+      "params": [
+        "endWidth",
+        "endHeight",
+        "dimOpacity"
+      ]
+    },
+    {
+      "id": "assets",
+      "label": "素材",
+      "params": [
+        "homeFrameImage",
+        "detailFrameImage",
+        "homeCardImage",
+        "detailCardImage"
+      ]
+    }
   ],
   "designSpecs": [
     {
@@ -139,17 +363,33 @@
       "id": "home-frame",
       "label": "首页屏幕",
       "kind": "image",
-      "replaceable": false,
+      "replaceable": true,
       "required": true,
-      "targets": []
+      "paramId": "homeFrameImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--home-frame"
+        }
+      ]
     },
     {
       "id": "detail-frame",
       "label": "详情屏幕",
       "kind": "image",
-      "replaceable": false,
+      "replaceable": true,
       "required": true,
-      "targets": []
+      "paramId": "detailFrameImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--detail-frame"
+        }
+      ]
     },
     {
       "id": "screen-dim",
@@ -157,7 +397,14 @@
       "kind": "structure",
       "replaceable": false,
       "required": true,
-      "targets": []
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--dim-opacity"
+        }
+      ]
     },
     {
       "id": "shared-card",
@@ -171,17 +418,33 @@
       "id": "home-card",
       "label": "首页商品卡片",
       "kind": "image",
-      "replaceable": false,
+      "replaceable": true,
       "required": true,
-      "targets": []
+      "paramId": "homeCardImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--home-card"
+        }
+      ]
     },
     {
       "id": "detail-card",
       "label": "详情商品卡片",
       "kind": "image",
-      "replaceable": false,
+      "replaceable": true,
       "required": true,
-      "targets": []
+      "paramId": "detailCardImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--detail-card"
+        }
+      ]
     }
   ]
 }

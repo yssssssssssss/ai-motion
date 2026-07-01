@@ -8,6 +8,7 @@ import { applyMotionRecipeToComponent, applyPatchToFiles, type MotionComponent }
 import { hasRenderableSource } from "./features/library/sourceState";
 import type { MotionProject } from "./state/projectStore";
 import { atomicMotionFeedComponents } from "./services/atomicMotionGeneration";
+import { isNonAtomicMotionComponent } from "./services/componentScope";
 
 async function loadInitialComponents(): Promise<MotionComponent[]> {
   const [{ loadBuiltinComponents }, { workEasyComponents }] = await Promise.all([
@@ -71,7 +72,7 @@ export function App() {
   const [generatedDraftComponent, setGeneratedDraftComponent] = useState<MotionComponent | null>(null);
   const [isGeneratedEditorOpen, setIsGeneratedEditorOpen] = useState(false);
   const [homeBriefMode, setHomeBriefMode] = useState<BriefPanelMode>("recommend");
-  const { project, startProject, updateParam, replay, resetParams } = useProject();
+  const { project, startProject, updateParam, replay, resetParams, resetParamIds } = useProject();
   const importFlow = useImportFlow();
 
   useEffect(() => {
@@ -192,8 +193,11 @@ export function App() {
         onParamChange={updateParam}
         onReplay={replay}
         onResetParams={resetParams}
+        onResetParamIds={resetParamIds}
         {...(selectedComponentId ? { onDelete: deleteSelectedComponent } : {})}
-        recipeTargetComponents={components.filter((component) => component.id !== selectedComponentId)}
+        recipeTargetComponents={components.filter(
+          (component) => component.id !== selectedComponentId && isNonAtomicMotionComponent(component)
+        )}
         onApplyRecipeToTarget={applyCurrentRecipeToTarget}
       />
     );
@@ -229,8 +233,10 @@ export function App() {
               onParamChange={updateParam}
               onReplay={replay}
               onResetParams={resetParams}
+              onResetParamIds={resetParamIds}
               recipeTargetComponents={components.filter(
-                (component) => component.id !== generatedDraftComponent?.id
+                (component) =>
+                  component.id !== generatedDraftComponent?.id && isNonAtomicMotionComponent(component)
               )}
               onApplyRecipeToTarget={applyCurrentRecipeToTarget}
               onSave={saveGeneratedComponent}

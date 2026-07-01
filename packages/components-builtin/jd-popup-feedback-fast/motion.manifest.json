@@ -3,15 +3,28 @@
   "id": "jd-popup-feedback-fast",
   "name": "弹窗反馈-迅速代码动效",
   "sourceKind": "builtin-component",
-  "runtime": { "engine": "html", "entry": "source/index.html", "sandbox": "iframe" },
-  "capabilities": ["builtin", "editable", "export-html"],
+  "runtime": {
+    "engine": "html",
+    "entry": "source/index.html",
+    "sandbox": "iframe"
+  },
+  "capabilities": [
+    "builtin",
+    "editable",
+    "export-html"
+  ],
   "params": [
     {
       "id": "cycleDuration",
       "label": "循环时长",
       "type": "duration",
       "default": 4040,
-      "constraints": { "min": 1800, "max": 7000, "step": 40, "unit": "ms" },
+      "constraints": {
+        "min": 1800,
+        "max": 7000,
+        "step": 40,
+        "unit": "ms"
+      },
       "status": "confirmed",
       "targets": [
         {
@@ -27,10 +40,19 @@
       "label": "遮罩强度",
       "type": "range",
       "default": 0.68,
-      "constraints": { "min": 0, "max": 0.9, "step": 0.01 },
+      "constraints": {
+        "min": 0,
+        "max": 0.9,
+        "step": 0.01
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--dim-opacity" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--dim-opacity"
+        }
       ]
     },
     {
@@ -38,10 +60,19 @@
       "label": "消失缩放",
       "type": "range",
       "default": 0.96,
-      "constraints": { "min": 0.75, "max": 1.1, "step": 0.01 },
+      "constraints": {
+        "min": 0.75,
+        "max": 1.1,
+        "step": 0.01
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--dismiss-scale" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--dismiss-scale"
+        }
       ]
     },
     {
@@ -49,10 +80,20 @@
       "label": "弹窗 X",
       "type": "range",
       "default": 120,
-      "constraints": { "min": 0, "max": 260, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 0,
+        "max": 260,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-x" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--popup-x"
+        }
       ]
     },
     {
@@ -60,10 +101,20 @@
       "label": "弹窗 Y",
       "type": "range",
       "default": 548,
-      "constraints": { "min": 360, "max": 760, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 360,
+        "max": 760,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-y" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--popup-y"
+        }
       ]
     },
     {
@@ -71,10 +122,20 @@
       "label": "弹窗宽度",
       "type": "range",
       "default": 874,
-      "constraints": { "min": 640, "max": 1000, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 640,
+        "max": 1000,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-width" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--popup-width"
+        }
       ]
     },
     {
@@ -82,10 +143,20 @@
       "label": "弹窗高度",
       "type": "range",
       "default": 1134,
-      "constraints": { "min": 820, "max": 1320, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 820,
+        "max": 1320,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--popup-height" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--popup-height"
+        }
       ]
     },
     {
@@ -93,10 +164,21 @@
       "label": "弹窗图片",
       "type": "image",
       "default": null,
-      "constraints": { "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"] },
+      "constraints": {
+        "allowedFileTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ]
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/assets.css", "selector": ":root", "name": "--coupon-popup" }
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--coupon-popup"
+        }
       ]
     },
     {
@@ -104,10 +186,20 @@
       "label": "反馈 X",
       "type": "range",
       "default": 610,
-      "constraints": { "min": 400, "max": 760, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 400,
+        "max": 760,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--ripple-x" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--ripple-x"
+        }
       ]
     },
     {
@@ -115,10 +207,20 @@
       "label": "反馈 Y",
       "type": "range",
       "default": 1829,
-      "constraints": { "min": 1600, "max": 2040, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 1600,
+        "max": 2040,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--ripple-y" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--ripple-y"
+        }
       ]
     },
     {
@@ -126,10 +228,20 @@
       "label": "反馈范围",
       "type": "range",
       "default": 152,
-      "constraints": { "min": 72, "max": 240, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 72,
+        "max": 240,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
-        { "kind": "css-variable", "file": "source/style.css", "selector": ":root", "name": "--ripple-size" }
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--ripple-size"
+        }
       ]
     },
     {
@@ -137,7 +249,12 @@
       "label": "屏幕圆角",
       "type": "range",
       "default": 92,
-      "constraints": { "min": 0, "max": 160, "step": 1, "unit": "px" },
+      "constraints": {
+        "min": 0,
+        "max": 160,
+        "step": 1,
+        "unit": "px"
+      },
       "status": "confirmed",
       "targets": [
         {
@@ -165,10 +282,142 @@
     }
   ],
   "groups": [
-    { "id": "timing", "label": "速度", "params": ["cycleDuration", "easing"] },
-    { "id": "layout", "label": "布局", "params": ["popupX", "popupY", "popupWidth", "popupHeight"] },
-    { "id": "assets", "label": "素材", "params": ["couponPopupImage"] },
-    { "id": "feedback", "label": "反馈", "params": ["rippleX", "rippleY", "rippleSize"] },
-    { "id": "visual", "label": "视觉", "params": ["dimOpacity", "dismissScale", "windowRadius"] }
+    {
+      "id": "timing",
+      "label": "速度",
+      "params": [
+        "cycleDuration",
+        "easing"
+      ]
+    },
+    {
+      "id": "layout",
+      "label": "布局",
+      "params": [
+        "popupX",
+        "popupY",
+        "popupWidth",
+        "popupHeight"
+      ]
+    },
+    {
+      "id": "assets",
+      "label": "素材",
+      "params": [
+        "couponPopupImage"
+      ]
+    },
+    {
+      "id": "feedback",
+      "label": "反馈",
+      "params": [
+        "rippleX",
+        "rippleY",
+        "rippleSize"
+      ]
+    },
+    {
+      "id": "visual",
+      "label": "视觉",
+      "params": [
+        "dimOpacity",
+        "dismissScale",
+        "windowRadius"
+      ]
+    }
+  ],
+  "layers": [
+    {
+      "id": "shell-frame",
+      "label": "手机外框",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--shell-frame"
+        }
+      ]
+    },
+    {
+      "id": "screen-window",
+      "label": "屏幕窗口",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "product-screen",
+      "label": "商品页背景",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--product-screen"
+        }
+      ]
+    },
+    {
+      "id": "screen-dim",
+      "label": "遮罩层",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--dim-opacity"
+        }
+      ]
+    },
+    {
+      "id": "coupon-popup",
+      "label": "弹窗图片",
+      "kind": "image",
+      "replaceable": true,
+      "required": true,
+      "paramId": "couponPopupImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--coupon-popup"
+        }
+      ]
+    },
+    {
+      "id": "close-button",
+      "label": "关闭按钮",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "feedback-ripple",
+      "label": "点击反馈波纹",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--ripple-size"
+        }
+      ]
+    }
   ]
 }

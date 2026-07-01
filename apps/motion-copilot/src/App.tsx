@@ -9,10 +9,14 @@ import {
   createClassicEasing,
   createDefaultDocument,
   createSpringEasing,
+  createVisualTimelineCss,
+  createVisualTimelineCssForTrack,
   easedProgress,
   evaluateComposition,
   evaluateGuidelines,
   exportCompositionHtml,
+  exportCompositionHandoffMarkdown,
+  exportCompositionJson,
   exportHtmlCss,
   exportStandaloneHtml,
   layerById,
@@ -22,9 +26,11 @@ import {
   type AppMotionPresetDefinition,
   type AppMotionPresetId,
   type ClassicEasingPreset,
+  type CompositionDraftGeneration,
   type CompositionStep,
   type CompositionTrack,
   type EasingSpec,
+  type FrameMorphCompositionResult,
   type GuidelineSuggestion,
   type ImageFit,
   type ImagePosition,
@@ -35,8 +41,21 @@ import {
   type MotionLayerKind,
   type MotionSize,
   type MotionState,
-  type SuggestionStatus
+  type SuggestionStatus,
+  type ZeroLayerMotionBindingResult,
+  type ZeroLayerMotionCompositionResult,
+  type ZeroLayerMorphSource,
+  type ZeroLayerNodeOverride,
+  type ZeroLayerSnapshot,
+  type VisualMotionBindingResult,
+  type VisualMotionCompositionResult,
+  type ZeroVisualSnapshot
 } from "@motion-copilot/core";
+import { generateDraftViaService } from "./services/generateDraftClient";
+import { FrameMorphPanel } from "./features/frameMorph/FrameMorphPanel";
+import { VisualStage } from "./features/visualStage/VisualStage";
+import { ZeroLayerMorphPanel } from "./features/zeroLayerMorph/ZeroLayerMorphPanel";
+import { ZeroLayerMotionStage } from "./features/zeroLayerMorph/ZeroLayerStage";
 
 const defaultPrompt = "做一个中型弹窗，弹性一点出现";
 const loopIntervalMs = 500;
@@ -62,6 +81,8 @@ type LayerLayoutPatch = Partial<NonNullable<MotionLayer["layout"]>>;
 type CompositionLaneTarget = Pick<CompositionStep, "target" | "layerId" | "layerName">;
 type CompositionLaneDropTarget = CompositionLaneTarget & { startMs?: number };
 type PresetLibraryTabId = "recommended" | "combo" | AppMotionPresetDefinition["scene"];
+type InspectorTab = "property" | "guideline" | "frameMorph";
+type FrameMotionWorkspaceMode = "zeroNative" | "visual" | "legacy";
 type CompositionPresetCombo = {
   id: string;
   label: string;
@@ -88,6 +109,8 @@ const compositionMotionFields: Array<{
 }> = [
   { field: "x", label: "X", step: "1" },
   { field: "y", label: "Y", step: "1" },
+  { field: "width", label: "宽度", step: "1", min: 0 },
+  { field: "height", label: "高度", step: "1", min: 0 },
   { field: "scale", label: "缩放", step: "0.01", min: 0 },
   { field: "opacity", label: "透明度", step: "0.05", min: 0, max: 1 },
   { field: "blur", label: "模糊", step: "1", min: 0 },
@@ -96,6 +119,8 @@ const compositionMotionFields: Array<{
 const baseMotionState: Required<MotionState> = {
   x: 0,
   y: 0,
+  width: 0,
+  height: 0,
   scale: 1,
   opacity: 1,
   blur: 0,
@@ -260,8 +285,16 @@ const stagePresetOptions: Array<{
 }> = [
   { value: "iphone-15", label: "iPhone 15 · 393 × 852", stage: { mode: "mobile", width: 393, height: 852 } },
   { value: "iphone-se", label: "iPhone SE · 375 × 667", stage: { mode: "mobile", width: 375, height: 667 } },
-  { value: "android-360", label: "Android 360 · 360 × 800", stage: { mode: "mobile", width: 360, height: 800 } },
-  { value: "android-412", label: "Android 412 · 412 × 915", stage: { mode: "mobile", width: 412, height: 915 } },
+  {
+    value: "android-360",
+    label: "Android 360 · 360 × 800",
+    stage: { mode: "mobile", width: 360, height: 800 }
+  },
+  {
+    value: "android-412",
+    label: "Android 412 · 412 × 915",
+    stage: { mode: "mobile", width: 412, height: 915 }
+  },
   { value: "iphone-14", label: "iPhone 14 · 390 × 844", stage: { mode: "mobile", width: 390, height: 844 } },
   { value: "web-1440", label: "Web 1440 · 1440 × 900", stage: { mode: "web", width: 1440, height: 900 } }
 ];
@@ -275,15 +308,11 @@ const motionOptions: Array<{ value: LayerMotionPreset; label: string }> = [
 ];
 
 function createBlankDocument(): MotionDocument {
-  return withGuidelines(
-    applyDocumentPatch(createDefaultDocument("background"), {
-      element: {
-        initial: { opacity: 0, y: 0, scale: 1, blur: 0 },
-        animate: { opacity: 0, y: 0, scale: 1, blur: 0 }
-      },
-      layer: { id: "bg-layer", hidden: true }
-    })
-  );
+  const { selectedLayerId: _selectedLayerId, ...document } = createDefaultDocument("background");
+  return withGuidelines({
+    ...document,
+    layers: []
+  });
 }
 
 function createExampleDocument(): MotionDocument {
@@ -292,11 +321,237 @@ function createExampleDocument(): MotionDocument {
   );
 }
 
+function hasVisibleCanvasContent(document: MotionDocument): boolean {
+  if (
+    document.visualSource?.kind === "zero-visual-morph" &&
+    document.layers.some((layer) => !layer.hidden && isZeroVisualLayerId(layer.id))
+  ) {
+    return true;
+  }
+  if (
+    document.visualSource?.kind === "zero-layer-morph" &&
+    document.layers.some((layer) => !layer.hidden && isZeroLayerLayerId(layer.id))
+  ) {
+    return true;
+  }
+  if (document.stage.backgroundImage) return true;
+  if (primaryElement(document).role !== "background") return document.layers.some((layer) => !layer.hidden);
+  return document.layers.some((layer) => Boolean(layer.layout) && !layer.hidden);
+}
+
+function isZeroVisualLayerId(layerId: string | undefined): boolean {
+  return Boolean(layerId?.startsWith("zero-visual-"));
+}
+
+function zeroVisualLayerIdForNode(nodeId: string): string {
+  return `zero-visual-${nodeId.replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
+}
+
+function isZeroLayerLayerId(layerId: string | undefined): boolean {
+  return Boolean(layerId?.startsWith("zero-layer-"));
+}
+
+function zeroLayerSafeId(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function zeroLayerLayerIdForNode(nodeId: string): string {
+  return `zero-layer-${zeroLayerSafeId(nodeId) || "node"}`;
+}
+
+type ZeroLayerOverrideTarget = Pick<ZeroLayerNodeOverride, "frame" | "nodeId">;
+
+function finiteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function zeroLayerLayerIdForSelection(source: ZeroLayerMorphSource, nodeId: string): string {
+  const binding = source.bindingResult.bindings.find(
+    (item) => item.nodeId === nodeId || item.toNodeId === nodeId
+  );
+  return binding?.layerId ?? zeroLayerLayerIdForNode(nodeId);
+}
+
+function zeroLayerNodeIdForLayerId(
+  source: ZeroLayerMorphSource | undefined,
+  layerId: string | undefined
+): string | undefined {
+  if (!source || !layerId) return undefined;
+  const binding = source.bindingResult.bindings.find((item) => item.layerId === layerId);
+  if (binding) return binding.nodeId;
+  const fromNode = source.from.layers.find((node) => zeroLayerLayerIdForNode(node.nodeId) === layerId);
+  if (fromNode) return fromNode.nodeId;
+  return source.to.layers.find((node) => zeroLayerLayerIdForNode(node.nodeId) === layerId)?.nodeId;
+}
+
+function zeroLayerOverrideTargetsForLayerId(
+  source: ZeroLayerMorphSource,
+  layerId: string | undefined
+): ZeroLayerOverrideTarget[] {
+  if (!layerId) return [];
+  const binding = source.bindingResult.bindings.find((item) => item.layerId === layerId);
+  if (binding) {
+    return [
+      { frame: "from", nodeId: binding.nodeId },
+      { frame: "to", nodeId: binding.toNodeId }
+    ];
+  }
+  const fromNode = source.from.layers.find((node) => zeroLayerLayerIdForNode(node.nodeId) === layerId);
+  if (fromNode) return [{ frame: "from", nodeId: fromNode.nodeId }];
+  const toNode = source.to.layers.find((node) => zeroLayerLayerIdForNode(node.nodeId) === layerId);
+  return toNode ? [{ frame: "to", nodeId: toNode.nodeId }] : [];
+}
+
+function zeroLayerOverridePatchFromLayerPatch(
+  layerPatch: MotionDocumentPatch["layer"] | undefined
+): Partial<Omit<ZeroLayerNodeOverride, "frame" | "nodeId">> | undefined {
+  if (!layerPatch) return undefined;
+  const next: Partial<Omit<ZeroLayerNodeOverride, "frame" | "nodeId">> = {};
+  if (finiteNumber(layerPatch.layout?.x)) next.x = layerPatch.layout.x;
+  if (finiteNumber(layerPatch.layout?.y)) next.y = layerPatch.layout.y;
+  if (finiteNumber(layerPatch.layout?.width)) next.width = layerPatch.layout.width;
+  if (finiteNumber(layerPatch.layout?.height)) next.height = layerPatch.layout.height;
+  if (finiteNumber(layerPatch.style?.radius)) next.cornerRadius = layerPatch.style.radius;
+  if (finiteNumber(layerPatch.style?.opacity)) next.opacity = layerPatch.style.opacity;
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function withZeroLayerSourceOverrides(document: MotionDocument, patch: MotionDocumentPatch): MotionDocument {
+  if (document.visualSource?.kind !== "zero-layer-morph" || !patch.layer) return document;
+  const source = document.visualSource;
+  const overridePatch = zeroLayerOverridePatchFromLayerPatch(patch.layer);
+  if (!overridePatch) return document;
+  const targets = zeroLayerOverrideTargetsForLayerId(source, patch.layer.id);
+  if (targets.length === 0) return document;
+  const current = source.nodeOverrides ?? [];
+  const retained = current.filter(
+    (override) =>
+      !targets.some(
+        (target) =>
+          target.nodeId === override.nodeId && (override.frame === target.frame || override.frame === "both")
+      )
+  );
+  const nextOverrides = [...retained];
+  for (const target of targets) {
+    const previous = current.find(
+      (override) =>
+        override.nodeId === target.nodeId && (override.frame === target.frame || override.frame === "both")
+    );
+    nextOverrides.push({ ...previous, ...target, ...overridePatch });
+  }
+  return {
+    ...document,
+    visualSource: {
+      ...source,
+      nodeOverrides: nextOverrides
+    }
+  };
+}
+
+function isZeroVisualStep(step: CompositionStep): boolean {
+  return (
+    step.presetId === "zero-visual-morph" ||
+    isZeroVisualLayerId(step.layerId) ||
+    step.id.startsWith("zero-visual-")
+  );
+}
+
+function isZeroLayerStep(step: CompositionStep): boolean {
+  return (
+    step.presetId === "zero-layer-morph" ||
+    isZeroLayerLayerId(step.layerId) ||
+    step.id.startsWith("zero-layer-")
+  );
+}
+
+function clearVisualSource(document: MotionDocument): MotionDocument {
+  if (document.visualSource?.kind !== "zero-visual-morph") return document;
+  const {
+    visualSource: _visualSource,
+    composition: _composition,
+    selectedLayerId: _selectedLayerId,
+    ...rest
+  } = document;
+  const selectedLayerId = rest.layers.find((layer) => layer.editable)?.id;
+  return selectedLayerId ? { ...rest, selectedLayerId } : rest;
+}
+
+function clearZeroVisualState(document: MotionDocument): MotionDocument {
+  const cleared = clearVisualSource(document);
+  const layers = cleared.layers.filter((layer) => !isZeroVisualLayerId(layer.id));
+  const selectedLayerId =
+    cleared.selectedLayerId && layers.some((layer) => layer.id === cleared.selectedLayerId)
+      ? cleared.selectedLayerId
+      : layers.find((layer) => layer.editable)?.id;
+  const { selectedLayerId: _selectedLayerId, ...rest } = cleared;
+  return selectedLayerId ? { ...rest, layers, selectedLayerId } : { ...rest, layers };
+}
+
+function clearZeroLayerSource(document: MotionDocument): MotionDocument {
+  if (document.visualSource?.kind !== "zero-layer-morph") return document;
+  const {
+    visualSource: _visualSource,
+    composition: _composition,
+    selectedLayerId: _selectedLayerId,
+    ...rest
+  } = document;
+  const selectedLayerId = rest.layers.find((layer) => layer.editable && !isZeroLayerLayerId(layer.id))?.id;
+  return selectedLayerId ? { ...rest, selectedLayerId } : rest;
+}
+
+function clearZeroLayerState(document: MotionDocument): MotionDocument {
+  const cleared = clearZeroLayerSource(document);
+  const layers = cleared.layers.filter((layer) => !isZeroLayerLayerId(layer.id));
+  const selectedLayerId =
+    cleared.selectedLayerId && layers.some((layer) => layer.id === cleared.selectedLayerId)
+      ? cleared.selectedLayerId
+      : layers.find((layer) => layer.editable)?.id;
+  const { selectedLayerId: _selectedLayerId, ...rest } = cleared;
+  return selectedLayerId ? { ...rest, layers, selectedLayerId } : { ...rest, layers };
+}
+
+function isFrameMorphDocument(document: MotionDocument): boolean {
+  if (document.stage.mode !== "custom") return false;
+  const element = primaryElement(document);
+  if (element.role !== "background") return false;
+  return (
+    Boolean(document.stage.backgroundImage) ||
+    element.name.includes("→") ||
+    document.timeline.direction === "move-inside" ||
+    document.layers.some((layer) => layer.id.startsWith("zero-")) ||
+    Boolean(document.composition?.steps.some((step) => step.id.startsWith("frame-")))
+  );
+}
+
+function stripFrameMorphGuidelines(document: MotionDocument): MotionDocument {
+  if (!isFrameMorphDocument(document)) return document;
+  const { backgroundImage: _backgroundImage, backgroundAlt: _backgroundAlt, ...stage } = document.stage;
+  return {
+    ...document,
+    stage: {
+      ...stage,
+      background: "transparent",
+      backgroundFit: "fill",
+      backgroundPosition: "center"
+    },
+    guidelineSuggestions: []
+  };
+}
+
 function styleForLayer(layer: MotionLayer | undefined): React.CSSProperties {
   return {
     ...(layer?.style?.background ? { backgroundColor: layer.style.background } : {}),
     ...(layer?.style?.color ? { color: layer.style.color } : {}),
+    ...(layer?.style?.borderColor ? { borderColor: layer.style.borderColor } : {}),
+    ...(layer?.style?.boxShadow ? { boxShadow: layer.style.boxShadow } : {}),
+    ...(layer?.style?.fontFamily ? { fontFamily: layer.style.fontFamily } : {}),
+    ...(layer?.style?.textDecoration ? { textDecoration: layer.style.textDecoration } : {}),
     ...(typeof layer?.style?.radius === "number" ? { borderRadius: layer.style.radius } : {}),
+    ...(typeof layer?.style?.borderWidth === "number" ? { borderWidth: layer.style.borderWidth } : {}),
     ...(typeof layer?.style?.opacity === "number" ? { opacity: layer.style.opacity } : {}),
     ...(typeof layer?.style?.fontSize === "number" ? { fontSize: layer.style.fontSize } : {}),
     ...(typeof layer?.style?.fontWeight === "number" ? { fontWeight: layer.style.fontWeight } : {}),
@@ -331,11 +586,20 @@ function layerMotionClass(layer: MotionLayer): string {
   return preset && preset !== "none" ? `motion-${preset}` : "";
 }
 
-function layerMotionStyle(layer: MotionLayer): React.CSSProperties {
+type LayerMotionCssProperties = React.CSSProperties & {
+  "--mc-layer-opacity-from"?: number;
+  "--mc-layer-opacity-to"?: number;
+  "--mc-layer-scale-from"?: number;
+};
+
+function layerMotionStyle(layer: MotionLayer): LayerMotionCssProperties {
   return layer.motion
     ? {
         animationDuration: `${layer.motion.durationMs}ms`,
-        animationDelay: `${layer.motion.delayMs}ms`
+        animationDelay: `${layer.motion.delayMs}ms`,
+        "--mc-layer-opacity-from": layer.motion.opacityFrom ?? 0,
+        "--mc-layer-opacity-to": layer.motion.opacityTo ?? 1,
+        "--mc-layer-scale-from": layer.motion.scaleFrom ?? 0.92
       }
     : {};
 }
@@ -494,6 +758,7 @@ function readSavedWorkspace(): SavedWorkspace | undefined {
 }
 
 function isUnsupportedFreeLayer(layer: MotionLayer): boolean {
+  if (layer.id.startsWith("zero-")) return false;
   return Boolean(layer.layout && (layer.kind === "shape" || layer.kind === "button"));
 }
 
@@ -521,7 +786,7 @@ function normalizeMotionDocument(document: MotionDocument): MotionDocument {
 }
 
 function normalizeSavedWorkspace(workspace: SavedWorkspace): SavedWorkspace {
-  const document = normalizeMotionDocument(workspace.document);
+  const document = stripFrameMorphGuidelines(normalizeMotionDocument(workspace.document));
   const existingLayerIds = new Set(document.layers.map((layer) => layer.id));
   return {
     ...workspace,
@@ -553,6 +818,8 @@ function sampleState(initial: MotionState, animate: MotionState, progress: numbe
   return {
     x: sampleValue(initial.x, animate.x, progress, 0),
     y: sampleValue(initial.y, animate.y, progress, 0),
+    width: sampleValue(initial.width, animate.width, progress, 0),
+    height: sampleValue(initial.height, animate.height, progress, 0),
     scale: sampleValue(initial.scale, animate.scale, progress, 1),
     opacity: sampleValue(initial.opacity, animate.opacity, progress, 1),
     blur: sampleValue(initial.blur, animate.blur, progress, 0),
@@ -565,7 +832,14 @@ function compositionStepMotion(
   step: CompositionStep
 ): { initial: Required<MotionState>; animate: Required<MotionState>; easing: EasingSpec } | undefined {
   const preset = appMotionPresetById.get(step.presetId as AppMotionPresetId);
-  if (!preset) return undefined;
+  if (!preset) {
+    if (!step.initial && !step.animate) return undefined;
+    return {
+      initial: { ...baseMotionState, ...(step.initial ?? {}) },
+      animate: { ...baseMotionState, ...(step.animate ?? {}) },
+      easing: step.easing ?? document.timeline.easing
+    };
+  }
   const patch = preset.apply(document);
   return {
     initial: { ...baseMotionState, ...(patch.element?.initial ?? {}), ...(step.initial ?? {}) },
@@ -631,26 +905,74 @@ function activeCompositionStepsByTarget(
   const currentMs = clampProgress(playhead) * track.totalDurationMs;
   const stepById = new Map(track.steps.map((step) => [step.id, step]));
   for (const window of computeCompositionStepWindows(track.steps)) {
-    if (currentMs < window.start || currentMs > window.end) continue;
     const step = stepById.get(window.stepId);
     if (!step) continue;
+    const fillMode = step.fillMode ?? "none";
+    let progress: number | undefined;
+    if (currentMs >= window.start && currentMs <= window.end) {
+      progress = (currentMs - window.start) / Math.max(1, step.durationMs);
+    } else if (currentMs > window.end && (fillMode === "forwards" || fillMode === "both")) {
+      progress = 1;
+    } else if (currentMs < window.start && fillMode === "both") {
+      progress = 0;
+    }
+    if (progress == null) continue;
     const key = step.target === "selected-layer" ? `layer:${step.layerId ?? ""}` : "target:primary";
-    result.set(key, { step, progress: (currentMs - window.start) / Math.max(1, step.durationMs) });
+    result.set(key, { step, progress });
   }
   return result;
+}
+
+function compositionStepWindowProgress(
+  track: CompositionTrack | undefined,
+  stepId: string,
+  playhead: number
+): "before" | "active" | "after" | undefined {
+  if (!track || track.totalDurationMs <= 0) return undefined;
+  const window = computeCompositionStepWindows(track.steps).find((item) => item.stepId === stepId);
+  if (!window) return undefined;
+  const currentMs = clampProgress(playhead) * track.totalDurationMs;
+  if (currentMs < window.start) return "before";
+  if (currentMs > window.end) return "after";
+  return "active";
+}
+
+function layerTimelineVisibility(
+  compositionTrack: CompositionTrack | undefined,
+  playhead: number,
+  layer: MotionLayer
+): React.CSSProperties {
+  const step = compositionTrack?.steps.find((item) => item.layerId === layer.id);
+  if (!step) return {};
+  const role = step.id.startsWith("frame-enter-")
+    ? "enter"
+    : step.id.startsWith("frame-exit-")
+      ? "exit"
+      : "matched";
+  const windowProgress = compositionStepWindowProgress(compositionTrack, step.id, playhead);
+  if (role === "enter" && windowProgress === "before") return { display: "none", pointerEvents: "none" };
+  if (role === "exit" && windowProgress === "after") return { display: "none", pointerEvents: "none" };
+  return {};
 }
 
 function compositionLayerStyle(
   document: MotionDocument,
   activeSteps: Map<string, { step: CompositionStep; progress: number }>,
-  layer: MotionLayer | undefined
+  layer: MotionLayer | undefined,
+  options: { disabled?: boolean } = {}
 ): React.CSSProperties {
   if (!layer) return {};
+  if (options.disabled) return {};
   const active = activeSteps.get(`layer:${layer.id}`);
   const state = active ? compositionStepState(document, active.step, active.progress) : undefined;
-  return state
-    ? { transform: transformForState(state), opacity: state.opacity, filter: `blur(${state.blur}px)` }
-    : {};
+  if (!state) return {};
+  return {
+    transform: transformForState(state),
+    opacity: state.opacity,
+    filter: `blur(${state.blur}px)`,
+    ...(state.width > 0 ? { width: `${(state.width / document.stage.width) * 100}%` } : {}),
+    ...(state.height > 0 ? { height: `${(state.height / document.stage.height) * 100}%` } : {})
+  };
 }
 
 function targetProgress(document: MotionDocument, playhead: number): number {
@@ -662,6 +984,7 @@ function targetProgress(document: MotionDocument, playhead: number): number {
 }
 
 function withGuidelines(document: MotionDocument): MotionDocument {
+  if (isFrameMorphDocument(document)) return { ...document, guidelineSuggestions: [] };
   return { ...document, guidelineSuggestions: evaluateGuidelines(document) };
 }
 
@@ -723,7 +1046,6 @@ function addLayer(document: MotionDocument, kind: MotionLayerKind): MotionLayer 
 
 function CanvasPreview({
   document,
-  isEmpty,
   compositionTrack,
   suggestions,
   playhead,
@@ -736,13 +1058,10 @@ function CanvasPreview({
   onToggleLoop,
   onReset,
   onSeek,
-  onCreateBlank,
-  onLoadExample,
   onSelect,
   onMoveLayer
 }: {
   document: MotionDocument;
-  isEmpty: boolean;
   compositionTrack?: CompositionTrack;
   suggestions: GuidelineSuggestion[];
   playhead: number;
@@ -755,8 +1074,6 @@ function CanvasPreview({
   onToggleLoop: () => void;
   onReset: () => void;
   onSeek: (progress: number) => void;
-  onCreateBlank: () => void;
-  onLoadExample: () => void;
   onSelect: (layerId: string) => void;
   onMoveLayer: (layerId: string, layout: LayerLayoutPatch) => void;
 }) {
@@ -765,6 +1082,7 @@ function CanvasPreview({
     () => activeCompositionStepsByTarget(compositionTrack, playhead),
     [compositionTrack, playhead]
   );
+  const visibleSuggestions = isFrameMorphDocument(document) ? [] : suggestions;
   const baseSampled = sampleState(element.initial, element.animate, targetProgress(document, playhead));
   const activeTargetStep = activeSteps.get("target:primary");
   const compositionSampled = activeTargetStep
@@ -783,6 +1101,28 @@ function CanvasPreview({
   const freeLayers = document.layers
     .filter((layer) => layer.layout && !layer.hidden)
     .sort((left, right) => (left.layout?.zIndex ?? 0) - (right.layout?.zIndex ?? 0));
+  const visualSource =
+    document.visualSource?.kind === "zero-visual-morph" ? document.visualSource : undefined;
+  const visualFromSnapshot = visualSource?.from as ZeroVisualSnapshot | undefined;
+  const visualToSnapshot = visualSource?.to as ZeroVisualSnapshot | undefined;
+  const visualBindingResult = visualSource?.bindingResult as VisualMotionBindingResult | undefined;
+  const visualStageWidth =
+    Math.max(visualFromSnapshot?.width ?? 0, visualToSnapshot?.width ?? 0) || undefined;
+  const visualStageHeight =
+    Math.max(visualFromSnapshot?.height ?? 0, visualToSnapshot?.height ?? 0) || undefined;
+  const zeroLayerSource =
+    document.visualSource?.kind === "zero-layer-morph"
+      ? (document.visualSource as ZeroLayerMorphSource)
+      : undefined;
+  const zeroLayerFromSnapshot = zeroLayerSource?.from as ZeroLayerSnapshot | undefined;
+  const zeroLayerToSnapshot = zeroLayerSource?.to as ZeroLayerSnapshot | undefined;
+  const zeroLayerBindingResult = zeroLayerSource?.bindingResult as ZeroLayerMotionBindingResult | undefined;
+  const zeroLayerStageWidth =
+    Math.max(zeroLayerFromSnapshot?.width ?? 0, zeroLayerToSnapshot?.width ?? 0) || undefined;
+  const zeroLayerStageHeight =
+    Math.max(zeroLayerFromSnapshot?.height ?? 0, zeroLayerToSnapshot?.height ?? 0) || undefined;
+  const selectedZeroLayerNodeId = zeroLayerNodeIdForLayerId(zeroLayerSource, document.selectedLayerId);
+  const visualProgress = clampProgress(playhead);
 
   // 手势交互状态
   const [gestureOffset, setGestureOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -797,6 +1137,7 @@ function CanvasPreview({
     startClientY: number;
     startLayout: NonNullable<MotionLayer["layout"]>;
     stageRect: DOMRect;
+    moved: boolean;
   } | null>(null);
   const layerResize = useRef<{
     id: string;
@@ -809,6 +1150,21 @@ function CanvasPreview({
   const [draggingLayerId, setDraggingLayerId] = useState<string | undefined>(undefined);
   const [resizingLayerId, setResizingLayerId] = useState<string | undefined>(undefined);
   const targetRef = useRef<HTMLDivElement>(null);
+
+  function selectZeroVisualNode(nodeId: string) {
+    const binding = visualBindingResult?.bindings.find(
+      (item) => item.nodeId === nodeId || item.toNodeId === nodeId
+    );
+    const layerId = binding?.layerId ?? zeroVisualLayerIdForNode(nodeId);
+    if (document.layers.some((layer) => layer.id === layerId)) onSelect(layerId);
+  }
+
+  function selectZeroLayerNode(nodeId: string) {
+    const layerId = zeroLayerSource
+      ? zeroLayerLayerIdForSelection(zeroLayerSource, nodeId)
+      : zeroLayerLayerIdForNode(nodeId);
+    if (document.layers.some((layer) => layer.id === layerId)) onSelect(layerId);
+  }
 
   function detectGestureType(
     dx: number,
@@ -911,9 +1267,9 @@ function CanvasPreview({
       startClientX: event.clientX,
       startClientY: event.clientY,
       startLayout: layer.layout,
-      stageRect: stage.getBoundingClientRect()
+      stageRect: stage.getBoundingClientRect(),
+      moved: false
     };
-    setDraggingLayerId(layer.id);
     if (kind === "pointer") {
       window.addEventListener("pointermove", handlePointerLayerDragMove);
       window.addEventListener("pointerup", handlePointerLayerDragEnd);
@@ -947,6 +1303,13 @@ function CanvasPreview({
   function updateLayerDrag(event: { clientX: number; clientY: number }, layer: MotionLayer) {
     const drag = layerDrag.current;
     if (!drag || drag.id !== layer.id || !layer.layout) return;
+    const movement =
+      Math.abs(event.clientX - drag.startClientX) + Math.abs(event.clientY - drag.startClientY);
+    if (!drag.moved && movement <= 4) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      setDraggingLayerId(layer.id);
+    }
     const dx = ((event.clientX - drag.startClientX) / drag.stageRect.width) * document.stage.width;
     const dy = ((event.clientY - drag.startClientY) / drag.stageRect.height) * document.stage.height;
     const maxX = Math.max(0, document.stage.width - drag.startLayout.width);
@@ -1127,7 +1490,7 @@ function CanvasPreview({
       </header>
       <div className="canvas-wrap">
         <div className={`artboard-stage artboard-${document.stage.mode}`} style={stageStyle(document)}>
-          {document.stage.mode === "mobile" ? (
+          {document.stage.mode === "mobile" && document.stage.showSafeArea ? (
             <>
               <div className="safe-area safe-area-top" />
               <div className="safe-area safe-area-bottom" />
@@ -1144,20 +1507,90 @@ function CanvasPreview({
               }}
             />
           ) : null}
-          {isEmpty ? (
-            <div className="canvas-empty-state">
-              <strong>从空白画布开始</strong>
-              <span>先创建画布和图层，再把规范动效添加到时间轴。</span>
-              <div className="canvas-empty-actions">
-                <button type="button" className="primary-action" onClick={onCreateBlank}>
-                  新建空白
-                </button>
-                <button type="button" className="small-action" onClick={onLoadExample}>
-                  加载示例
-                </button>
-              </div>
+          {visualSource && visualFromSnapshot && visualToSnapshot && visualBindingResult ? (
+            <div
+              className="zero-visual-main-stage"
+              style={{ width: document.stage.width, height: document.stage.height }}
+            >
+              {visualProgress <= 0 ? (
+                <VisualStage
+                  snapshot={visualFromSnapshot}
+                  stageWidth={visualStageWidth}
+                  stageHeight={visualStageHeight}
+                  onNodeSelect={selectZeroVisualNode}
+                />
+              ) : visualProgress >= 1 ? (
+                <VisualStage
+                  snapshot={visualToSnapshot}
+                  stageWidth={visualStageWidth}
+                  stageHeight={visualStageHeight}
+                  onNodeSelect={selectZeroVisualNode}
+                />
+              ) : (
+                <>
+                  <div className="zero-visual-main-layer">
+                    <VisualStage
+                      snapshot={visualFromSnapshot}
+                      stageWidth={visualStageWidth}
+                      stageHeight={visualStageHeight}
+                      onNodeSelect={selectZeroVisualNode}
+                      motionCss={
+                        compositionTrack
+                          ? createVisualTimelineCssForTrack(
+                              visualBindingResult,
+                              compositionTrack,
+                              visualProgress,
+                              "from"
+                            )
+                          : createVisualTimelineCss(visualBindingResult, visualProgress, "from")
+                      }
+                    />
+                  </div>
+                  <div className="zero-visual-main-layer">
+                    <VisualStage
+                      snapshot={visualToSnapshot}
+                      stageWidth={visualStageWidth}
+                      stageHeight={visualStageHeight}
+                      onNodeSelect={selectZeroVisualNode}
+                      motionCss={
+                        compositionTrack
+                          ? createVisualTimelineCssForTrack(
+                              visualBindingResult,
+                              compositionTrack,
+                              visualProgress,
+                              "to"
+                            )
+                          : createVisualTimelineCss(visualBindingResult, visualProgress, "to")
+                      }
+                    />
+                  </div>
+                </>
+              )}
             </div>
-          ) : (
+          ) : null}
+          {zeroLayerSource && zeroLayerFromSnapshot && zeroLayerToSnapshot && zeroLayerBindingResult ? (
+            <div
+              className="zero-layer-main-stage"
+              style={{ width: document.stage.width, height: document.stage.height }}
+            >
+              <ZeroLayerMotionStage
+                from={zeroLayerFromSnapshot}
+                to={zeroLayerToSnapshot}
+                bindingResult={zeroLayerBindingResult}
+                progress={visualProgress}
+                compositionTrack={compositionTrack}
+                stageWidth={zeroLayerStageWidth}
+                stageHeight={zeroLayerStageHeight}
+                selectedNodeId={selectedZeroLayerNodeId}
+                overrides={zeroLayerSource.nodeOverrides}
+                onNodeSelect={selectZeroLayerNode}
+              />
+            </div>
+          ) : null}
+          {!visualSource &&
+          !zeroLayerSource &&
+          element.role !== "background" &&
+          hasVisibleCanvasContent(document) ? (
             <div
               ref={targetRef}
               className={`motion-target target-${element.role}${interactionMode === "gesture" ? " gesture-interactive" : ""}`}
@@ -1259,51 +1692,56 @@ function CanvasPreview({
                 <strong>{element.role === "toast" ? "操作已完成" : "立即查看"}</strong>
               )}
             </div>
-          )}
-          {freeLayers.map((layer) => (
-            <button
-              type="button"
-              className={`free-layer free-layer-${layer.kind} ${layer.id === document.selectedLayerId ? "is-selected" : ""} ${draggingLayerId === layer.id ? "is-dragging" : ""} ${resizingLayerId === layer.id ? "is-resizing" : ""} ${layerMotionClass(layer)}`}
-              style={{
-                left: `${((layer.layout?.x ?? 0) / document.stage.width) * 100}%`,
-                top: `${((layer.layout?.y ?? 0) / document.stage.height) * 100}%`,
-                width: `${((layer.layout?.width ?? 120) / document.stage.width) * 100}%`,
-                height: `${((layer.layout?.height ?? 80) / document.stage.height) * 100}%`,
-                zIndex: layer.layout?.zIndex ?? 1,
-                animationDuration: `${layer.motion?.durationMs ?? 220}ms`,
-                animationDelay: `${layer.motion?.delayMs ?? 0}ms`,
-                ...layerMotionStyle(layer),
-                ...compositionLayerStyle(document, activeSteps, layer),
-                ...styleForLayer(layer)
-              }}
-              onPointerDown={(event) => beginLayerDrag("pointer", event, layer)}
-              onMouseDown={(event) => beginLayerDrag("mouse", event, layer)}
-              onPointerUp={(event) => endLayerDrag("pointer", event, layer)}
-              onPointerCancel={(event) => endLayerDrag("pointer", event, layer)}
-              onMouseUp={(event) => endLayerDrag("mouse", event, layer)}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect(layer.id);
-              }}
-              key={layer.id}
-            >
-              {layer.kind === "image" && layer.content?.src ? (
-                <img src={layer.content.src} alt={layer.content.alt ?? ""} style={imageStyle(layer)} />
-              ) : (
-                (layer.content?.text ?? (layer.kind === "image" ? "图片" : ""))
-              )}
-              {layer.id === document.selectedLayerId ? (
-                <span
-                  className="free-layer-resize-handle"
-                  role="presentation"
-                  onPointerDown={(event) => beginLayerResize(event, layer)}
-                />
-              ) : null}
-            </button>
-          ))}
-          {suggestions.length > 0 ? (
+          ) : null}
+          {!visualSource && !zeroLayerSource
+            ? freeLayers.map((layer) => (
+                <button
+                  type="button"
+                  className={`free-layer free-layer-${layer.kind} ${layer.id === document.selectedLayerId ? "is-selected" : ""} ${draggingLayerId === layer.id ? "is-dragging" : ""} ${resizingLayerId === layer.id ? "is-resizing" : ""} ${layerMotionClass(layer)}`}
+                  style={{
+                    left: `${((layer.layout?.x ?? 0) / document.stage.width) * 100}%`,
+                    top: `${((layer.layout?.y ?? 0) / document.stage.height) * 100}%`,
+                    width: `${((layer.layout?.width ?? 120) / document.stage.width) * 100}%`,
+                    height: `${((layer.layout?.height ?? 80) / document.stage.height) * 100}%`,
+                    zIndex: layer.layout?.zIndex ?? 1,
+                    animationDuration: `${layer.motion?.durationMs ?? 220}ms`,
+                    animationDelay: `${layer.motion?.delayMs ?? 0}ms`,
+                    ...styleForLayer(layer),
+                    ...layerMotionStyle(layer),
+                    ...layerTimelineVisibility(compositionTrack, playhead, layer),
+                    ...compositionLayerStyle(document, activeSteps, layer, {
+                      disabled: draggingLayerId === layer.id || resizingLayerId === layer.id
+                    })
+                  }}
+                  onPointerDown={(event) => beginLayerDrag("pointer", event, layer)}
+                  onMouseDown={(event) => beginLayerDrag("mouse", event, layer)}
+                  onPointerUp={(event) => endLayerDrag("pointer", event, layer)}
+                  onPointerCancel={(event) => endLayerDrag("pointer", event, layer)}
+                  onMouseUp={(event) => endLayerDrag("mouse", event, layer)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelect(layer.id);
+                  }}
+                  key={layer.id}
+                >
+                  {layer.kind === "image" && layer.content?.src ? (
+                    <img src={layer.content.src} alt={layer.content.alt ?? ""} style={imageStyle(layer)} />
+                  ) : (
+                    (layer.content?.text ?? (layer.kind === "image" ? "图片" : ""))
+                  )}
+                  {layer.id === document.selectedLayerId ? (
+                    <span
+                      className="free-layer-resize-handle"
+                      role="presentation"
+                      onPointerDown={(event) => beginLayerResize(event, layer)}
+                    />
+                  ) : null}
+                </button>
+              ))
+            : null}
+          {visibleSuggestions.length > 0 ? (
             <div className="canvas-hints">
-              {suggestions.slice(0, 3).map((suggestion) => (
+              {visibleSuggestions.slice(0, 3).map((suggestion) => (
                 <button
                   type="button"
                   onClick={() =>
@@ -1357,7 +1795,7 @@ const timelineColors = [
 const minTimelineWidthPx = 760;
 const pxPerTimelineMs = 0.72;
 const minCompositionHeight = 220;
-const maxCompositionHeight = 520;
+const maxCompositionHeight = 760;
 const defaultCompositionHeight = 320;
 const stepCardWidthPx = 220;
 const timelineTickMs = 250;
@@ -1498,6 +1936,7 @@ function updateStepStart(steps: CompositionStep[], stepId: string, nextStartMs: 
 }
 
 function CompositionPanel({
+  document,
   steps,
   layers,
   track,
@@ -1513,6 +1952,7 @@ function CompositionPanel({
   onApply,
   onClear
 }: {
+  document: MotionDocument;
   steps: CompositionStep[];
   layers: MotionLayer[];
   track: CompositionTrack;
@@ -1568,13 +2008,18 @@ function CompositionPanel({
   const displaySteps = dragSourceStepId ? steps.filter((step) => step.id !== dragSourceStepId) : steps;
   const displayWindows = computeCompositionStepWindows(displaySteps);
   const stepWindows = useMemo(() => computeCompositionStepWindows(steps), [steps]);
-  const stepWindowById = useMemo(() => new Map(stepWindows.map((window) => [window.stepId, window])), [stepWindows]);
+  const stepWindowById = useMemo(
+    () => new Map(stepWindows.map((window) => [window.stepId, window])),
+    [stepWindows]
+  );
   const snapMarkersByStepId = useMemo(() => {
     const markers = new Map<string, number[]>();
     for (const step of steps) {
       markers.set(
         step.id,
-        stepWindows.filter((window) => window.stepId !== step.id).flatMap((window) => [window.start, window.end])
+        stepWindows
+          .filter((window) => window.stepId !== step.id)
+          .flatMap((window) => [window.start, window.end])
       );
     }
     return markers;
@@ -1590,12 +2035,18 @@ function CompositionPanel({
       .map((layer) => ({ target: "selected-layer" as const, layerId: layer.id, layerName: layer.name }))
   ];
   const lanes = laneTargets.map((target) => {
-    const layer = target.target === "selected-layer" && target.layerId ? layers.find((item) => item.id === target.layerId) : undefined;
+    const layer =
+      target.target === "selected-layer" && target.layerId
+        ? layers.find((item) => item.id === target.layerId)
+        : undefined;
     return {
       key: compositionLaneKey(target),
       label: compositionLaneLabel(target),
       hint: compositionLaneHint(target),
-      status: target.target === "selected-layer" ? `${layer?.hidden ? "隐藏" : "显示"} · ${layer?.locked ? "锁定" : "可编辑"}` : "旧数据",
+      status:
+        target.target === "selected-layer"
+          ? `${layer?.hidden ? "隐藏" : "显示"} · ${layer?.locked ? "锁定" : "可编辑"}`
+          : "旧数据",
       target,
       items: [] as Array<{ step: CompositionStep; index: number; start: number; end: number }>
     };
@@ -1604,17 +2055,17 @@ function CompositionPanel({
   displaySteps.forEach((step, index) => {
     const key = compositionLaneKey(step);
     let lane = lanes.find((item) => item.key === key);
-	      if (!lane) {
-	        lane = {
-	          key,
-	          label: compositionLaneLabel(step),
-	          hint: compositionLaneHint(step),
-            status: "已失效图层",
-	          target: {
-	            target: step.target,
-	            ...(step.layerId ? { layerId: step.layerId } : {}),
-	            ...(step.layerName ? { layerName: step.layerName } : {})
-	          },
+    if (!lane) {
+      lane = {
+        key,
+        label: compositionLaneLabel(step),
+        hint: compositionLaneHint(step),
+        status: "已失效图层",
+        target: {
+          target: step.target,
+          ...(step.layerId ? { layerId: step.layerId } : {}),
+          ...(step.layerName ? { layerName: step.layerName } : {})
+        },
         items: []
       };
       lanes.push(lane);
@@ -1630,13 +2081,13 @@ function CompositionPanel({
   const draggingStep = dragSourceStepId ? steps.find((step) => step.id === dragSourceStepId) : undefined;
   const draggingStepIndex = dragSourceStepId ? steps.findIndex((step) => step.id === dragSourceStepId) : -1;
 
-	  useEffect(
+  useEffect(
     () => () => {
       mouseDragCleanupRef.current?.();
       resizeCleanupRef.current?.();
     },
     []
-	  );
+  );
 
   function toggleLaneCollapsed(laneKey: string) {
     setCollapsedLaneKeys((current) => {
@@ -1660,8 +2111,9 @@ function CompositionPanel({
     resizeCleanupRef.current?.();
 
     function onPointerMove(moveEvent: PointerEvent) {
+      const viewportMaxHeight = Math.max(maxCompositionHeight, Math.floor(window.innerHeight * 0.7));
       const nextHeight = Math.min(
-        maxCompositionHeight,
+        viewportMaxHeight,
         Math.max(minCompositionHeight, startHeight + startY - moveEvent.clientY)
       );
       onCompositionHeightChange(nextHeight);
@@ -1966,66 +2418,66 @@ function CompositionPanel({
               {lanes.map((lane) => {
                 const isCollapsed = collapsedLaneKeys.has(lane.key);
                 return (
-                <div
-                  className={
-                    [
+                  <div
+                    className={[
                       "composition-lane",
-                      laneDropTarget && compositionLaneKey(laneDropTarget) === lane.key ? "is-drop-target" : "",
+                      laneDropTarget && compositionLaneKey(laneDropTarget) === lane.key
+                        ? "is-drop-target"
+                        : "",
                       isCollapsed ? "is-collapsed" : ""
                     ]
                       .filter(Boolean)
-                      .join(" ")
-                  }
-                  data-layer-id={lane.target.layerId}
-                  data-layer-name={lane.target.layerName}
-                  data-target={lane.target.target}
-                  key={lane.key}
-                >
-                  <div className="composition-lane-label">
-                    <button
-                      type="button"
-                      aria-label={`${isCollapsed ? "展开" : "折叠"}轨道 ${lane.label}`}
-                      onClick={() => toggleLaneCollapsed(lane.key)}
-                    >
-                      {isCollapsed ? "▸" : "▾"}
-                    </button>
-                    <div>
-                      <strong>{lane.label}</strong>
-                      <span>{lane.hint}</span>
-                      <small>{lane.status}</small>
+                      .join(" ")}
+                    data-layer-id={lane.target.layerId}
+                    data-layer-name={lane.target.layerName}
+                    data-target={lane.target.target}
+                    key={lane.key}
+                  >
+                    <div className="composition-lane-label">
+                      <button
+                        type="button"
+                        aria-label={`${isCollapsed ? "展开" : "折叠"}轨道 ${lane.label}`}
+                        onClick={() => toggleLaneCollapsed(lane.key)}
+                      >
+                        {isCollapsed ? "▸" : "▾"}
+                      </button>
+                      <div>
+                        <strong>{lane.label}</strong>
+                        <span>{lane.hint}</span>
+                        <small>{lane.status}</small>
+                      </div>
                     </div>
+                    {isCollapsed ? (
+                      <div className="composition-lane-collapsed">{lane.items.length} 个片段</div>
+                    ) : (
+                      <div className="composition-lane-canvas">
+                        {laneDropTarget &&
+                        compositionLaneKey(laneDropTarget) === lane.key &&
+                        typeof laneDropTarget.startMs === "number" ? (
+                          <div
+                            className="timeline-drop-guide"
+                            style={{ left: `${Math.round(laneDropTarget.startMs * pxPerTimelineMs)}px` }}
+                          />
+                        ) : null}
+                        {snapLineMs !== undefined ? (
+                          <div
+                            className="timeline-snap-guide"
+                            style={{ left: `${Math.round(snapLineMs * pxPerTimelineMs)}px` }}
+                          />
+                        ) : null}
+                        {lane.items.map(({ step, index, start }) => {
+                          const left = Math.max(0, Math.round(start * pxPerTimelineMs));
+                          return (
+                            <Fragment key={step.id}>
+                              {renderStepCard(step, index, {
+                                style: { left: `${left}px`, width: `${stepCardWidthPx}px` }
+                              })}
+                            </Fragment>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  {isCollapsed ? (
-                    <div className="composition-lane-collapsed">{lane.items.length} 个片段</div>
-                  ) : (
-                    <div className="composition-lane-canvas">
-                    {laneDropTarget &&
-                    compositionLaneKey(laneDropTarget) === lane.key &&
-                    typeof laneDropTarget.startMs === "number" ? (
-                      <div
-                        className="timeline-drop-guide"
-                        style={{ left: `${Math.round(laneDropTarget.startMs * pxPerTimelineMs)}px` }}
-                      />
-                    ) : null}
-                    {snapLineMs !== undefined ? (
-                      <div
-                        className="timeline-snap-guide"
-                        style={{ left: `${Math.round(snapLineMs * pxPerTimelineMs)}px` }}
-                      />
-                    ) : null}
-                    {lane.items.map(({ step, index, start }) => {
-                      const left = Math.max(0, Math.round(start * pxPerTimelineMs));
-                      return (
-                        <Fragment key={step.id}>
-                          {renderStepCard(step, index, {
-                            style: { left: `${left}px`, width: `${stepCardWidthPx}px` }
-                          })}
-                        </Fragment>
-                      );
-                    })}
-                    </div>
-                  )}
-                </div>
                 );
               })}
             </div>
@@ -2067,10 +2519,24 @@ function CompositionPanel({
           </button>
           <a
             className="small-action link-action"
-            href={`data:text/html;charset=utf-8,${encodeURIComponent(exportCompositionHtml(track))}`}
+            href={`data:text/html;charset=utf-8,${encodeURIComponent(exportCompositionHtml(track, document))}`}
             download="motion-composition-export.html"
           >
-            下载组合 HTML
+            {document.visualSource?.kind === "zero-layer-morph" ? "下载 Zero 原生动效 HTML" : "下载组合 HTML"}
+          </a>
+          <a
+            className="small-action link-action"
+            href={`data:application/json;charset=utf-8,${encodeURIComponent(exportCompositionJson(document, track))}`}
+            download="motion-composition-export.json"
+          >
+            下载编排 JSON
+          </a>
+          <a
+            className="small-action link-action"
+            href={`data:text/markdown;charset=utf-8,${encodeURIComponent(exportCompositionHandoffMarkdown(document, track))}`}
+            download="motion-composition-handoff.md"
+          >
+            下载参数表 MD
           </a>
         </div>
       ) : null}
@@ -2165,6 +2631,10 @@ function Inspector({
   onUpdateCompositionStepStart,
   onResetCompositionStepMotion,
   onLoad,
+  onApplyFrameMorphComposition,
+  onApplyVisualMotionComposition,
+  onApplyZeroLayerMotionComposition,
+  onUpdateZeroLayerSource,
   onApplySuggestion,
   onIgnoreSuggestion
 }: {
@@ -2174,27 +2644,52 @@ function Inspector({
   selectedCompositionStepIndex: number;
   selectedCompositionStepStartMs: number;
   suggestions: GuidelineSuggestion[];
-  activeTab: "property" | "guideline";
-  onTabChange: (tab: "property" | "guideline") => void;
+  activeTab: InspectorTab;
+  onTabChange: (tab: InspectorTab) => void;
   onPatch: (patch: MotionDocumentPatch) => void;
   onUpdateCompositionStep: (stepId: string, patch: CompositionStepPatch) => void;
   onUpdateCompositionStepStart: (stepId: string, startMs: number) => void;
   onResetCompositionStepMotion: (stepId: string) => void;
   onLoad: (document: MotionDocument) => void;
+  onApplyFrameMorphComposition: (result: FrameMorphCompositionResult) => void;
+  onApplyVisualMotionComposition: (result: VisualMotionCompositionResult) => void;
+  onApplyZeroLayerMotionComposition: (result: ZeroLayerMotionCompositionResult) => void;
+  onUpdateZeroLayerSource: (source: ZeroLayerMorphSource) => void;
   onApplySuggestion: (suggestion: GuidelineSuggestion) => void;
   onIgnoreSuggestion: (suggestion: GuidelineSuggestion) => void;
 }) {
   const element = primaryElement(document);
   const layer = selectedLayer(document);
+  const [frameWorkspaceMode, setFrameWorkspaceMode] = useState<FrameMotionWorkspaceMode>("zeroNative");
   const documentWithComposition = useMemo(
     () => ({ ...document, composition: compositionTrack }),
     [document, compositionTrack]
   );
   const output = useMemo(() => exportHtmlCss(document), [document]);
-  const standaloneHtml = useMemo(() => exportStandaloneHtml(document), [document]);
+  const standaloneHtml = useMemo(
+    () => exportStandaloneHtml(documentWithComposition),
+    [documentWithComposition]
+  );
   const selectedStepMotion = selectedCompositionStep
     ? compositionStepMotion(document, selectedCompositionStep)
     : undefined;
+  const selectedZeroLayerNodeId =
+    document.visualSource?.kind === "zero-layer-morph"
+      ? zeroLayerNodeIdForLayerId(document.visualSource, document.selectedLayerId)
+      : undefined;
+  const isFrameMotionDocument =
+    document.visualSource?.kind === "zero-layer-morph" || document.visualSource?.kind === "zero-visual-morph";
+  const frameMotionModeLabel =
+    document.visualSource?.kind === "zero-layer-morph"
+      ? "Zero 原生图层"
+      : document.visualSource?.kind === "zero-visual-morph"
+        ? "高保真预览"
+        : "未读取首尾帧";
+
+  useEffect(() => {
+    if (document.visualSource?.kind === "zero-layer-morph") setFrameWorkspaceMode("zeroNative");
+    if (document.visualSource?.kind === "zero-visual-morph") setFrameWorkspaceMode("visual");
+  }, [document.visualSource?.kind]);
   const selectedStagePreset =
     stagePresetOptions.find(
       (option) =>
@@ -2297,9 +2792,97 @@ function Inspector({
         >
           规范
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "frameMorph"}
+          className={activeTab === "frameMorph" ? "is-active" : ""}
+          onClick={() => onTabChange("frameMorph")}
+        >
+          帧间动效
+        </button>
       </nav>
       <div className="inspector-scroll">
-        {activeTab === "property" ? (
+        {activeTab === "frameMorph" ? (
+          <section className="frame-motion-workspace">
+            <div className="frame-motion-workspace-header">
+              <div>
+                <p className="eyebrow">帧间动效工作台</p>
+                <h3>首尾帧之间添加和编排动效</h3>
+              </div>
+              <span>{frameMotionModeLabel}</span>
+            </div>
+            <p className="empty-state">
+              这里的核心是管理两帧之间的动效，不是修改 Zero 稿件本身。Zero 原生图层是主链路；高保真只作为视觉对照；低保真只用于调试和 fallback。
+            </p>
+            <div className="frame-motion-mode-tabs" role="tablist" aria-label="帧间动效模式">
+              <button
+                type="button"
+                className={frameWorkspaceMode === "zeroNative" ? "is-active" : ""}
+                onClick={() => setFrameWorkspaceMode("zeroNative")}
+              >
+                Zero 原生
+              </button>
+              <button
+                type="button"
+                className={frameWorkspaceMode === "visual" ? "is-active" : ""}
+                onClick={() => setFrameWorkspaceMode("visual")}
+              >
+                高保真预览
+              </button>
+              <button
+                type="button"
+                className={frameWorkspaceMode === "legacy" ? "is-active" : ""}
+                onClick={() => setFrameWorkspaceMode("legacy")}
+              >
+                低保真调试
+              </button>
+            </div>
+            {frameWorkspaceMode === "zeroNative" ? (
+              <ZeroLayerMorphPanel
+                onApplyComposition={onApplyZeroLayerMotionComposition}
+                onUpdateSource={onUpdateZeroLayerSource}
+                selectedNodeId={selectedZeroLayerNodeId}
+                onSelectNode={(nodeId) => {
+                  if (document.visualSource?.kind !== "zero-layer-morph") return;
+                  onPatch({ selectedLayerId: zeroLayerLayerIdForSelection(document.visualSource, nodeId) });
+                }}
+                {...(document.visualSource?.kind === "zero-layer-morph"
+                  ? { savedSource: document.visualSource }
+                  : {})}
+              />
+            ) : (
+              <FrameMorphPanel
+                mode={frameWorkspaceMode === "visual" ? "visual" : "legacy"}
+                onApplyComposition={onApplyFrameMorphComposition}
+                onApplyVisualComposition={onApplyVisualMotionComposition}
+                {...(document.visualSource?.kind === "zero-visual-morph"
+                  ? { savedVisualSource: document.visualSource }
+                  : {})}
+                onConvertToLayer={(spec) => {
+                  const layer = addLayer(document, spec.kind === "text" ? "text" : "shape");
+                  layer.name = spec.name;
+                  if (spec.bounds) {
+                    layer.layout = {
+                      ...layer.layout!,
+                      x: spec.bounds.x,
+                      y: spec.bounds.y,
+                      width: spec.bounds.w,
+                      height: spec.bounds.h
+                    };
+                  }
+                  if (spec.text && layer.kind === "text") {
+                    layer.content = { text: spec.text };
+                  }
+                  if (spec.style) {
+                    layer.style = { ...layer.style, ...spec.style };
+                  }
+                  onPatch({ addLayer: layer, selectedLayerId: layer.id });
+                }}
+              />
+            )}
+          </section>
+        ) : activeTab === "property" ? (
           <>
             <section className="panel-section">
               <p className="eyebrow">项目文件</p>
@@ -2322,6 +2905,21 @@ function Inspector({
               </div>
             </section>
 
+            {isFrameMotionDocument ? (
+              <section className="panel-section frame-motion-property-notice">
+                <p className="eyebrow">帧间动效模式</p>
+                <div className="selected-layer-readout">
+                  <strong>{frameMotionModeLabel}</strong>
+                  <span>属性面板只保留动效片段参数</span>
+                </div>
+                <p className="empty-state">
+                  当前视觉源来自 Zero 首尾帧。请在「帧间动效」中读取图层、查看配对、修改 Zero 原生图层；这里不再提供普通稿件样式编辑，避免修改代理图层后与真实渲染不一致。
+                </p>
+              </section>
+            ) : null}
+
+            {!isFrameMotionDocument ? (
+            <>
             <section className="panel-section">
               <p className="eyebrow">画布与素材</p>
               <label className="field">
@@ -2371,6 +2969,17 @@ function Inspector({
                   value={document.stage.background}
                   onChange={(event) => onPatch({ stage: { background: event.target.value } })}
                 />
+              </label>
+              <label className="field">
+                <span>安全区参考线</span>
+                <select
+                  aria-label="安全区参考线"
+                  value={document.stage.showSafeArea ? "show" : "hide"}
+                  onChange={(event) => onPatch({ stage: { showSafeArea: event.target.value === "show" } })}
+                >
+                  <option value="hide">隐藏</option>
+                  <option value="show">显示</option>
+                </select>
               </label>
               <div className="asset-actions">
                 <label className="small-action file-action">
@@ -2493,6 +3102,8 @@ function Inspector({
                 ))}
               </div>
             </section>
+            </>
+            ) : null}
 
             <section className="panel-section">
               <p className="eyebrow">编排片段参数</p>
@@ -2626,6 +3237,8 @@ function Inspector({
               )}
             </section>
 
+            {!isFrameMotionDocument ? (
+            <>
             <section className="panel-section">
               <p className="eyebrow">已应用动效</p>
               {(document.appliedPresets ?? []).length === 0 ? (
@@ -3083,6 +3696,8 @@ function Inspector({
                 ) : null}
               </section>
             ) : null}
+            </>
+            ) : null}
           </>
         ) : (
           <>
@@ -3158,7 +3773,9 @@ export function App() {
   const [isLooping, setIsLooping] = useState(false);
   const [suggestionStatus, setSuggestionStatus] = useState<Record<string, SuggestionStatus>>({});
   const [presetTarget, setPresetTarget] = useState<AppMotionPresetTarget>(
-    savedWorkspace?.presetTarget === "target" ? "selected-layer" : (savedWorkspace?.presetTarget ?? "selected-layer")
+    savedWorkspace?.presetTarget === "target"
+      ? "selected-layer"
+      : (savedWorkspace?.presetTarget ?? "selected-layer")
   );
   const [compositionSteps, setCompositionSteps] = useState<CompositionStep[]>(
     savedWorkspace?.compositionSteps ?? savedWorkspace?.document.composition?.steps ?? []
@@ -3167,13 +3784,20 @@ export function App() {
   const [presetFilter, setPresetFilter] = useState("");
   const [activePresetTab, setActivePresetTab] = useState<PresetLibraryTabId>("recommended");
   const [interactionMode, setInteractionMode] = useState<"playback" | "gesture">("playback");
-  const [rightTab, setRightTab] = useState<"property" | "guideline">("property");
+  const [rightTab, setRightTab] = useState<InspectorTab>("property");
   const [projectNotice, setProjectNotice] = useState<string | undefined>(
     savedWorkspace?.hasStarted ? "已恢复上次自动保存的项目" : undefined
   );
+  const [lastDraftGeneration, setLastDraftGeneration] = useState<CompositionDraftGeneration | undefined>(
+    undefined
+  );
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
   const [compositionHeight, setCompositionHeight] = useState(defaultCompositionHeight);
   const [draggingLayerListId, setDraggingLayerListId] = useState<string | undefined>(undefined);
   const [layerListDropTargetId, setLayerListDropTargetId] = useState<string | undefined>(undefined);
+  const [layerListDropPosition, setLayerListDropPosition] = useState<"above" | "below" | undefined>(
+    undefined
+  );
   const [layerListGhost, setLayerListGhost] = useState<
     | {
         layerId: string;
@@ -3225,8 +3849,11 @@ export function App() {
     options: { resetPreview?: boolean; emptyBase?: "blank" | "example"; evaluateGuidelines?: boolean } = {}
   ) {
     setMotionDocument((current) => {
-      const emptyBase = options.emptyBase === "blank" ? createBlankDocument() : createExampleDocument();
-      const next = applyDocumentPatch(hasStarted ? current : emptyBase, patch);
+      const emptyBase = options.emptyBase === "example" ? createExampleDocument() : createBlankDocument();
+      const next = withZeroLayerSourceOverrides(
+        applyDocumentPatch(hasStarted ? current : emptyBase, patch),
+        patch
+      );
       return options.evaluateGuidelines === false
         ? { ...next, guidelineSuggestions: current.guidelineSuggestions }
         : withGuidelines(next);
@@ -3294,10 +3921,18 @@ export function App() {
       const selectedStep = compositionSteps.find((step) => step.id === current);
       return selectedStep?.layerId === layerId ? undefined : current;
     });
-    patchDocument(
-      { removeLayerId: layerId },
-      { resetPreview: false, emptyBase: "blank", evaluateGuidelines: false }
-    );
+    setMotionDocument((current) => {
+      const next = applyDocumentPatch(current, { removeLayerId: layerId });
+      if (current.visualSource?.kind === "zero-visual-morph") {
+        const hasVisualLayers = next.layers.some((layer) => layer.editable && isZeroVisualLayerId(layer.id));
+        return hasVisualLayers ? next : clearVisualSource(next);
+      }
+      if (current.visualSource?.kind === "zero-layer-morph") {
+        const hasLayerNodes = next.layers.some((layer) => layer.editable && isZeroLayerLayerId(layer.id));
+        return hasLayerNodes ? next : clearZeroLayerSource(next);
+      }
+      return next;
+    });
   }
 
   function duplicateLayer(layerId: string) {
@@ -3334,43 +3969,6 @@ export function App() {
     );
   }
 
-  function reorderLayer(layerId: string, action: "forward" | "backward" | "front" | "back") {
-    patchDocument(
-      { selectedLayerId: layerId, reorderLayer: { id: layerId, action } },
-      { resetPreview: false, emptyBase: "blank", evaluateGuidelines: false }
-    );
-  }
-
-  function reorderLayerToTarget(sourceLayerId: string, targetLayerId: string) {
-    if (sourceLayerId === targetLayerId) return;
-    setMotionDocument((current) => {
-      const document = normalizeMotionDocument(current);
-      const orderedLayers = orderedEditableLayers(document).filter((layer) => layer.layout);
-      const sourceIndex = orderedLayers.findIndex((layer) => layer.id === sourceLayerId);
-      const targetIndex = orderedLayers.findIndex((layer) => layer.id === targetLayerId);
-      if (sourceIndex < 0 || targetIndex < 0) return current;
-      const nextOrdered = [...orderedLayers];
-      const [source] = nextOrdered.splice(sourceIndex, 1);
-      if (!source) return current;
-      const targetIndexAfterRemoval = nextOrdered.findIndex((layer) => layer.id === targetLayerId);
-      nextOrdered.splice(Math.max(0, targetIndexAfterRemoval), 0, source);
-      const zIndexById = new Map(nextOrdered.map((layer, index) => [layer.id, 31 + index]));
-      return withGuidelines({
-        ...document,
-        selectedLayerId: sourceLayerId,
-        layers: document.layers.map((layer) => {
-          const zIndex = zIndexById.get(layer.id);
-          return typeof zIndex === "number" && layer.layout
-            ? { ...layer, layout: { ...layer.layout, zIndex } }
-            : layer;
-        })
-      });
-    });
-    setHasStarted(true);
-    setPresetTarget("selected-layer");
-    setRightTab("property");
-  }
-
   function cleanupLayerListDrag() {
     window.removeEventListener("pointermove", handleLayerListDragMove);
     window.removeEventListener("pointerup", handleLayerListDragEnd);
@@ -3378,6 +3976,7 @@ export function App() {
     layerListDragRef.current = undefined;
     setDraggingLayerListId(undefined);
     setLayerListDropTargetId(undefined);
+    setLayerListDropPosition(undefined);
     setLayerListGhost(undefined);
   }
 
@@ -3430,11 +4029,50 @@ export function App() {
       .elementFromPoint(event.clientX, event.clientY)
       ?.closest<HTMLElement>(".command-layer-row");
     const targetLayerId = target?.dataset.layerId;
-    setLayerListDropTargetId(targetLayerId && targetLayerId !== drag.layerId ? targetLayerId : undefined);
+    if (targetLayerId && targetLayerId !== drag.layerId && target) {
+      const rect = target.getBoundingClientRect();
+      const position: "above" | "below" = event.clientY < rect.top + rect.height / 2 ? "above" : "below";
+      setLayerListDropTargetId(targetLayerId);
+      setLayerListDropPosition(position);
+    } else {
+      setLayerListDropTargetId(undefined);
+      setLayerListDropPosition(undefined);
+    }
   }
 
   function handleLayerListDragMove(event: PointerEvent) {
     updateLayerListDrag(event);
+  }
+
+  function reorderLayerToPosition(sourceLayerId: string, targetLayerId: string, position: "above" | "below") {
+    if (sourceLayerId === targetLayerId) return;
+    setMotionDocument((current) => {
+      const document = normalizeMotionDocument(current);
+      const orderedLayers = orderedEditableLayers(document).filter((layer) => layer.layout);
+      const sourceIndex = orderedLayers.findIndex((layer) => layer.id === sourceLayerId);
+      const targetIndex = orderedLayers.findIndex((layer) => layer.id === targetLayerId);
+      if (sourceIndex < 0 || targetIndex < 0) return current;
+      const nextOrdered = [...orderedLayers];
+      const [source] = nextOrdered.splice(sourceIndex, 1);
+      if (!source) return current;
+      const insertIndex = nextOrdered.findIndex((layer) => layer.id === targetLayerId);
+      const finalIndex = position === "below" ? insertIndex + 1 : insertIndex;
+      nextOrdered.splice(Math.max(0, finalIndex), 0, source);
+      const zIndexById = new Map(nextOrdered.map((layer, index) => [layer.id, 31 + index]));
+      return withGuidelines({
+        ...document,
+        selectedLayerId: sourceLayerId,
+        layers: document.layers.map((layer) => {
+          const zIndex = zIndexById.get(layer.id);
+          return typeof zIndex === "number" && layer.layout
+            ? { ...layer, layout: { ...layer.layout, zIndex } }
+            : layer;
+        })
+      });
+    });
+    setHasStarted(true);
+    setPresetTarget("selected-layer");
+    setRightTab("property");
   }
 
   function handleLayerListDragEnd(event: PointerEvent) {
@@ -3444,14 +4082,18 @@ export function App() {
       .elementFromPoint(event.clientX, event.clientY)
       ?.closest<HTMLElement>(".command-layer-row");
     const targetLayerId = target?.dataset.layerId;
-    if (drag.moved && targetLayerId) reorderLayerToTarget(drag.layerId, targetLayerId);
+    if (drag.moved && targetLayerId && target) {
+      const rect = target.getBoundingClientRect();
+      const position: "above" | "below" = event.clientY < rect.top + rect.height / 2 ? "above" : "below";
+      reorderLayerToPosition(drag.layerId, targetLayerId, position);
+    }
     cleanupLayerListDrag();
   }
 
   function applyPreset(presetId: AppMotionPresetId) {
     setMotionDocument((current) =>
       withGuidelines(
-        applyAppMotionPreset(hasStarted ? current : createExampleDocument(), presetId, {
+        applyAppMotionPreset(hasStarted ? current : createBlankDocument(), presetId, {
           target: presetTarget
         })
       )
@@ -3465,7 +4107,7 @@ export function App() {
   function addToComposition(presetId: AppMotionPresetId) {
     const preset = appMotionPresetById.get(presetId);
     if (!preset) return;
-    const baseDocument = hasStarted ? motionDocument : createExampleDocument();
+    const baseDocument = hasStarted ? motionDocument : createBlankDocument();
     const layer = presetTarget === "selected-layer" ? selectedLayer(baseDocument) : undefined;
     const step: CompositionStep = {
       id: `step-${Date.now().toString(36)}`,
@@ -3485,7 +4127,7 @@ export function App() {
   }
 
   function addComboToComposition(combo: CompositionPresetCombo) {
-    const baseDocument = hasStarted ? motionDocument : createExampleDocument();
+    const baseDocument = hasStarted ? motionDocument : createBlankDocument();
     const layer = presetTarget === "selected-layer" ? selectedLayer(baseDocument) : undefined;
     const createdAt = Date.now().toString(36);
     const steps = combo.presetIds
@@ -3512,10 +4154,96 @@ export function App() {
     setHasStarted(true);
   }
 
+  async function generatePromptMotion() {
+    if (isGeneratingDraft) return;
+    const baseDocument = hasStarted ? motionDocument : createExampleDocument();
+    const nextDocument = withGuidelines(
+      applyDocumentPatch(baseDocument, compileIntent({ prompt, base: baseDocument }))
+    );
+
+    setMotionDocument(nextDocument);
+    setHasStarted(true);
+    setIsGeneratingDraft(true);
+    setProjectNotice("正在生成编排…");
+
+    let result;
+    try {
+      result = await generateDraftViaService({
+        prompt,
+        document: nextDocument,
+        existingSteps: compositionSteps
+      });
+    } finally {
+      setIsGeneratingDraft(false);
+    }
+
+    const draft = result.draft;
+    setCompositionSteps((current) => [...current, ...draft.steps]);
+    if (draft.steps[0]) setSelectedCompositionStepId(draft.steps[0].id);
+    setLastDraftGeneration(draft);
+    setProjectNotice(draft.warnings[0] ?? `${result.message} ${draft.summary}`.trim());
+    clearLoopTimer();
+    setPlayhead(0);
+    setIsPlaying(false);
+  }
+
+  function applyFrameMorphComposition(result: FrameMorphCompositionResult) {
+    setMotionDocument(result.document);
+    setCompositionSteps(result.steps);
+    setSelectedCompositionStepId(result.steps[0]?.id);
+    setHasStarted(true);
+    setRightTab("property");
+    setProjectNotice(`${result.intent.summary}，已映射到 ${result.steps.length} 个图层时间线片段。`);
+    clearLoopTimer();
+    setPlayhead(0);
+    setIsPlaying(false);
+  }
+
+  function applyVisualMotionComposition(result: VisualMotionCompositionResult) {
+    setMotionDocument(result.document);
+    setCompositionSteps(result.steps);
+    setSelectedCompositionStepId(result.steps[0]?.id);
+    setHasStarted(true);
+    setProjectNotice(`${result.summary}，已映射到 ${result.steps.length} 个高保真控制片段。`);
+    clearLoopTimer();
+    setPlayhead(0);
+    setIsPlaying(false);
+  }
+
+  function applyZeroLayerMotionComposition(result: ZeroLayerMotionCompositionResult) {
+    setMotionDocument(result.document);
+    setCompositionSteps(result.steps);
+    setSelectedCompositionStepId(result.steps[0]?.id);
+    setHasStarted(true);
+    setProjectNotice(`${result.summary}，已映射到 ${result.steps.length} 个 Zero 图层片段。`);
+    clearLoopTimer();
+    setPlayhead(0);
+    setIsPlaying(false);
+  }
+
+  function updateZeroLayerSource(source: ZeroLayerMorphSource) {
+    setMotionDocument((current) => {
+      if (current.visualSource?.kind !== "zero-layer-morph") return current;
+      return {
+        ...current,
+        visualSource: source,
+        composition: compositionTrack
+      };
+    });
+    setHasStarted(true);
+  }
+
   function removeCompositionStep(stepId: string) {
     setCompositionSteps((current) => {
       const next = current.filter((s) => s.id !== stepId);
       if (selectedCompositionStepId === stepId) setSelectedCompositionStepId(next[0]?.id);
+      const removed = current.find((step) => step.id === stepId);
+      if (removed && isZeroVisualStep(removed) && !next.some(isZeroVisualStep)) {
+        setMotionDocument((document) => clearZeroVisualState(document));
+      }
+      if (removed && isZeroLayerStep(removed) && !next.some(isZeroLayerStep)) {
+        setMotionDocument((document) => clearZeroLayerState(document));
+      }
       return next;
     });
   }
@@ -3646,6 +4374,14 @@ export function App() {
     clearLoopTimer();
     setCompositionSteps([]);
     setSelectedCompositionStepId(undefined);
+    setLastDraftGeneration(undefined);
+    setMotionDocument((document) =>
+      document.visualSource?.kind === "zero-visual-morph"
+        ? clearZeroVisualState(document)
+        : document.visualSource?.kind === "zero-layer-morph"
+          ? clearZeroLayerState(document)
+          : document
+    );
   }
 
   function createBlankProject() {
@@ -3653,6 +4389,7 @@ export function App() {
     setPrompt("");
     setCompositionSteps([]);
     setSelectedCompositionStepId(undefined);
+    setLastDraftGeneration(undefined);
     setPresetTarget("selected-layer");
     setHasStarted(true);
     setSuggestionStatus({});
@@ -3662,20 +4399,6 @@ export function App() {
     setProjectNotice("已新建空白项目");
   }
 
-  function loadExampleProject() {
-    setMotionDocument(createExampleDocument());
-    setPrompt(defaultPrompt);
-    setCompositionSteps([]);
-    setSelectedCompositionStepId(undefined);
-    setPresetTarget("selected-layer");
-    setHasStarted(true);
-    setSuggestionStatus({});
-    clearLoopTimer();
-    setPlayhead(0);
-    setIsPlaying(false);
-    setProjectNotice("已加载示例项目");
-  }
-
   function loadDocument(document: MotionDocument) {
     const normalizedDocument = normalizeMotionDocument(document);
     setMotionDocument(withGuidelines(normalizedDocument));
@@ -3683,6 +4406,7 @@ export function App() {
     setSuggestionStatus({});
     setCompositionSteps(normalizedDocument.composition?.steps ?? []);
     setSelectedCompositionStepId(normalizedDocument.composition?.steps[0]?.id);
+    setLastDraftGeneration(undefined);
     clearLoopTimer();
     setPlayhead(0);
     setIsPlaying(false);
@@ -3761,11 +4485,18 @@ export function App() {
   const recommendedPresetIds =
     selectedPresetLayer && recommendedPresetIdsByLayerKind[selectedPresetLayer.kind]
       ? recommendedPresetIdsByLayerKind[selectedPresetLayer.kind]!
-      : (["enter-screen", "container-transform", "move-inside", "loading-to-success"] satisfies AppMotionPresetId[]);
+      : ([
+          "enter-screen",
+          "container-transform",
+          "move-inside",
+          "loading-to-success"
+        ] satisfies AppMotionPresetId[]);
   const activePresetGroup = appMotionPresetGroups.find((group) => group.scene === activePresetTab);
   const activeCategoryPresets =
     activePresetTab === "recommended"
-      ? recommendedPresetIds.map((presetId) => appMotionPresetById.get(presetId)).filter((preset): preset is AppMotionPresetDefinition => Boolean(preset))
+      ? recommendedPresetIds
+          .map((presetId) => appMotionPresetById.get(presetId))
+          .filter((preset): preset is AppMotionPresetDefinition => Boolean(preset))
       : activePresetGroup
         ? activePresetGroup.presetIds
             .map((presetId) => appMotionPresetById.get(presetId))
@@ -3818,7 +4549,9 @@ export function App() {
         : "选择图层后会更精准"
       : activePresetTab === "combo"
         ? "一键添加多段原子动效"
-        : (activePresetGroup ? appMotionSceneLabels[activePresetGroup.scene] : "规范动效");
+        : activePresetGroup
+          ? appMotionSceneLabels[activePresetGroup.scene]
+          : "规范动效";
 
   useEffect(() => {
     if (storageSaveRef.current) {
@@ -3941,9 +4674,6 @@ export function App() {
               <button type="button" className="primary-action" onClick={createBlankProject}>
                 新建空白
               </button>
-              <button type="button" className="asset-create-button" onClick={loadExampleProject}>
-                加载示例
-              </button>
             </div>
             <div className="project-status">
               <strong>本地自动保存</strong>
@@ -3963,10 +4693,62 @@ export function App() {
             <button
               type="button"
               className="primary-action"
-              onClick={() => patchDocument(compileIntent({ prompt, base: motionDocument }))}
+              onClick={() => void generatePromptMotion()}
+              disabled={isGeneratingDraft}
             >
-              生成动效
+              {isGeneratingDraft ? "生成中…" : "生成动效"}
             </button>
+            {lastDraftGeneration ? (
+              <div className="draft-explain-panel">
+                <div className="draft-explain-header">
+                  <strong>本次编排解释</strong>
+                  <span>{lastDraftGeneration.summary}</span>
+                </div>
+                {lastDraftGeneration.explanations.length > 0 ? (
+                  <div className="draft-explain-list">
+                    {lastDraftGeneration.explanations.map((item) => (
+                      <article className="draft-explain-item" key={item.stepId}>
+                        <strong>{item.title}</strong>
+                        <p>{item.reason}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+                {lastDraftGeneration.corrections.length > 0 ? (
+                  <div className="draft-explain-list">
+                    {lastDraftGeneration.corrections.map((item) => (
+                      <article
+                        className="draft-explain-item is-correction"
+                        key={`${item.title}-${item.reason}`}
+                      >
+                        <strong>{item.title}</strong>
+                        <p>{item.reason}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+                {lastDraftGeneration.issues.length > 0 ? (
+                  <div className="draft-explain-list">
+                    {lastDraftGeneration.issues.map((issue) => (
+                      <article className={`draft-explain-item is-${issue.severity}`} key={issue.id}>
+                        <strong>{issue.title}</strong>
+                        <p>{issue.reason}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+                {lastDraftGeneration.warnings.length > 0 ? (
+                  <div className="draft-explain-list">
+                    {lastDraftGeneration.warnings.map((warning) => (
+                      <article className="draft-explain-item is-warning" key={warning}>
+                        <strong>生成提示</strong>
+                        <p>{warning}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </section>
           <section className="command-section">
             <p className="eyebrow">图层素材</p>
@@ -3992,7 +4774,12 @@ export function App() {
                     "command-layer-row",
                     layer.id === motionDocument.selectedLayerId ? "is-active" : "",
                     draggingLayerListId === layer.id ? "is-dragging" : "",
-                    layerListDropTargetId === layer.id ? "is-drop-target" : ""
+                    layerListDropTargetId === layer.id && layerListDropPosition === "above"
+                      ? "is-drop-above"
+                      : "",
+                    layerListDropTargetId === layer.id && layerListDropPosition === "below"
+                      ? "is-drop-below"
+                      : ""
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -4046,38 +4833,6 @@ export function App() {
                         onClick={() => toggleLayerLocked(layer)}
                       >
                         {layer.locked ? "解" : "锁"}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`图层上移 ${layer.name}`}
-                        disabled={!layer.layout || layer.locked}
-                        onClick={() => reorderLayer(layer.id, "forward")}
-                      >
-                        前
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`图层下移 ${layer.name}`}
-                        disabled={!layer.layout || layer.locked}
-                        onClick={() => reorderLayer(layer.id, "backward")}
-                      >
-                        后
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`图层置顶 ${layer.name}`}
-                        disabled={!layer.layout || layer.locked}
-                        onClick={() => reorderLayer(layer.id, "front")}
-                      >
-                        顶
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`图层置底 ${layer.name}`}
-                        disabled={!layer.layout || layer.locked}
-                        onClick={() => reorderLayer(layer.id, "back")}
-                      >
-                        底
                       </button>
                       <button
                         type="button"
@@ -4147,9 +4902,7 @@ export function App() {
               value={presetFilter}
               onChange={(event) => setPresetFilter(event.target.value)}
             />
-            <p className="scope-hint">
-              当前图层：{selectedPresetLayer?.name ?? "未选择"}
-            </p>
+            <p className="scope-hint">当前图层：{selectedPresetLayer?.name ?? "未选择"}</p>
             <div className="preset-tabs" role="tablist" aria-label="动效分类">
               {presetLibraryTabs.map((tab) => (
                 <button
@@ -4173,7 +4926,11 @@ export function App() {
                 <div className="preset-list">
                   {visiblePresetCombos.map((combo) => (
                     <div className="preset-item" key={combo.id}>
-                      <button type="button" className="preset-apply" onClick={() => addComboToComposition(combo)}>
+                      <button
+                        type="button"
+                        className="preset-apply"
+                        onClick={() => addComboToComposition(combo)}
+                      >
                         <span>组合</span>
                         <strong>{combo.label}</strong>
                         <small>{combo.summary}</small>
@@ -4213,7 +4970,6 @@ export function App() {
       >
         <CanvasPreview
           document={motionDocument}
-          isEmpty={!hasStarted}
           compositionTrack={compositionTrack}
           suggestions={suggestions}
           playhead={playhead}
@@ -4226,12 +4982,11 @@ export function App() {
           onToggleLoop={toggleLoop}
           onReset={resetPreview}
           onSeek={seek}
-          onCreateBlank={createBlankProject}
-          onLoadExample={loadExampleProject}
           onSelect={(layerId) => patchDocument({ selectedLayerId: layerId }, { resetPreview: false })}
           onMoveLayer={moveLayer}
         />
         <CompositionPanel
+          document={motionDocument}
           steps={compositionSteps}
           layers={motionDocument.layers}
           track={compositionTrack}
@@ -4262,6 +5017,10 @@ export function App() {
         onUpdateCompositionStepStart={updateCompositionStepStart}
         onResetCompositionStepMotion={resetCompositionStepMotion}
         onLoad={loadDocument}
+        onApplyFrameMorphComposition={applyFrameMorphComposition}
+        onApplyVisualMotionComposition={applyVisualMotionComposition}
+        onApplyZeroLayerMotionComposition={applyZeroLayerMotionComposition}
+        onUpdateZeroLayerSource={updateZeroLayerSource}
         onApplySuggestion={applySuggestion}
         onIgnoreSuggestion={ignoreSuggestion}
       />

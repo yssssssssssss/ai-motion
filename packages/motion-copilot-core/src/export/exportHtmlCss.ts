@@ -10,6 +10,8 @@ import {
   type MotionLayer,
   type MotionState
 } from "../schema/document";
+import { exportVisualCompositionHtml } from "../composition/exportVisualCompositionHtml";
+import { exportFrameMorphCompositionHtml } from "../composition/exportFrameMorphCompositionHtml";
 
 function numeric(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -56,7 +58,8 @@ function escapeHtml(value: string): string {
 function safeImageSrc(value: string | undefined): string {
   if (!value) return "";
   const src = value.trim();
-  return /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[a-zA-Z0-9+/=]+$/.test(src) ? src : "";
+  if (/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[a-zA-Z0-9+/=]+$/.test(src)) return src;
+  return /^https?:\/\/[^\s"'<>]+$/.test(src) ? src : "";
 }
 
 function iconGlyph(layer: MotionLayer | undefined): string {
@@ -74,8 +77,22 @@ function styleDeclarations(layer: MotionLayer | undefined): string[] {
   const styles: string[] = [];
   if (layer.style.background) styles.push(`background:${safeCssColor(layer.style.background)}`);
   if (layer.style.color) styles.push(`color:${safeCssColor(layer.style.color, "#1f2328")}`);
+  if (layer.style.borderColor)
+    styles.push(`border-color:${safeCssColor(layer.style.borderColor, "transparent")}`);
+  if (layer.style.boxShadow && /^[#(),.%\sa-zA-Z0-9-]+$/.test(layer.style.boxShadow)) {
+    styles.push(`box-shadow:${layer.style.boxShadow}`);
+  }
+  if (layer.style.fontFamily && /^[\w\s'",:-]+$/.test(layer.style.fontFamily)) {
+    styles.push(`font-family:${layer.style.fontFamily}`);
+  }
+  if (layer.style.textDecoration && /^[\w\s-]+$/.test(layer.style.textDecoration)) {
+    styles.push(`text-decoration:${layer.style.textDecoration}`);
+  }
   if (typeof layer.style.radius === "number") {
     styles.push(`border-radius:${Math.min(40, Math.max(0, layer.style.radius))}px`);
+  }
+  if (typeof layer.style.borderWidth === "number") {
+    styles.push(`border-width:${Math.min(12, Math.max(0, layer.style.borderWidth))}px`);
   }
   if (typeof layer.style.opacity === "number") {
     styles.push(`opacity:${Math.min(1, Math.max(0, layer.style.opacity))}`);
@@ -95,14 +112,21 @@ function layerMotionName(preset: LayerMotionPreset | undefined): string {
 function layerMotionDeclarations(layer: MotionLayer): string[] {
   const name = layerMotionName(layer.motion?.preset);
   if (!name) return [];
-  const easing: EasingSpec = layer.motion?.easing ?? { type: "classic" as const, preset: "decelerate" as const, css: "cubic-bezier(0.18, 0.86, 0.22, 1)" };
+  const easing: EasingSpec = layer.motion?.easing ?? {
+    type: "classic" as const,
+    preset: "decelerate" as const,
+    css: "cubic-bezier(0.18, 0.86, 0.22, 1)"
+  };
   return [
+    `--mc-layer-opacity-from:${Math.min(1, Math.max(0, layer.motion?.opacityFrom ?? 0))}`,
+    `--mc-layer-opacity-to:${Math.min(1, Math.max(0, layer.motion?.opacityTo ?? 1))}`,
+    `--mc-layer-scale-from:${Math.max(0, layer.motion?.scaleFrom ?? 0.92)}`,
     `animation:${name} ${safeMs(layer.motion?.durationMs, 220)}ms ${easingCss(easing)} ${safeMs(layer.motion?.delayMs, 0)}ms both`
   ];
 }
 
 function inlineStyle(layer: MotionLayer | undefined): string {
-  const styles = styleDeclarations(layer);
+  const styles = layer ? [...layerMotionDeclarations(layer), ...styleDeclarations(layer)] : [];
   return styles.length > 0 ? ` style="${styles.join(";")}"` : "";
 }
 
@@ -127,7 +151,13 @@ function renderImage(layer: MotionLayer | undefined): string {
   if (layer?.hidden) return "";
   const src = safeImageSrc(layer?.content?.src);
   if (!src) return `<span class="mc-modal-image-placeholder"${inlineStyle(layer)}></span>`;
-  return `<img class="mc-modal-image" src="${src}" alt="${escapeHtml(layer?.content?.alt ?? "")}" style="object-fit:${safeImageFit(layer?.style?.fit)};object-position:${safeImagePosition(layer?.style?.position)}" />`;
+  const styles = [
+    `object-fit:${safeImageFit(layer?.style?.fit)}`,
+    `object-position:${safeImagePosition(layer?.style?.position)}`,
+    ...(layer ? layerMotionDeclarations(layer) : []),
+    ...styleDeclarations(layer)
+  ];
+  return `<img class="mc-modal-image" src="${src}" alt="${escapeHtml(layer?.content?.alt ?? "")}" style="${styles.join(";")}" />`;
 }
 
 function roleMarkup(document: MotionDocument): string {
@@ -152,7 +182,7 @@ function roleMarkup(document: MotionDocument): string {
     secondary?.hidden && primary?.hidden
       ? ""
       : `<span class="mc-modal-actions">${secondary?.hidden ? "" : `<button class="mc-modal-secondary"${inlineStyle(secondary)}>${layerText(secondary, "稍后再说")}</button>`}${primary?.hidden ? "" : `<button class="mc-modal-primary"${inlineStyle(primary)}>${layerText(primary, "立即查看")}</button>`}</span>`;
-  return `<span class="mc-modal-handle"></span>${renderImage(layerById(document, "modal-image"))}${title?.hidden ? "" : `<strong class="mc-modal-title">${layerText(title, "新品上线提醒")}</strong>`}${body?.hidden ? "" : `<p class="mc-modal-text">${layerText(body, "这里展示关键说明。")}</p>`}${actions}`;
+  return `<span class="mc-modal-handle"></span>${renderImage(layerById(document, "modal-image"))}${title?.hidden ? "" : `<strong class="mc-modal-title"${inlineStyle(title)}>${layerText(title, "新品上线提醒")}</strong>`}${body?.hidden ? "" : `<p class="mc-modal-text"${inlineStyle(body)}>${layerText(body, "这里展示关键说明。")}</p>`}${actions}`;
 }
 
 function stageBackground(document: MotionDocument): string {
@@ -222,10 +252,10 @@ export function exportHtmlCss(document: MotionDocument): { html: string; css: st
   </div>
 </main>`;
   const css = `.mc-stage { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f6f8fa; }
-.mc-artboard { --mc-stage-width: ${stageWidth}; --mc-stage-height: ${stageHeight}; --mc-stage-width-px: ${stageWidth}px; position: relative; overflow: hidden; width: min(var(--mc-stage-width-px), calc(100vw - 48px)); aspect-ratio: var(--mc-stage-width) / var(--mc-stage-height); display: grid; place-items: center; background: ${safeCssColor(document.stage.background)}; border-radius: ${document.stage.mode === "mobile" ? 30 : 10}px; }
+.mc-artboard { --mc-stage-width: ${stageWidth}; --mc-stage-height: ${stageHeight}; --mc-stage-width-px: ${stageWidth}px; position: relative; overflow: hidden; width: min(var(--mc-stage-width-px), calc(100vw - 48px)); aspect-ratio: var(--mc-stage-width) / var(--mc-stage-height); display: grid; place-items: center; background: ${safeCssColor(document.stage.background)}; border-radius: ${document.stage.mode === "mobile" ? 30 : 0}px; }
 .mc-stage-background { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: ${safeImageFit(document.stage.backgroundFit)}; object-position: ${safeImagePosition(document.stage.backgroundPosition)}; }
 .mc-target { position: relative; z-index: 20; animation: mc-motion ${document.timeline.durationMs}ms ${easingCss(document.timeline.easing)} ${document.timeline.delayMs}ms both; will-change: transform, opacity, filter; }
-.mc-layer { position: absolute; display: grid; place-items: center; overflow: hidden; border: 0; padding: 8px; color: #1f2328; background: transparent; font: inherit; text-align: center; line-height: 1.35; }
+.mc-layer { position: absolute; box-sizing: border-box; display: grid; place-items: center; overflow: hidden; border: 0 solid transparent; padding: 0; color: #1f2328; background: transparent; font: inherit; text-align: center; line-height: normal; text-decoration: none; }
 .mc-layer img { width: 100%; height: 100%; display: block; }
 .mc-layer-image, .mc-layer-shape { padding: 0; }
 .mc-modal { width: min(330px, 76vw); min-height: 220px; padding: 24px; border-radius: 18px; background: #ffffff; box-shadow: 0 28px 92px rgba(20, 30, 44, 0.22); }
@@ -237,16 +267,22 @@ export function exportHtmlCss(document: MotionDocument): { html: string; css: st
 .mc-toast { min-width: min(340px, 82vw); min-height: 68px; padding: 14px 16px; border-radius: 14px; background: #17202a; color: white; display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: center; }
 .mc-button { min-width: 172px; height: 54px; border-radius: 14px; border: 0; display: grid; place-items: center; color: white; background: #0f5c8a; }
 ${keyframes(document)}
-@keyframes mc-free-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mc-free-fade { from { opacity: var(--mc-layer-opacity-from, 0); } to { opacity: var(--mc-layer-opacity-to, 1); } }
 @keyframes mc-free-lift { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes mc-free-slide-left { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes mc-free-slide-right { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes mc-free-zoom { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes mc-free-zoom { from { opacity: var(--mc-layer-opacity-from, 0); transform: scale(var(--mc-layer-scale-from, 0.92)); } to { opacity: var(--mc-layer-opacity-to, 1); transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .mc-target, .mc-layer { animation: none; transform: none; opacity: 1; filter: none; } }`;
   return { html, css };
 }
 
 export function exportStandaloneHtml(document: MotionDocument): string {
+  if (document.visualSource?.kind === "zero-visual-morph" && document.composition) {
+    return exportVisualCompositionHtml(document, document.composition);
+  }
+  if (document.composition && document.composition.steps.some((s) => s.presetId === "frame-morph-layout")) {
+    return exportFrameMorphCompositionHtml(document, document.composition);
+  }
   const output = exportHtmlCss(document);
   return `<!doctype html>
 <html lang="zh-CN">

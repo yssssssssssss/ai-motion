@@ -77,5 +77,19 @@ describe("jd popup feedback fast component", () => {
         param.targets.some((target) => target.kind === "css-variable" && target.name?.startsWith("--"))
       )
     ).toBe(true);
+    expect(manifest.layers?.map((layer) => layer.id)).toEqual([
+      "shell-frame",
+      "screen-window",
+      "product-screen",
+      "screen-dim",
+      "coupon-popup",
+      "close-button",
+      "feedback-ripple"
+    ]);
+    expect(manifest.layers.find((layer) => layer.id === "coupon-popup")).toMatchObject({
+      replaceable: true,
+      paramId: "couponPopupImage"
+    });
+    expect(manifest.motionSkill).toBeUndefined();
   });
 });

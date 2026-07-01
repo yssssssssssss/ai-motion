@@ -117,6 +117,14 @@ const HORIZONTAL_SWITCH_FOREGROUND_LAYER_SIZES: Record<string, typeof DEFAULT_FO
   segmented: { width: 72, height: 40 },
   "channel-tab": { width: 104, height: 148 }
 };
+const CHANNEL_TAB_ICON_LAYERS = [
+  { id: "star", label: "频道 Icon 1", defaultImage: CHANNEL_TAB_ICON_DATA_URIS.star },
+  { id: "alarm", label: "频道 Icon 2", defaultImage: CHANNEL_TAB_ICON_DATA_URIS.alarm },
+  { id: "moon", label: "频道 Icon 3", defaultImage: CHANNEL_TAB_ICON_DATA_URIS.moon },
+  { id: "chart", label: "频道 Icon 4", defaultImage: CHANNEL_TAB_ICON_DATA_URIS.chart },
+  { id: "sale", label: "频道 Icon 5", defaultImage: CHANNEL_TAB_ICON_DATA_URIS.sale },
+  { id: "basket", label: "频道 Icon 6", defaultImage: CHANNEL_TAB_ICON_DATA_URIS.basket }
+] as const;
 const FRONT_BACK_ENTRY_FOREGROUND_LAYER_SIZES: Record<string, typeof DEFAULT_FOREGROUND_LAYER_SIZE> = {
   "detail-page": { width: 374, height: 812 },
   "half-sheet": { width: 374, height: 406 },
@@ -205,6 +213,14 @@ function colorVarValue(token: AtomicMotionToken, suffix: string, fallback: strin
       ? `var(--motion-active-color, ${fallback})`
       : fallback;
   return `var(${cssVarName(token, suffix)}, ${activeFallback})`;
+}
+
+function channelTabIconParamId(index: number): string {
+  return `channelTabIcon${index + 1}`;
+}
+
+function channelTabIconCssVar(index: number): string {
+  return `--channel-tab-icon-${index + 1}`;
 }
 
 function isHorizontalSwitchPositionToken(token: AtomicMotionToken): boolean {
@@ -632,6 +648,9 @@ function tokenCss(tokens: AtomicMotionToken[]): string {
   if (tokens[0]?.family === "horizontal-switch" && tokens[0]?.variant === "tabbar") {
     return "";
   }
+  if (tokens[0]?.family === "horizontal-switch" && tokens[0]?.variant === "segmented") {
+    return "";
+  }
 
   const keyframes = [...tokens.map(tokenKeyframes), syntheticHorizontalSwitchKeyframes(tokens)].filter(
     Boolean
@@ -978,6 +997,60 @@ function tokenBinding(token: AtomicMotionToken): MotionSkillTokenBinding {
   };
 }
 
+function cssVariableTargetName(param: MotionParam | undefined): string | null {
+  for (const target of param?.targets ?? []) {
+    if (target.kind === "css-variable") return target.name;
+  }
+  return null;
+}
+
+function sourceConsumesCssVariable(source: string, variableName: string): boolean {
+  const escaped = variableName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`var\\(\\s*${escaped}\\b`).test(source);
+}
+
+function isLiveTokenParam(paramId: string, paramsById: Map<string, MotionParam>, source: string): boolean {
+  const variableName = cssVariableTargetName(paramsById.get(paramId));
+  return variableName !== null && sourceConsumesCssVariable(source, variableName);
+}
+
+function liveTokenBinding(
+  token: AtomicMotionToken,
+  paramsById: Map<string, MotionParam>,
+  source: string
+): MotionSkillTokenBinding | null {
+  const binding = tokenBinding(token);
+  const durationParamId = isLiveTokenParam(binding.durationParamId, paramsById, source)
+    ? binding.durationParamId
+    : "";
+  const delayParamId = isLiveTokenParam(binding.delayParamId, paramsById, source) ? binding.delayParamId : "";
+  const easingParamId = isLiveTokenParam(binding.easingParamId, paramsById, source)
+    ? binding.easingParamId
+    : "";
+  const keyframeParamIds = binding.keyframeParamIds.filter((paramId) =>
+    isLiveTokenParam(paramId, paramsById, source)
+  );
+
+  if (!durationParamId && !delayParamId && !easingParamId && keyframeParamIds.length === 0) return null;
+  return {
+    ...binding,
+    durationParamId,
+    delayParamId,
+    easingParamId,
+    keyframeParamIds
+  };
+}
+
+function liveTokenBindings(
+  tokens: AtomicMotionToken[],
+  params: MotionParam[],
+  files: SourceFile[]
+): MotionSkillTokenBinding[] {
+  const paramsById = new Map(params.map((param) => [param.id, param]));
+  const source = files.map((file) => file.content).join("\n");
+  return tokens.flatMap((token) => liveTokenBinding(token, paramsById, source) ?? []);
+}
+
 function assetParams(recipe: MotionSkillRecipe): MotionParam[] {
   const size = stageSize(recipe);
   const foregroundSize = foregroundLayerSize(recipe);
@@ -1025,7 +1098,7 @@ function assetParams(recipe: MotionSkillRecipe): MotionParam[] {
     step: 1,
     unit: "px" as const
   };
-  const params: MotionParam[] = [
+  let params: MotionParam[] = [
     {
       id: "backgroundImage",
       label: "背景层",
@@ -1123,6 +1196,10 @@ function assetParams(recipe: MotionSkillRecipe): MotionParam[] {
     }
   ];
 
+  if (recipe.family === "horizontal-switch" && recipe.variant === "channel-tab") {
+    params = params.filter((param) => param.id !== "backgroundImage" && param.id !== "foregroundImage");
+  }
+
   if (recipe.family === "horizontal-switch") {
     params.push({
       id: "activeColor",
@@ -1158,6 +1235,17 @@ function assetParams(recipe: MotionSkillRecipe): MotionParam[] {
   if (recipe.family === "horizontal-switch" && recipe.variant === "channel-tab") {
     const defaults = ["推荐", "秒杀", "月黑风高", "京东指数", "大牌奥莱", "临期清仓"];
     params.push(
+      ...CHANNEL_TAB_ICON_LAYERS.map(
+        (icon, index): MotionParam => ({
+          id: channelTabIconParamId(index),
+          label: icon.label,
+          type: "image",
+          default: icon.defaultImage,
+          status: "confirmed",
+          constraints: { allowedFileTypes: ["image/png", "image/jpeg", "image/webp", "image/svg+xml"] },
+          targets: [cssVariableTarget(channelTabIconCssVar(index))]
+        })
+      ),
       ...defaults.map(
         (label, index): MotionParam => ({
           id: `channelTabLabel${index + 1}`,
@@ -1192,39 +1280,53 @@ function assetParams(recipe: MotionSkillRecipe): MotionParam[] {
   return params;
 }
 
+function layerImageTarget(selector: string): MotionLayer["targets"][number] {
+  return {
+    kind: "html-attribute",
+    file: "source/index.html",
+    selector,
+    attribute: "src"
+  };
+}
+
+function atomicLayerVisibility(recipe: MotionSkillRecipe): { backgroundImage: boolean; foregroundImage: boolean } {
+  if (recipe.family === "content-loading" && recipe.variant === "global") {
+    return { backgroundImage: false, foregroundImage: false };
+  }
+  if (recipe.family === "content-feedback" && recipe.variant === "selection") {
+    return { backgroundImage: false, foregroundImage: false };
+  }
+  if (recipe.family === "horizontal-switch") {
+    if (recipe.variant === "tabbar") return { backgroundImage: false, foregroundImage: false };
+    if (recipe.variant === "segmented" || recipe.variant === "indicator") {
+      return { backgroundImage: false, foregroundImage: false };
+    }
+    if (recipe.variant === "switch") return { backgroundImage: false, foregroundImage: true };
+    return { backgroundImage: false, foregroundImage: false };
+  }
+  return { backgroundImage: true, foregroundImage: true };
+}
+
 function assetLayers(recipe: MotionSkillRecipe): MotionLayer[] {
+  const visibility = atomicLayerVisibility(recipe);
   const layers: MotionLayer[] = [
     {
       id: "backgroundLayer",
       label: "背景层",
-      kind: "image",
-      replaceable: true,
+      kind: visibility.backgroundImage ? "image" : "structure",
+      replaceable: visibility.backgroundImage,
       required: false,
-      paramId: "backgroundImage",
-      targets: [
-        {
-          kind: "html-attribute",
-          file: "source/index.html",
-          selector: "[data-motion=backgroundImage]",
-          attribute: "src"
-        }
-      ]
+      ...(visibility.backgroundImage ? { paramId: "backgroundImage" } : {}),
+      targets: visibility.backgroundImage ? [layerImageTarget("[data-motion=backgroundImage]")] : []
     },
     {
       id: "foregroundLayer",
       label: "前景层",
-      kind: "image",
-      replaceable: true,
+      kind: visibility.foregroundImage ? "image" : "structure",
+      replaceable: visibility.foregroundImage,
       required: true,
-      paramId: "foregroundImage",
-      targets: [
-        {
-          kind: "html-attribute",
-          file: "source/index.html",
-          selector: "[data-motion=foregroundImage]",
-          attribute: "src"
-        }
-      ]
+      ...(visibility.foregroundImage ? { paramId: "foregroundImage" } : {}),
+      targets: visibility.foregroundImage ? [layerImageTarget("[data-motion=foregroundImage]")] : []
     }
   ];
 
@@ -1245,6 +1347,22 @@ function assetLayers(recipe: MotionSkillRecipe): MotionLayer[] {
               property: "transform"
             }
           ]
+        })
+      )
+    );
+  }
+
+  if (recipe.family === "horizontal-switch" && recipe.variant === "channel-tab") {
+    layers.push(
+      ...CHANNEL_TAB_ICON_LAYERS.map(
+        (icon, index): MotionLayer => ({
+          id: `channelTabIconLayer${index + 1}`,
+          label: icon.label,
+          kind: "image",
+          replaceable: true,
+          required: false,
+          paramId: channelTabIconParamId(index),
+          targets: [cssVariableTarget(channelTabIconCssVar(index))]
         })
       )
     );
@@ -1874,12 +1992,13 @@ function horizontalSwitchVariantCss(variant: string): string {
   left: 2px;
   top: 2px;
   z-index: 2;
-  width: 72px;
-  height: 40px;
+  width: var(--horizontal-switch-segmented-size-keyframe-0-width, 72px);
+  height: var(--horizontal-switch-segmented-size-keyframe-0-height, 40px);
   border-radius: 8px;
   background: #565b62;
   content: "";
-  transform: translateX(0);
+  transform: translateX(var(--horizontal-switch-segmented-position-keyframe-0, 0px));
+  will-change: transform, width;
 }
 
 .motion-switch-segmented-track[data-active-index="1"]::after {
@@ -1887,23 +2006,23 @@ function horizontalSwitchVariantCss(variant: string): string {
 }
 
 .motion-switch-segmented-track.is-moving-right::after {
-  animation: horizontal-switch-segmented-to-right var(--horizontal-switch-segmented-position-duration, 200ms) var(--horizontal-switch-segmented-position-easing, cubic-bezier(0.38, 0, 0.24, 1)) both;
+  animation: horizontal-switch-segmented-to-right var(--horizontal-switch-segmented-position-duration, 200ms) var(--horizontal-switch-segmented-position-easing, cubic-bezier(0.38, 0, 0.24, 1));
 }
 
 .motion-switch-segmented-track.is-moving-left::after {
-  animation: horizontal-switch-segmented-to-left var(--horizontal-switch-segmented-position-duration, 200ms) var(--horizontal-switch-segmented-position-easing, cubic-bezier(0.38, 0, 0.24, 1)) both;
+  animation: horizontal-switch-segmented-to-left var(--horizontal-switch-segmented-position-duration, 200ms) var(--horizontal-switch-segmented-position-easing, cubic-bezier(0.38, 0, 0.24, 1));
 }
 
 @keyframes horizontal-switch-segmented-to-right {
-  0% { transform: translateX(0); width: 72px; }
+  0% { transform: translateX(var(--horizontal-switch-segmented-position-keyframe-0, 0px)); width: var(--horizontal-switch-segmented-size-keyframe-0-width, 72px); }
   40% { width: var(--horizontal-switch-segmented-size-keyframe-1-width, 92px); }
-  100% { transform: translateX(72px); width: 72px; }
+  100% { transform: translateX(var(--horizontal-switch-segmented-position-keyframe-1, 72px)); width: var(--horizontal-switch-segmented-size-keyframe-2-width, 72px); }
 }
 
 @keyframes horizontal-switch-segmented-to-left {
-  0% { transform: translateX(72px); width: 72px; }
+  0% { transform: translateX(var(--horizontal-switch-segmented-position-keyframe-1, 72px)); width: var(--horizontal-switch-segmented-size-keyframe-2-width, 72px); }
   40% { width: var(--horizontal-switch-segmented-size-keyframe-1-width, 92px); }
-  100% { transform: translateX(0); width: 72px; }
+  100% { transform: translateX(var(--horizontal-switch-segmented-position-keyframe-0, 0px)); width: var(--horizontal-switch-segmented-size-keyframe-0-width, 72px); }
 }
 
 .motion-switch-segmented-option {
@@ -2316,6 +2435,12 @@ function horizontalSwitchVariantCss(variant: string): string {
     return `
 main.motion-skill-horizontal-switch-channel-tab {
   --motion-active-color: #ff0031;
+  --channel-tab-icon-1: url("${CHANNEL_TAB_ICON_DATA_URIS.star}");
+  --channel-tab-icon-2: url("${CHANNEL_TAB_ICON_DATA_URIS.alarm}");
+  --channel-tab-icon-3: url("${CHANNEL_TAB_ICON_DATA_URIS.moon}");
+  --channel-tab-icon-4: url("${CHANNEL_TAB_ICON_DATA_URIS.chart}");
+  --channel-tab-icon-5: url("${CHANNEL_TAB_ICON_DATA_URIS.sale}");
+  --channel-tab-icon-6: url("${CHANNEL_TAB_ICON_DATA_URIS.basket}");
   border-radius: 0;
   background: #ff0031;
   box-shadow: none;
@@ -2462,27 +2587,27 @@ main.motion-skill-horizontal-switch-channel-tab {
 }
 
 .channel-icon-star {
-  background-image: url("${CHANNEL_TAB_ICON_DATA_URIS.star}");
+  background-image: var(--channel-tab-icon-1);
 }
 
 .channel-icon-alarm {
-  background-image: url("${CHANNEL_TAB_ICON_DATA_URIS.alarm}");
+  background-image: var(--channel-tab-icon-2);
 }
 
 .channel-icon-moon {
-  background-image: url("${CHANNEL_TAB_ICON_DATA_URIS.moon}");
+  background-image: var(--channel-tab-icon-3);
 }
 
 .channel-icon-chart {
-  background-image: url("${CHANNEL_TAB_ICON_DATA_URIS.chart}");
+  background-image: var(--channel-tab-icon-4);
 }
 
 .channel-icon-sale {
-  background-image: url("${CHANNEL_TAB_ICON_DATA_URIS.sale}");
+  background-image: var(--channel-tab-icon-5);
 }
 
 .channel-icon-basket {
-  background-image: url("${CHANNEL_TAB_ICON_DATA_URIS.basket}");
+  background-image: var(--channel-tab-icon-6);
 }`;
   }
   return "";
@@ -2807,6 +2932,7 @@ function horizontalSwitchSegmentedScript(): string {
   }
 
   function settle() {
+    window.clearTimeout(timeoutId);
     clearMotionClasses();
   }
 
@@ -2826,6 +2952,10 @@ function horizontalSwitchSegmentedScript(): string {
   options.forEach((option, index) => {
     option.addEventListener("click", () => select(index));
   });
+
+  if (track instanceof HTMLElement) {
+    track.addEventListener("animationend", settle);
+  }
 
   window.motionReplay = function motionReplay() {
     select(1);
@@ -3264,8 +3394,19 @@ function filesWithVariantOverrides(files: SourceFile[], recipe: MotionSkillRecip
   );
 }
 
+function layersWithVariantOverrides(layers: MotionLayer[], recipe: MotionSkillRecipe): MotionLayer[] {
+  if (recipe.family !== "horizontal-switch" || recipe.variant !== "channel-tab") return layers;
+  return layers.map((layer) =>
+    layer.id === "backgroundLayer" || layer.id === "foregroundLayer"
+      ? { ...layer, replaceable: false }
+      : layer
+  );
+}
+
 function usesCustomSwipeActionFiles(recipe: MotionSkillRecipe): boolean {
-  return recipe.family === "front-back-entry" && recipe.variant === "swipe-action";
+  if (recipe.family === "front-back-entry" && recipe.variant === "swipe-action") return true;
+  if (recipe.family === "horizontal-switch" && recipe.variant === "segmented") return true;
+  return false;
 }
 
 export function createMotionSkillDraftComponent(input: {
@@ -3310,9 +3451,11 @@ export function createMotionSkillDraftComponent(input: {
     confidence: 1
   });
   const files = filesWithVariantOverrides(applied.files ?? sourceFiles, recipeWithTrigger);
+  const manifestLayers = layersWithVariantOverrides(applied.layers, recipeWithTrigger);
   const id = `generated-${input.pack.manifest.id}-${recipe.variant}-${input.now ?? Date.now()}`;
   const registryElement = input.registry.elements.find((element) => element.id === input.pack.manifest.id);
   const target = targetBinding(recipeWithTrigger);
+  const tokensForPanel = liveTokenBindings(tokens, applied.params, files);
 
   return {
     id,
@@ -3335,7 +3478,7 @@ export function createMotionSkillDraftComponent(input: {
       sourceKind: "builtin-component",
       runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
       params: applied.params,
-      layers: applied.layers,
+      layers: manifestLayers,
       motionRecipes: [applied.binding],
       designSpecs: [{ id: "interactive-control-motion-skill", confidence: 0.9, required: true }],
       capabilities: ["editable", "export-html"],
@@ -3347,7 +3490,7 @@ export function createMotionSkillDraftComponent(input: {
         version: input.pack.manifest.version,
         recipeId: recipe.id,
         tokenIds: recipe.tokenIds,
-        tokens: tokens.map(tokenBinding),
+        tokens: tokensForPanel,
         target
       }
     }

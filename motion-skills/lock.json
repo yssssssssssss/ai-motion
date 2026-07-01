@@ -57,7 +57,7 @@
       }
     },
     "horizontal-switch": {
-      "latestVersion": "1.5.0",
+      "latestVersion": "1.6.0",
       "tokens": {
         "horizontal-switch.tab-navigation.position": {
           "fingerprint": "{\"property\":\"position\",\"durationMs\":300,\"delayMs\":0,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[0,-86]}",
@@ -100,11 +100,11 @@
           "status": "active"
         },
         "horizontal-switch.segmented.position": {
-          "fingerprint": "{\"property\":\"position\",\"durationMs\":200,\"delayMs\":0,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[0,36]}",
+          "fingerprint": "{\"property\":\"position\",\"durationMs\":200,\"delayMs\":0,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[0,72]}",
           "status": "active"
         },
         "horizontal-switch.segmented.size": {
-          "fingerprint": "{\"property\":\"size\",\"durationMs\":200,\"delayMs\":0,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[{\"width\":36,\"height\":20},{\"width\":46,\"height\":20,\"offsetMs\":80},{\"width\":36,\"height\":20}]}",
+          "fingerprint": "{\"property\":\"size\",\"durationMs\":200,\"delayMs\":0,\"easing\":\"cubic-bezier(0.38, 0, 0.24, 1)\",\"keyframes\":[{\"width\":72,\"height\":40},{\"width\":92,\"height\":40,\"offsetMs\":80},{\"width\":72,\"height\":40}]}",
           "status": "active"
         },
         "horizontal-switch.channel-tab.position": {

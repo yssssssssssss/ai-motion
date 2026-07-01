@@ -46,5 +46,19 @@ export function useProject() {
     });
   }, []);
 
-  return { project, startProject, updateParam, replay, resetParams };
+  const resetParamIds = useCallback((paramIds: string[]) => {
+    setProject((current) => {
+      if (!current || paramIds.length === 0) return current;
+      const ids = new Set(paramIds);
+      const nextValues = Object.fromEntries(
+        Object.entries(current.patch.values).filter(([paramId]) => !ids.has(paramId))
+      );
+      return {
+        ...current,
+        patch: { ...current.patch, values: nextValues }
+      };
+    });
+  }, []);
+
+  return { project, startProject, updateParam, replay, resetParams, resetParamIds };
 }

@@ -1,0 +1,265 @@
+{
+  "schemaVersion": "motion-copilot.frame-snapshot.v1",
+  "frameId": "28:2",
+  "name": "信息展开状态",
+  "width": 583,
+  "height": 38,
+  "screenshotUrl": "https://img20.360buyimg.com/img/jfs/t1/461955/3/9583/16328/6a3f42aaF8ce75946/02762510308a7d8f.png",
+  "elements": [
+    {
+      "key": "group:assign-domain",
+      "nodeId": "28:6",
+      "name": "组 491",
+      "kind": "group",
+      "x": 0,
+      "y": 0,
+      "w": 366,
+      "h": 38,
+      "opacity": 1,
+      "zIndex": 1
+    },
+    {
+      "key": "vector:assign-bg",
+      "nodeId": "28:7",
+      "parentKey": "group:assign-domain",
+      "name": "矩形 5126",
+      "kind": "vector",
+      "x": 0,
+      "y": 0,
+      "w": 366,
+      "h": 38,
+      "opacity": 1,
+      "zIndex": 2
+    },
+    {
+      "key": "text:assign-domain",
+      "nodeId": "28:8",
+      "parentKey": "group:assign-domain",
+      "name": "文字 159",
+      "kind": "text",
+      "x": 13,
+      "y": 10,
+      "w": 60,
+      "h": 17,
+      "opacity": 1,
+      "zIndex": 3,
+      "text": "指派域产品",
+      "style": {
+        "color": "#000000",
+        "fontSize": 12,
+        "fontWeight": 500
+      }
+    },
+    {
+      "key": "group:continue-assign",
+      "nodeId": "28:9",
+      "parentKey": "group:assign-domain",
+      "name": "组 431",
+      "kind": "group",
+      "x": 273,
+      "y": 4,
+      "w": 88,
+      "h": 30,
+      "opacity": 1,
+      "zIndex": 4
+    },
+    {
+      "key": "rect:continue-assign-bg",
+      "nodeId": "28:10",
+      "parentKey": "group:continue-assign",
+      "name": "矩形 5125",
+      "kind": "rect",
+      "x": 273,
+      "y": 4,
+      "w": 88,
+      "h": 30,
+      "opacity": 1,
+      "zIndex": 5,
+      "style": {
+        "background": "#000000",
+        "radius": 36
+      }
+    },
+    {
+      "key": "text:continue-assign",
+      "nodeId": "28:11",
+      "parentKey": "group:continue-assign",
+      "name": "文字 159",
+      "kind": "text",
+      "x": 287,
+      "y": 10,
+      "w": 60,
+      "h": 17,
+      "opacity": 1,
+      "zIndex": 6,
+      "text": "继续指派 >",
+      "style": {
+        "color": "#ffffff",
+        "fontSize": 12,
+        "fontWeight": 500
+      }
+    },
+    {
+      "key": "rect:status-pill",
+      "nodeId": "28:12",
+      "parentKey": "group:assign-domain",
+      "name": "矩形 5127",
+      "kind": "rect",
+      "x": 79,
+      "y": 6,
+      "w": 185,
+      "h": 26,
+      "opacity": 1,
+      "zIndex": 7,
+      "style": {
+        "background": "#f3f3f3",
+        "radius": 25
+      }
+    },
+    {
+      "key": "text:status-pending-expanded",
+      "nodeId": "28:14",
+      "parentKey": "group:assign-domain",
+      "name": "文字 159",
+      "kind": "text",
+      "x": 88,
+      "y": 10,
+      "w": 48,
+      "h": 17,
+      "opacity": 1,
+      "zIndex": 8,
+      "text": "待确认 2",
+      "style": {
+        "color": "#cdab18",
+        "fontSize": 12,
+        "fontWeight": 500
+      }
+    },
+    {
+      "key": "text:status-accepted-expanded",
+      "nodeId": "28:15",
+      "parentKey": "group:assign-domain",
+      "name": "文字 159",
+      "kind": "text",
+      "x": 149,
+      "y": 10,
+      "w": 45,
+      "h": 17,
+      "opacity": 1,
+      "zIndex": 9,
+      "text": "已接受 1",
+      "style": {
+        "color": "#09ae28",
+        "fontSize": 12,
+        "fontWeight": 500
+      }
+    },
+    {
+      "key": "text:status-rejected-expanded",
+      "nodeId": "28:13",
+      "parentKey": "group:assign-domain",
+      "name": "文字 159",
+      "kind": "text",
+      "x": 206,
+      "y": 10,
+      "w": 48,
+      "h": 17,
+      "opacity": 1,
+      "zIndex": 10,
+      "text": "已拒绝 3",
+      "style": {
+        "color": "#ff3434",
+        "fontSize": 12,
+        "fontWeight": 500
+      }
+    },
+    {
+      "key": "group:generate-prd",
+      "nodeId": "28:16",
+      "name": "组 497",
+      "kind": "group",
+      "x": 380,
+      "y": 0,
+      "w": 83,
+      "h": 38,
+      "opacity": 1,
+      "zIndex": 11
+    },
+    {
+      "key": "vector:generate-prd-bg",
+      "nodeId": "28:17",
+      "parentKey": "group:generate-prd",
+      "name": "矩形 5096",
+      "kind": "vector",
+      "x": 380,
+      "y": 0,
+      "w": 83,
+      "h": 38,
+      "opacity": 1,
+      "zIndex": 12
+    },
+    {
+      "key": "text:generate-prd",
+      "nodeId": "28:18",
+      "parentKey": "group:generate-prd",
+      "name": "文字 140",
+      "kind": "text",
+      "x": 397,
+      "y": 10,
+      "w": 49,
+      "h": 17,
+      "opacity": 1,
+      "zIndex": 13,
+      "text": "生成PRD",
+      "style": {
+        "color": "#000000",
+        "fontSize": 12,
+        "fontWeight": 600
+      }
+    },
+    {
+      "key": "group:invite-architect",
+      "nodeId": "28:3",
+      "name": "组 490",
+      "kind": "group",
+      "x": 477,
+      "y": 0,
+      "w": 106,
+      "h": 38,
+      "opacity": 1,
+      "zIndex": 14
+    },
+    {
+      "key": "vector:invite-architect-bg",
+      "nodeId": "28:4",
+      "parentKey": "group:invite-architect",
+      "name": "矩形 5093",
+      "kind": "vector",
+      "x": 477,
+      "y": 0,
+      "w": 106,
+      "h": 38,
+      "opacity": 1,
+      "zIndex": 15
+    },
+    {
+      "key": "text:invite-architect",
+      "nodeId": "28:5",
+      "parentKey": "group:invite-architect",
+      "name": "文字 140",
+      "kind": "text",
+      "x": 494,
+      "y": 10.5,
+      "w": 72,
+      "h": 17,
+      "opacity": 1,
+      "zIndex": 16,
+      "text": "邀请主架构 >",
+      "style": {
+        "color": "#000000",
+        "fontSize": 12,
+        "fontWeight": 600
+      }
+    }
+  ]
+}

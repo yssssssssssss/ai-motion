@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import type { MotionManifest, MotionPatch, MotionSource } from "@motion-tool/core";
 import { PreviewFrame, previewPatchValues, shouldPreviewAutoplay } from "./PreviewFrame";
 
@@ -102,6 +103,57 @@ describe("PreviewFrame", () => {
     expect(initial).toBe(updated);
   });
 
+  it("keeps iframe srcDoc stable when non-image values change on image-capable components", () => {
+    const initial = renderToStaticMarkup(
+      <PreviewFrame
+        source={imageSource}
+        manifest={{
+          ...imageManifest,
+          params: [
+            ...imageManifest.params,
+            {
+              id: "opacity",
+              label: "Opacity",
+              type: "range",
+              default: 1,
+              status: "confirmed",
+              targets: [
+                { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--opacity" }
+              ]
+            }
+          ]
+        }}
+        patch={{ id: "patch", sourceManifestId: "image-layer", values: { heroImage: "data:image/png;base64,A", opacity: 1 } }}
+        playbackState="playing"
+      />
+    );
+    const updated = renderToStaticMarkup(
+      <PreviewFrame
+        source={imageSource}
+        manifest={{
+          ...imageManifest,
+          params: [
+            ...imageManifest.params,
+            {
+              id: "opacity",
+              label: "Opacity",
+              type: "range",
+              default: 1,
+              status: "confirmed",
+              targets: [
+                { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--opacity" }
+              ]
+            }
+          ]
+        }}
+        patch={{ id: "patch", sourceManifestId: "image-layer", values: { heroImage: "data:image/png;base64,A", opacity: 0.4 } }}
+        playbackState="playing"
+      />
+    );
+
+    expect(initial).toBe(updated);
+  });
+
   it("keeps iframe srcDoc stable when replay token changes", () => {
     const initial = renderToStaticMarkup(
       <PreviewFrame
@@ -150,6 +202,46 @@ describe("PreviewFrame", () => {
     expect(initial).not.toBe(updated);
     expect(updated).toContain("data:image/png;base64,NEWPAYLOAD");
     expect(updated).toContain("--hero-image: url(&quot;data:image/png;base64,NEWPAYLOAD&quot;)");
+    expect(updated).not.toContain("data-preview-image-signature");
+  });
+
+  it("keeps builtin srcDoc previews on a non-null origin", () => {
+    const html = renderToStaticMarkup(
+      <PreviewFrame
+        source={imageSource}
+        manifest={imageManifest}
+        patch={{ id: "patch", sourceManifestId: "image-layer", values: {} }}
+        playbackState="playing"
+      />
+    );
+
+    expect(html).toContain('sandbox="allow-scripts allow-same-origin"');
+  });
+
+  it("keeps imported srcDoc previews origin-isolated", () => {
+    const html = renderToStaticMarkup(
+      <PreviewFrame
+        source={{ ...imageSource, origin: "imported" }}
+        manifest={imageManifest}
+        patch={{ id: "patch", sourceManifestId: "image-layer", values: {} }}
+        playbackState="playing"
+      />
+    );
+
+    expect(html).toContain('sandbox="allow-scripts"');
+    expect(html).not.toContain('sandbox="allow-scripts allow-same-origin"');
+  });
+
+  it("posts to srcDoc previews with wildcard target origin", () => {
+    const sourceText = readFileSync(new URL("./PreviewFrame.tsx", import.meta.url), "utf8");
+
+    expect(sourceText).toContain("key={iframeKey}");
+    expect(sourceText).toContain("function imagePatchSignature");
+    expect(sourceText).toContain('postMessage(message, "*")');
+    expect(sourceText).not.toContain("location.origin");
+    expect(sourceText).not.toContain("targetOrigin");
+    expect(sourceText).not.toContain('postMessage(message, "null")');
+    expect(sourceText).not.toContain("postMessage(message, 'null')");
   });
 
   it("sends default values for params missing from the current patch", () => {
@@ -163,6 +255,23 @@ describe("PreviewFrame", () => {
         values: { buttonColor: "#ff3366" }
       })
     ).toEqual({ buttonColor: "#ff3366" });
+  });
+
+  it("does not send empty image defaults that would erase builtin CSS assets", () => {
+    expect(
+      previewPatchValues(imageManifest, {
+        id: "patch",
+        sourceManifestId: "image-layer",
+        values: {}
+      })
+    ).toEqual({});
+    expect(
+      previewPatchValues(imageManifest, {
+        id: "patch",
+        sourceManifestId: "image-layer",
+        values: { heroImage: "data:image/png;base64,NEW" }
+      })
+    ).toEqual({ heroImage: "data:image/png;base64,NEW" });
   });
 
   it("does not autoplay user-triggered recipe previews", () => {

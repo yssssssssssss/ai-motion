@@ -23,6 +23,7 @@ describe("lazy builtin component loading", () => {
     expect(product?.source.files.some((file) => file.path === "source/assets.css")).toBe(true);
     expect(product?.source.files.some((file) => file.path === "source/index.html")).toBe(true);
     expect(assets?.content).not.toContain("data:image");
+    expect(assets?.content).not.toContain(":root");
   });
 
   it("loads the dynamic island design demo so it can appear in feeds", async () => {
@@ -70,7 +71,7 @@ describe("lazy builtin component loading", () => {
     }
   });
 
-  it("keeps the heavy product-transition assets out of the raw source glob", () => {
+  it("keeps oversized builtin asset stylesheets externalized in lazy bundles", () => {
     for (const filePath of EXTERNALIZED_BUILTIN_SOURCE_FILES) {
       expect(lazySource).toContain(`!${filePath}`);
       expect(lazySource).toContain(filePath);

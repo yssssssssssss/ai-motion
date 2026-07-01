@@ -6,7 +6,8 @@
     "dev": "vite --host 127.0.0.1 --port 5177",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build": "vite build"
+    "build": "vite build && vite build --ssr src/server/startProductionServer.ts --outDir dist-server",
+    "start": "node dist-server/startProductionServer.js"
   },
   "dependencies": {
     "@motion-copilot/core": "workspace:*",

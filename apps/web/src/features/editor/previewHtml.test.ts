@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { renderPreviewHtml } from "./previewHtml";
 import type { MotionManifest, MotionPatch, MotionSource } from "@motion-tool/core";
 import { generateAtomicMotionComponent } from "../../services/atomicMotionGeneration";
@@ -181,6 +182,8 @@ describe("renderPreviewHtml", () => {
 
     expect(html).toContain('data.type === "motion-preview:patch"');
     expect(html).toContain("function applyMotionPreviewPatch(values, params)");
+    expect(html).toContain('if (selector === ":root")');
+    expect(html).toContain("callback(document.documentElement)");
     expect(html).toContain("style.setProperty(target.name, cssValue)");
     expect(html).toContain('target.kind === "css-property"');
     expect(html).toContain('target.kind === "html-text"');
@@ -213,6 +216,51 @@ describe("renderPreviewHtml", () => {
     expect(html).not.toContain("<style>/assets/jd-product-transition-video/assets.css</style>");
   });
 
+  it("does not corrupt externalized stylesheet links when image params are patched", () => {
+    const externalSource: MotionSource = {
+      ...source,
+      files: [
+        {
+          ...source.files[0]!,
+          content:
+            '<!doctype html><html><head><link rel="stylesheet" href="./assets.css" /></head><body><div class="hero"></div></body></html>'
+        },
+        {
+          path: "source/assets.css",
+          kind: "css",
+          content: "/assets/product-assets.css"
+        }
+      ]
+    };
+    const html = renderPreviewHtml({
+      source: externalSource,
+      manifest: {
+        ...manifest,
+        params: [
+          {
+            id: "heroImage",
+            label: "Hero image",
+            type: "image",
+            default: null,
+            status: "confirmed",
+            targets: [
+              { kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--hero-image" }
+            ]
+          }
+        ]
+      },
+      patch: {
+        id: "external-image-patch",
+        sourceManifestId: "button",
+        values: { heroImage: "data:image/png;base64,NEW" }
+      }
+    });
+
+    expect(html).toContain('<link rel="stylesheet" href="/assets/product-assets.css" />');
+    expect(html).not.toContain(":root { --hero-image");
+    expect(html).not.toContain("<style>/assets/product-assets.css</style>");
+  });
+
   it("renders uploaded atomic foreground and background images as real layer image src values", () => {
     const component = generateAtomicMotionComponent({
       elementId: "popup-feedback",
@@ -237,5 +285,56 @@ describe("renderPreviewHtml", () => {
     expect(html).toContain('data-motion="foregroundImage" src="data:image/png;base64,FOREGROUND"');
     expect(html).toContain("object-fit: fill");
     expect(html).not.toContain("object-fit: cover");
+  });
+
+  it("injects uploaded popup feedback images into the coupon popup css variable", () => {
+    const componentRoot = new URL("../../../../../packages/components-builtin/jd-popup-feedback-eased/", import.meta.url);
+    const popupSource: MotionSource = {
+      id: "jd-popup-feedback-eased",
+      origin: "builtin",
+      kind: "builtin-component",
+      entry: "source/index.html",
+      files: [
+        {
+          path: "source/index.html",
+          kind: "html",
+          content: readFileSync(new URL("source/index.html", componentRoot), "utf8")
+        },
+        {
+          path: "source/assets.css",
+          kind: "css",
+          content: readFileSync(new URL("source/assets.css", componentRoot), "utf8")
+        },
+        {
+          path: "source/style.css",
+          kind: "css",
+          content: readFileSync(new URL("source/style.css", componentRoot), "utf8")
+        },
+        {
+          path: "source/script.js",
+          kind: "js",
+          content: readFileSync(new URL("source/script.js", componentRoot), "utf8")
+        }
+      ]
+    };
+    const popupManifest = JSON.parse(
+      readFileSync(new URL("motion.manifest.json", componentRoot), "utf8")
+    ) as MotionManifest;
+
+    const html = renderPreviewHtml({
+      source: popupSource,
+      manifest: popupManifest,
+      patch: {
+        id: "popup-image-patch",
+        sourceManifestId: "jd-popup-feedback-eased",
+        values: {
+          couponPopupImage: "data:image/png;base64,POPUP"
+        }
+      },
+      mode: "editor"
+    });
+
+    expect(html).toContain('--coupon-popup: url("data:image/png;base64,POPUP")');
+    expect(html).toContain("background-image: var(--coupon-popup)");
   });
 });

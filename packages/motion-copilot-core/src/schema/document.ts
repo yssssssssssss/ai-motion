@@ -82,11 +82,14 @@ export type StageSpec = {
   backgroundAlt?: string;
   backgroundFit?: ImageFit;
   backgroundPosition?: ImagePosition;
+  showSafeArea?: boolean;
 };
 
 export type MotionState = {
   x?: number;
   y?: number;
+  width?: number;
+  height?: number;
   scale?: number;
   opacity?: number;
   blur?: number;
@@ -112,7 +115,12 @@ export type MotionLayerContent = {
 export type MotionLayerStyle = {
   color?: string;
   background?: string;
+  borderColor?: string;
+  boxShadow?: string;
+  fontFamily?: string;
+  textDecoration?: string;
   radius?: number;
+  borderWidth?: number;
   opacity?: number;
   fit?: ImageFit;
   position?: ImagePosition;
@@ -249,6 +257,8 @@ export type MotionDocument = {
   guidelineSuggestions: GuidelineSuggestion[];
   /** 组合轨道（可选，启用组合编排模式时存在） */
   composition?: CompositionTrack;
+  /** 高保真视觉源（可选，ZeroVisualSnapshot 路径导出时使用） */
+  visualSource?: VisualCompositionSource;
 };
 
 export const classicEasingCss: Record<ClassicEasingPreset, string> = {
@@ -331,6 +341,8 @@ export type CompositionStep = {
   animate?: MotionState;
   /** 覆盖该片段的缓动；未填写时沿用 preset 默认值 */
   easing?: EasingSpec;
+  /** 片段窗口外是否保持起止状态，用于帧间过渡这类布局 morph */
+  fillMode?: "none" | "forwards" | "both";
 };
 
 export type CompositionIssue = {
@@ -354,3 +366,58 @@ export type CompositionTrack = {
   /** 计算出的总时长（ms） */
   totalDurationMs: number;
 };
+
+export type VisualCompositionSnapshotSource = {
+  schemaVersion: "motion-copilot.zero-visual-snapshot.v1";
+  frameId: string;
+  nodeId: string;
+  name: string;
+  width: number;
+  height: number;
+  screenshotUrl: string;
+  html: string;
+  css: string;
+  assets: Array<{
+    id: string;
+    type: "svg" | "png" | "jpg" | "webp" | "group";
+    url: string;
+    nodeId?: string;
+    width?: number;
+    height?: number;
+  }>;
+  nodes: Array<{
+    nodeId: string;
+    name: string;
+    kind: MotionLayerKind | "rect" | "vector";
+    bounds: { x: number; y: number; w: number; h: number };
+    text?: string;
+    assetId?: string;
+  }>;
+};
+
+export type VisualCompositionBindingSource = {
+  bindings: Array<{
+    layerId: string;
+    nodeId: string;
+    toNodeId: string;
+    fromBounds: { x: number; y: number; w: number; h: number };
+    toBounds: { x: number; y: number; w: number; h: number };
+  }>;
+  enter: Array<{ nodeId: string }>;
+  exit: Array<{ nodeId: string }>;
+  ignored?: Array<{ nodeId: string; reason: string }>;
+};
+
+export type ZeroVisualCompositionSource = {
+  kind: "zero-visual-morph";
+  from: VisualCompositionSnapshotSource;
+  to: VisualCompositionSnapshotSource;
+  bindingResult: VisualCompositionBindingSource;
+  userBindingOverrides?: import("../frameMorph/schema").UserBindingOverride[];
+  nodeOverrides?: import("../frameMorph/schema").ZeroVisualNodeOverride[];
+  restorationReportCache?: import("../frameMorph/schema").VisualCompositionReportCache;
+};
+
+export type VisualCompositionSource =
+  | ZeroVisualCompositionSource
+  | import("../zeroLayerMorph/schema").ZeroLayerMorphSource;

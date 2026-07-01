@@ -132,4 +132,53 @@ describe("loadControlledGenerationCandidates", () => {
     expect(candidates[0]?.id).toBe("jd-front-back-entry-transition");
     expect(candidates.map((candidate) => candidate.id)).not.toEqual(["workeasy-buttons-31-button"]);
   });
+
+  it("excludes atomic motion components from reference-guided generation candidates", async () => {
+    const atomicReference = {
+      ...component({
+        id: "generated-horizontal-switch-channel-tab-0",
+        name: "横向切换 / 频道Tab",
+        tags: ["generated", "atomic-motion", "horizontal-switch"],
+        useCases: ["atomic-motion"],
+        entryContent: "<main data-motion-root class=\"motion-skill-horizontal-switch-channel-tab\"></main>"
+      }),
+      manifest: {
+        ...component({
+          id: "generated-horizontal-switch-channel-tab-0",
+          name: "横向切换 / 频道Tab",
+          tags: ["generated", "atomic-motion", "horizontal-switch"],
+          useCases: ["atomic-motion"],
+          entryContent: "<main data-motion-root></main>"
+        }).manifest,
+        motionSkill: {
+          source: "designer-csv" as const,
+          element: "horizontal-switch",
+          variant: "频道Tab",
+          family: "horizontal-switch",
+          version: "1.0",
+          recipeId: "horizontal-switch.channel-tab",
+          tokenIds: []
+        }
+      }
+    } satisfies MotionComponent;
+    const codeReference = component({
+      id: "jd-horizontal-switch",
+      name: "横向切换代码动效",
+      tags: ["jd", "horizontal", "switch"],
+      useCases: ["channel-switch", "motion-reference"],
+      entryContent: "<main data-motion-root class=\"jd-horizontal-switch\"></main>"
+    });
+    const loadComponentSource = vi.fn(async (item: MotionComponent) => item);
+
+    const candidates = await loadControlledGenerationCandidates({
+      brief: "基于横向切换代码动效做频道 tab",
+      components: [atomicReference, codeReference],
+      onLoadComponentSource: loadComponentSource
+    });
+
+    expect(candidates.map((candidate) => candidate.id)).toContain("jd-horizontal-switch");
+    expect(candidates.map((candidate) => candidate.id)).not.toContain(
+      "generated-horizontal-switch-channel-tab-0"
+    );
+  });
 });

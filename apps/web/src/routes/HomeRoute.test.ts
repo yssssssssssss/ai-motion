@@ -28,6 +28,17 @@ describe("HomeRoute reference-guided generation wiring", () => {
     );
   });
 
+  it("keeps recommend and reference-guided generation scoped to non-atomic components", () => {
+    expect(homeRouteSource).toContain("isNonAtomicMotionComponent");
+    expect(homeRouteSource).toContain("const nonAtomicComponents = useMemo");
+    expect(homeRouteSource).toContain(
+      "recommendComponents({ intent: result.intent, components: nonAtomicComponents })"
+    );
+    expect(homeRouteSource).toContain("components: nonAtomicComponents");
+    expect(homeRouteSource).toContain("components={nonAtomicComponents}");
+    expect(homeRouteSource).toContain('scope={briefMode === "atomic" ? "atomic-motion" : "non-atomic"}');
+  });
+
   it("keeps generation results as drafts and shows an in-between progress overlay", () => {
     expect(homeRouteSource).toContain("AtomicMotionPanel");
     expect(homeRouteSource).toContain("generateAtomicMotionComponent");

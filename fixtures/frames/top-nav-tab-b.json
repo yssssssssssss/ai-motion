@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "motion-copilot.frame-snapshot.v1",
+  "frameId": "top-nav:tab-b",
+  "name": "顶部导航 Tab B",
+  "width": 375,
+  "height": 44,
+  "elements": [
+    {
+      "key": "rect:nav-bg",
+      "nodeId": "tn-1",
+      "name": "导航背景",
+      "kind": "rect",
+      "x": 0,
+      "y": 0,
+      "w": 375,
+      "h": 44,
+      "opacity": 1,
+      "zIndex": 1,
+      "style": { "background": "#ffffff" }
+    },
+    {
+      "key": "text:tab-a",
+      "nodeId": "tn-2",
+      "name": "推荐",
+      "kind": "text",
+      "x": 40,
+      "y": 12,
+      "w": 40,
+      "h": 20,
+      "opacity": 1,
+      "zIndex": 2,
+      "text": "推荐",
+      "style": { "color": "#999999", "fontSize": 14, "fontWeight": 400 }
+    },
+    {
+      "key": "rect:indicator",
+      "nodeId": "tn-3",
+      "name": "指示条",
+      "kind": "rect",
+      "x": 124,
+      "y": 36,
+      "w": 32,
+      "h": 3,
+      "opacity": 1,
+      "zIndex": 3,
+      "style": { "background": "#e4393c", "radius": 1.5 }
+    },
+    {
+      "key": "text:tab-b",
+      "nodeId": "tn-4",
+      "name": "关注",
+      "kind": "text",
+      "x": 120,
+      "y": 12,
+      "w": 40,
+      "h": 20,
+      "opacity": 1,
+      "zIndex": 4,
+      "text": "关注",
+      "style": { "color": "#1a1a1a", "fontSize": 16, "fontWeight": 700 }
+    },
+    {
+      "key": "text:tab-c",
+      "nodeId": "tn-5",
+      "name": "新品",
+      "kind": "text",
+      "x": 200,
+      "y": 12,
+      "w": 40,
+      "h": 20,
+      "opacity": 1,
+      "zIndex": 5,
+      "text": "新品",
+      "style": { "color": "#999999", "fontSize": 14, "fontWeight": 400 }
+    }
+  ]
+}

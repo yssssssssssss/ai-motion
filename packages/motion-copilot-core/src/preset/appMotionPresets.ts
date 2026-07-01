@@ -190,10 +190,16 @@ function layerMotionPresetFor(presetId: AppMotionPresetId): LayerMotionPreset {
 
 function layerMotionFor(preset: AppMotionPresetDefinition, document: MotionDocument): MotionLayerMotion {
   const basePatch = preset.apply(document);
+  const initial = basePatch.element?.initial ?? {};
+  const animate = basePatch.element?.animate ?? {};
   return {
     preset: layerMotionPresetFor(preset.id),
     durationMs: basePatch.timeline?.durationMs ?? 220,
-    delayMs: 0
+    delayMs: 0,
+    ...(typeof initial.scale === "number" ? { scaleFrom: initial.scale } : {}),
+    ...(typeof initial.opacity === "number" ? { opacityFrom: initial.opacity } : {}),
+    ...(typeof animate.opacity === "number" ? { opacityTo: animate.opacity } : {}),
+    ...(basePatch.timeline?.easing ? { easing: basePatch.timeline.easing } : {})
   };
 }
 
@@ -474,7 +480,7 @@ export function applyAppMotionPreset(
 
   if (options.target === "selected-layer") {
     const layer = selectedLayer(document);
-    if (!layer?.editable || layer.locked) {
+    if (!layer?.editable || layer.locked || layer.hidden) {
       return applyDocumentPatch(document, { presetResolutions: [selectedLayerUnavailableResolution(preset)] });
     }
 

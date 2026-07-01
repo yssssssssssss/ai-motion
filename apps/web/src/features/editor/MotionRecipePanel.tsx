@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { MotionComponent, MotionManifest } from "@motion-tool/core";
+import { isNonAtomicMotionComponent } from "../../services/componentScope";
 
 type Props = {
   manifest: MotionManifest | null;
@@ -31,13 +32,18 @@ function layerLabels(manifest: MotionManifest, layerIds: string[]): string {
 }
 
 function replaceableLayers(component: MotionComponent) {
-  return (component.manifest.layers ?? []).filter((layer) => layer.replaceable);
+  const layers = component.manifest.layers ?? [];
+  const paramBoundLayers = layers.filter((layer) => layer.replaceable && layer.paramId);
+  return paramBoundLayers.length > 0 ? paramBoundLayers : layers.filter((layer) => layer.replaceable);
 }
 
 export function MotionRecipePanel({ manifest, targetComponents = [], onApplyToTarget }: Props) {
   const recipes = manifest?.motionRecipes ?? [];
   const eligibleTargets = useMemo(
-    () => targetComponents.filter((component) => replaceableLayers(component).length > 0),
+    () =>
+      targetComponents.filter(
+        (component) => isNonAtomicMotionComponent(component) && replaceableLayers(component).length > 0
+      ),
     [targetComponents]
   );
   const [targetComponentId, setTargetComponentId] = useState(eligibleTargets[0]?.id ?? "");

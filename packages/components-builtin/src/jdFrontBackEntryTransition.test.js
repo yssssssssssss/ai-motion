@@ -70,5 +70,17 @@ describe("jd front back entry transition component", () => {
         param.targets.some((target) => target.kind === "css-variable" && target.name?.startsWith("--"))
       )
     ).toBe(true);
+    expect(manifest.layers?.map((layer) => layer.id)).toEqual([
+      "shell-frame",
+      "screen-window",
+      "mine-content",
+      "orders-content",
+      "screen-wash"
+    ]);
+    expect(manifest.layers.find((layer) => layer.id === "orders-content")).toMatchObject({
+      replaceable: true,
+      paramId: "ordersContentImage"
+    });
+    expect(manifest.motionSkill).toBeUndefined();
   });
 });

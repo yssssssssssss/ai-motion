@@ -15,6 +15,7 @@ type CompileIntentInput = {
 
 function roleFromPrompt(prompt: string): MotionRole {
   if (/toast|提示|轻提示|成功|保存/i.test(prompt)) return "toast";
+  if (/弹窗|弹层|浮层|面板|modal|dialog|sheet/i.test(prompt)) return "modal";
   if (/button|按钮|点击|按压/i.test(prompt)) return "button";
   return "modal";
 }

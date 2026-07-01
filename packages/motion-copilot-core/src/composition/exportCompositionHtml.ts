@@ -3,26 +3,74 @@ import {
   createClassicEasing,
   type CompositionStep,
   type CompositionTrack,
-  type EasingSpec
+  type EasingSpec,
+  type MotionDocument
 } from "../schema/document";
 import { getAppMotionPreset, type AppMotionPresetId } from "../preset/appMotionPresets";
 import { computeCompositionStepWindows } from "./evaluateComposition";
+import { exportVisualCompositionHtml } from "./exportVisualCompositionHtml";
+import { exportZeroLayerCompositionHtml } from "../zeroLayerMorph/exportZeroLayerCompositionHtml";
+import { exportFrameMorphCompositionHtml } from "./exportFrameMorphCompositionHtml";
 
 function presetKeyframeName(step: CompositionStep, index: number): string {
   return `mc-comp-${index}-${step.presetId}`;
 }
 
 function stepEasing(step: CompositionStep): string {
-  const preset = getAppMotionPreset(step.presetId as AppMotionPresetId);
-  const patch = preset.apply({ elements: [{ id: "p", name: "P", role: "modal", size: "medium", initial: {}, animate: {} }], layers: [], timeline: { trigger: "load", direction: "enter", durationMs: 240, delayMs: 0, easing: createClassicEasing("decelerate"), repeat: "none" }, stage: { mode: "mobile", width: 390, height: 844, background: "#eef2f6" }, appliedPresets: [], presetResolutions: [], guidelineSuggestions: [], version: "0.1" });
+  let patch: ReturnType<ReturnType<typeof getAppMotionPreset>["apply"]> = {};
+  try {
+    const preset = getAppMotionPreset(step.presetId as AppMotionPresetId);
+    patch = preset.apply({
+      elements: [{ id: "p", name: "P", role: "modal", size: "medium", initial: {}, animate: {} }],
+      layers: [],
+      timeline: {
+        trigger: "load",
+        direction: "enter",
+        durationMs: 240,
+        delayMs: 0,
+        easing: createClassicEasing("decelerate"),
+        repeat: "none"
+      },
+      stage: { mode: "mobile", width: 390, height: 844, background: "#eef2f6" },
+      appliedPresets: [],
+      presetResolutions: [],
+      guidelineSuggestions: [],
+      version: "0.1"
+    });
+  } catch {
+    patch = {};
+  }
   const easing: EasingSpec = step.easing ?? patch.timeline?.easing ?? createClassicEasing("decelerate");
   return easingCss(easing);
 }
 
 function stepKeyframes(step: CompositionStep, index: number): string {
-  const preset = getAppMotionPreset(step.presetId as AppMotionPresetId);
-  const dummyDoc = { elements: [{ id: "p", name: "P", role: "modal" as const, size: "medium" as const, initial: {}, animate: {} }], layers: [], timeline: { trigger: "load" as const, direction: "enter" as const, durationMs: 240, delayMs: 0, easing: createClassicEasing("decelerate"), repeat: "none" as const }, stage: { mode: "mobile" as const, width: 390, height: 844, background: "#eef2f6" }, appliedPresets: [], presetResolutions: [], guidelineSuggestions: [], version: "0.1" as const };
-  const patch = preset.apply(dummyDoc);
+  const dummyDoc = {
+    elements: [
+      { id: "p", name: "P", role: "modal" as const, size: "medium" as const, initial: {}, animate: {} }
+    ],
+    layers: [],
+    timeline: {
+      trigger: "load" as const,
+      direction: "enter" as const,
+      durationMs: 240,
+      delayMs: 0,
+      easing: createClassicEasing("decelerate"),
+      repeat: "none" as const
+    },
+    stage: { mode: "mobile" as const, width: 390, height: 844, background: "#eef2f6" },
+    appliedPresets: [],
+    presetResolutions: [],
+    guidelineSuggestions: [],
+    version: "0.1" as const
+  };
+  let patch: ReturnType<ReturnType<typeof getAppMotionPreset>["apply"]> = {};
+  try {
+    const preset = getAppMotionPreset(step.presetId as AppMotionPresetId);
+    patch = preset.apply(dummyDoc);
+  } catch {
+    patch = {};
+  }
   const initial = { ...(patch.element?.initial ?? {}), ...(step.initial ?? {}) };
   const animate = { ...(patch.element?.animate ?? {}), ...(step.animate ?? {}) };
   const name = presetKeyframeName(step, index);
@@ -38,19 +86,34 @@ function stepKeyframes(step: CompositionStep, index: number): string {
   const toOpacity = val(animate, "opacity", 1);
   const fromBlur = val(initial, "blur", 0);
   const toBlur = val(animate, "blur", 0);
+  const fromWidth = val(initial, "width", 0);
+  const toWidth = val(animate, "width", 0);
+  const fromHeight = val(initial, "height", 0);
+  const toHeight = val(animate, "height", 0);
+  const fromSize = `${fromWidth > 0 ? `width: ${fromWidth}px;` : ""}${fromHeight > 0 ? ` height: ${fromHeight}px;` : ""}`;
+  const toSize = `${toWidth > 0 ? `width: ${toWidth}px;` : ""}${toHeight > 0 ? ` height: ${toHeight}px;` : ""}`;
 
   return `@keyframes ${name} {
-  from { transform: ${fromTransform}; opacity: ${fromOpacity}; filter: blur(${fromBlur}px); }
-  to { transform: ${toTransform}; opacity: ${toOpacity}; filter: blur(${toBlur}px); }
+  from { transform: ${fromTransform}; opacity: ${fromOpacity}; filter: blur(${fromBlur}px); ${fromSize} }
+  to { transform: ${toTransform}; opacity: ${toOpacity}; filter: blur(${toBlur}px); ${toSize} }
 }`;
 }
 
 /**
  * 将组合轨道导出为一段自包含的 HTML，多 step 按时序串行/并行播放
  */
-export function exportCompositionHtml(track: CompositionTrack): string {
+export function exportCompositionHtml(track: CompositionTrack, document?: MotionDocument): string {
   if (track.steps.length === 0) {
     return "<!-- 组合轨道为空 -->";
+  }
+  if (document?.visualSource?.kind === "zero-visual-morph") {
+    return exportVisualCompositionHtml(document, track);
+  }
+  if (document?.visualSource?.kind === "zero-layer-morph") {
+    return exportZeroLayerCompositionHtml(document, track);
+  }
+  if (document && track.steps.some((s) => s.presetId === "frame-morph-layout")) {
+    return exportFrameMorphCompositionHtml(document, track);
   }
 
   const starts = computeCompositionStepWindows(track.steps).map((item) => item.start);
@@ -63,13 +126,15 @@ export function exportCompositionHtml(track: CompositionTrack): string {
     return `${name} ${step.durationMs}ms ${easing} ${delay}ms both`;
   });
 
-  const stepsHtml = track.steps.map((step, i) => {
-    const targetLabel = step.target === "selected-layer" ? (step.layerName ?? "图层") : "未绑定图层";
-    return `    <div class="mc-comp-step" data-step="${i + 1}" data-preset="${step.presetId}">
+  const stepsHtml = track.steps
+    .map((step, i) => {
+      const targetLabel = step.target === "selected-layer" ? (step.layerName ?? "图层") : "未绑定图层";
+      return `    <div class="mc-comp-step" data-step="${i + 1}" data-preset="${step.presetId}">
       <span class="mc-comp-label">${step.label}</span>
       <span class="mc-comp-target">${targetLabel}</span>
     </div>`;
-  }).join("\n");
+    })
+    .join("\n");
 
   return `<!doctype html>
 <html lang="zh-CN">

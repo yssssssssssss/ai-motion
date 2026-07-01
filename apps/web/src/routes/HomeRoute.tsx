@@ -24,6 +24,7 @@ import {
   generateAtomicMotionComponent,
   motionSkillElements
 } from "../services/atomicMotionGeneration";
+import { isNonAtomicMotionComponent } from "../services/componentScope";
 import { loadControlledGenerationCandidates } from "../services/generationCandidates";
 import { generateReferenceGuidedComponent } from "../services/referenceGuidedGenerationClient";
 
@@ -227,6 +228,10 @@ export function HomeRoute({
   const [generationStatus, setGenerationStatus] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const nonAtomicComponents = useMemo(
+    () => components.filter(isNonAtomicMotionComponent),
+    [components]
+  );
   const firstAtomicElement = motionSkillElements.find((element) => element.active) ?? motionSkillElements[0];
   const [atomicElementId, setAtomicElementId] = useState(firstAtomicElement?.id ?? "");
   const [atomicVariant, setAtomicVariant] = useState(firstAtomicElement?.variants[0] ?? "");
@@ -253,7 +258,7 @@ export function HomeRoute({
     setIsRecommending(true);
     const result = await parseBrief(brief);
     setParseResult(result);
-    setRecommendations(recommendComponents({ intent: result.intent, components }));
+    setRecommendations(recommendComponents({ intent: result.intent, components: nonAtomicComponents }));
     setIsRecommending(false);
   }
 
@@ -289,7 +294,7 @@ export function HomeRoute({
     try {
       const generationCandidates = await loadControlledGenerationCandidates({
         brief,
-        components,
+        components: nonAtomicComponents,
         onLoadComponentSource
       });
 
@@ -406,14 +411,14 @@ export function HomeRoute({
       />
       <ComponentCandidates
         recommendations={recommendations}
-        components={components}
+        components={nonAtomicComponents}
         hasSearched={parseResult !== null}
         onLoadComponentSource={onLoadComponentSource}
         onSelect={onSelectComponent}
       />
       <ComponentFeed
         components={components}
-        scope={briefMode === "atomic" ? "atomic-motion" : "all"}
+        scope={briefMode === "atomic" ? "atomic-motion" : "non-atomic"}
         isLoading={isLibraryLoading}
         aiMatchIds={aiMatchIds}
         onLoadComponentSource={onLoadComponentSource}
