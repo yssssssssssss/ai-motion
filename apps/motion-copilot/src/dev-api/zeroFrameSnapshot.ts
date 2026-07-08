@@ -23,6 +23,7 @@ type ZeroFrameInput = {
 export type ZeroFrameSnapshotOptions = {
   snapshotCommand?: string | undefined;
   snapshotArgs?: string[] | undefined;
+  commandEnv?: Record<string, string | undefined> | undefined;
   maxBodyBytes?: number;
   timeoutMs?: number;
 };
@@ -57,19 +58,29 @@ function argsForNode(template: string[] | undefined, nodeId: string): string[] {
   return args.map((item) => item.replaceAll("{nodeId}", nodeId));
 }
 
-function runSnapshotCommand(command: string, args: string[], timeoutMs: number): Promise<FrameSnapshot> {
+function runSnapshotCommand(
+  command: string,
+  args: string[],
+  timeoutMs: number,
+  commandEnv: Record<string, string | undefined> | undefined
+): Promise<FrameSnapshot> {
   return new Promise((resolve, reject) => {
-    execFile(command, args, { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(stderr.trim() || error.message));
-        return;
+    execFile(
+      command,
+      args,
+      { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, env: { ...process.env, ...commandEnv } },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(stderr.trim() || error.message));
+          return;
+        }
+        try {
+          resolve(normalizeFrameSnapshot(JSON.parse(stdout) as unknown));
+        } catch (parseError) {
+          reject(parseError instanceof Error ? parseError : new Error("Zero snapshot output is invalid."));
+        }
       }
-      try {
-        resolve(normalizeFrameSnapshot(JSON.parse(stdout) as unknown));
-      } catch (parseError) {
-        reject(parseError instanceof Error ? parseError : new Error("Zero snapshot output is invalid."));
-      }
-    });
+    );
   });
 }
 
@@ -106,7 +117,8 @@ export function createZeroFrameSnapshotHandler(options: ZeroFrameSnapshotOptions
       const snapshot = await runSnapshotCommand(
         command,
         argsForNode(options.snapshotArgs, nodeId),
-        timeoutMs
+        timeoutMs,
+        options.commandEnv
       );
       writeJson(res, 200, { snapshot });
     } catch (error) {

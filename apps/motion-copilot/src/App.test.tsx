@@ -7,11 +7,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyDocumentPatch,
   compileIntent,
+  applyZeroLayerMotionRecipe,
+  buildZeroMotionSpec,
+  compileZeroLayerMotionBindings,
   createDefaultDocument,
+  normalizeZeroLayerSnapshot,
   type CompositionStep,
-  type MotionDocument
+  type MotionDocument,
+  type ZeroLayerSnapshot
 } from "@motion-copilot/core";
 import { App } from "./App";
+import { ZeroLayerMotionStage } from "./features/zeroLayerMorph/ZeroLayerStage";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -50,6 +56,31 @@ function savedWorkspace() {
     document: MotionDocument;
     compositionSteps?: CompositionStep[];
   };
+}
+
+function compositionSignature(steps: CompositionStep[] | undefined): string {
+  return (steps ?? [])
+    .map((step) =>
+      [
+        step.label,
+        step.timing,
+        step.delayMs,
+        step.durationMs,
+        step.initial?.x ?? "",
+        step.initial?.y ?? "",
+        step.initial?.width ?? "",
+        step.initial?.height ?? "",
+        step.initial?.scale ?? "",
+        step.initial?.opacity ?? "",
+        step.animate?.x ?? "",
+        step.animate?.y ?? "",
+        step.animate?.width ?? "",
+        step.animate?.height ?? "",
+        step.animate?.scale ?? "",
+        step.animate?.opacity ?? ""
+      ].join(":")
+    )
+    .join("|");
 }
 
 function sampleWorkspaceDocument(): MotionDocument {
@@ -285,6 +316,80 @@ function lowConfidenceLayerFixture(nodeId: "28:19" | "28:2") {
   return fixture;
 }
 
+function namedFrameLayerFixture(nodeId: "28:19" | "28:2") {
+  const fixture = layerFixture(nodeId);
+  const isCollapsed = nodeId === "28:19";
+  return {
+    ...fixture,
+    layers: fixture.layers.map((layer) =>
+      layer.nodeId === nodeId ? { ...layer, name: isCollapsed ? "信息卡片-首帧" : "信息卡片-尾帧" } : layer
+    )
+  };
+}
+
+function dropdownLayerFixture(kind: "from" | "to"): ZeroLayerSnapshot {
+  const isTo = kind === "to";
+  const rootId = isTo ? "33:35" : "33:36";
+  return normalizeZeroLayerSnapshot({
+    schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
+    frameId: rootId,
+    nodeId: rootId,
+    name: isTo ? "多选项-尾帧" : "多选项-首帧",
+    width: 220,
+    height: isTo ? 142 : 44,
+    screenshotUrl: `data:image/png;base64,${isTo ? "TO" : "FROM"}`,
+    assets: [],
+    layers: [
+      {
+        nodeId: rootId,
+        name: isTo ? "多选项-尾帧" : "多选项-首帧",
+        kind: "group",
+        bounds: { x: 0, y: 0, w: 220, h: isTo ? 142 : 44 },
+        opacity: 1,
+        visible: true
+      },
+      {
+        nodeId: "tabs",
+        parentId: rootId,
+        name: "Tabs 标签页",
+        kind: "frame",
+        bounds: { x: 0, y: 0, w: 220, h: 44 },
+        opacity: 1,
+        visible: true,
+        cornerRadius: 12,
+        fills: [{ type: "solid", color: "#ffffff" }]
+      },
+      ...(isTo
+        ? [
+            {
+              nodeId: "menu",
+              parentId: rootId,
+              name: "下拉菜单",
+              kind: "frame" as const,
+              bounds: { x: 0, y: 50, w: 124, h: 92 },
+              opacity: 1,
+              visible: true,
+              cornerRadius: 12,
+              fills: [{ type: "solid" as const, color: "#ffffff" }]
+            },
+            {
+              nodeId: "item-1",
+              parentId: "menu",
+              name: "Action item 1",
+              kind: "text" as const,
+              bounds: { x: 12, y: 58, w: 88, h: 20 },
+              opacity: 1,
+              visible: true,
+              text: "选项一",
+              fills: [{ type: "solid" as const, color: "#111111" }],
+              textStyle: { fontSize: 13, fontWeight: 500, lineHeight: 20 }
+            }
+          ]
+        : [])
+    ]
+  });
+}
+
 async function importVisualFrameMorphFixture(): Promise<HTMLDivElement> {
   vi.stubGlobal(
     "fetch",
@@ -302,6 +407,7 @@ async function importVisualFrameMorphFixture(): Promise<HTMLDivElement> {
   const app = renderApp();
   clickButton("开始使用");
   openFrameMotionMode("高保真预览");
+  useFrameMorphFixtureIds();
   await clickButtonAsync("从 Zero 读取并生成高保真时间线");
   await waitFor(() => expect(app.textContent).toContain("matched"));
   return app;
@@ -413,6 +519,11 @@ function useLegacyZeroLayerFixtureIds() {
   changeInputByLabel("Zero 图层尾帧 nodeId", "28:2");
 }
 
+function useFrameMorphFixtureIds() {
+  changeInputByLabel("起始 Zero nodeId", "28:19");
+  changeInputByLabel("结束 Zero nodeId", "28:2");
+}
+
 function selectValueByLabel(label: string, value: string) {
   const select = document.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`);
   if (!select) throw new Error(`Select not found: ${label}`);
@@ -428,6 +539,16 @@ function clickByLabel(label: string) {
   if (!button) throw new Error(`Button not found: ${label}`);
   act(() => {
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+}
+
+function clickByText(text: string) {
+  const element = Array.from(document.querySelectorAll("summary, button")).find(
+    (item) => item.textContent?.trim() === text
+  );
+  if (!element) throw new Error(`Element not found: ${text}`);
+  act(() => {
+    element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 }
 
@@ -940,6 +1061,8 @@ describe("Motion Copilot app", () => {
     expect(document.querySelector(".composition-resize-handle")).toBeTruthy();
     expect(document.querySelector(".composition-step")?.textContent).not.toContain("上移");
     expect(document.querySelector(".composition-step")?.textContent).not.toContain("下移");
+    expect(document.querySelector(".composition-step")?.textContent).not.toContain("标题");
+    expect(document.querySelector(".composition-step")?.textContent).toContain("图层");
     const laneText = Array.from(document.querySelectorAll(".composition-lane"))
       .map((lane) => lane.textContent ?? "")
       .join(" ");
@@ -1066,19 +1189,17 @@ describe("Motion Copilot app", () => {
     selectCompositionStep("容器变化");
 
     expect(document.querySelector(".timeline-scale")?.textContent).toContain("250ms");
-    expect(Array.from(document.querySelectorAll(".step-window")).map((node) => node.textContent)).toContain(
-      "240ms - 580ms"
-    );
+    expect(document.querySelectorAll(".step-window")).toHaveLength(0);
+    expect(document.querySelector(".composition-track")?.textContent).toContain("240ms");
+    expect(document.querySelector(".composition-track")?.textContent).toContain("340ms");
 
     changeInputByLabel("片段开始时间 ms", "120");
 
     expect(document.querySelector<HTMLInputElement>('input[aria-label="片段开始时间 ms"]')?.value).toBe(
       "120"
     );
-    expect(Array.from(document.querySelectorAll(".step-window")).map((node) => node.textContent)).toContain(
-      "120ms - 460ms"
-    );
-    expect(document.querySelector(".composition-track")?.textContent).toContain("并行于上一段");
+    expect(document.querySelector(".composition-track")?.textContent).toContain("120ms");
+    expect(document.querySelector(".composition-track")?.textContent).toContain("并行");
   });
 
   it("drags a composition step horizontally to update its start time", () => {
@@ -1090,9 +1211,7 @@ describe("Motion Copilot app", () => {
 
     dragCompositionStep("容器变化", 160);
 
-    expect(Array.from(document.querySelectorAll(".step-window")).map((node) => node.textContent)).toContain(
-      "472ms - 812ms"
-    );
+    expect(document.querySelector(".composition-track")?.textContent).toContain("472ms");
     expect(document.querySelector(".composition-track")?.textContent).toContain("容器变化");
   });
 
@@ -1106,6 +1225,36 @@ describe("Motion Copilot app", () => {
 
     expect(document.querySelector(".composition-track")?.textContent).toContain("1 个片段");
     expect(document.querySelector(".composition-lane.is-collapsed")).toBeTruthy();
+  });
+
+  it("shows a canonical layer lane name without first-tail frame suffixes", () => {
+    const documentWithNamedFrameLayer = sampleWorkspaceDocument();
+    const selectedLayerId = documentWithNamedFrameLayer.selectedLayerId;
+    documentWithNamedFrameLayer.layers = documentWithNamedFrameLayer.layers.map((layer) =>
+      layer.id === selectedLayerId ? { ...layer, name: "信息卡片-首帧" } : layer
+    );
+    globalThis.localStorage?.setItem("mc-onboarded", "1");
+    globalThis.localStorage?.setItem(
+      "motion-copilot-workspace",
+      JSON.stringify({
+        schemaVersion: "0.2",
+        document: documentWithNamedFrameLayer,
+        compositionSteps: [],
+        hasStarted: true,
+        prompt: "做一个中型弹窗，弹性一点出现",
+        presetTarget: "selected-layer"
+      })
+    );
+    const app = renderApp();
+
+    addPresetToComposition("进入屏幕");
+
+    const laneText = Array.from(document.querySelectorAll(".composition-lane-label strong"))
+      .map((node) => node.textContent)
+      .join(" ");
+    expect(laneText).toContain("信息卡片");
+    expect(laneText).not.toContain("信息卡片-首帧");
+    expect(app.textContent).toContain("进入屏幕");
   });
 
   it("adds a combo preset to the composition timeline", () => {
@@ -1167,10 +1316,11 @@ describe("Motion Copilot app", () => {
 
     const segments = Array.from(document.querySelectorAll<HTMLElement>(".timeline-segment"));
     expect(segments).toHaveLength(2);
-    expect(segments[0]?.textContent).toContain("进入屏幕+容器变化");
-    expect(segments[1]?.textContent).toContain("进入屏幕+容器变化");
+    expect(segments[0]?.textContent).toBe("");
+    expect(segments[0]?.getAttribute("aria-label")).toContain("进入屏幕+容器变化");
+    expect(segments[1]?.getAttribute("aria-label")).toContain("进入屏幕+容器变化");
     expect(segments[0]?.style.backgroundColor).toBe(segments[1]?.style.backgroundColor);
-    expect(document.querySelector(".composition-track")?.textContent).toContain("并行于上一段");
+    expect(document.querySelector(".composition-track")?.textContent).toContain("并行");
     expect(document.querySelectorAll(".composition-step.is-active")).toHaveLength(2);
     expect(document.querySelectorAll(".composition-lane").length).toBeGreaterThanOrEqual(6);
     const laneText = Array.from(document.querySelectorAll(".composition-lane"))
@@ -1245,6 +1395,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("低保真调试");
+    useFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取 legacy 低保真时间线");
 
@@ -1302,6 +1453,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("高保真预览");
+    useFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取并生成高保真时间线");
 
@@ -1347,6 +1499,27 @@ describe("Motion Copilot app", () => {
     );
   });
 
+  it("keeps Zero native generation empty until a first-tail frame pair is provided", async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: "unexpected endpoint" }), { status: 500 }));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const app = renderApp();
+    clickButton("开始使用");
+    clickButton("帧间动效");
+
+    expect(document.querySelector<HTMLInputElement>('input[aria-label="Zero 图层首帧 nodeId"]')?.value).toBe(
+      ""
+    );
+    expect(document.querySelector<HTMLInputElement>('input[aria-label="Zero 图层尾帧 nodeId"]')?.value).toBe(
+      ""
+    );
+
+    await clickButtonAsync("生成首尾帧动效");
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(app.textContent).toContain("请先发现文件首尾帧，或在高级模式填写首帧和尾帧 nodeId。");
+  });
+
   it("reads Zero layer snapshots through the independent layer entry and exports layer HTML", async () => {
     const fetchSpy = vi.fn(async (url: string, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { nodeId?: "28:19" | "28:2" };
@@ -1369,9 +1542,9 @@ describe("Motion Copilot app", () => {
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
 
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
 
-    await waitFor(() => expect(app.textContent).toContain("Zero 图层形变"));
+    await waitFor(() => expect(app.textContent).toContain("容器优先形变"));
     expect(app.textContent).toContain("Zero 原生图层");
     expect(app.textContent).toContain("来源：real-zero-mcp-http");
     expect(app.textContent).toContain("首帧：信息收起状态");
@@ -1387,7 +1560,9 @@ describe("Motion Copilot app", () => {
     expect(app.textContent).toContain("MATCH_LOW_CONFIDENCE");
     expect(app.textContent).toContain("REVIEW_LOW_CONFIDENCE_MATCH");
     expect(app.textContent).toContain("方案采样");
-    expect(app.textContent).toContain("9 recipes");
+    expect(app.textContent).toContain("16 recipes");
+    expect(app.textContent).toContain("下拉展开");
+    expect(app.textContent).toContain("锚点浮层");
     expect(app.textContent).toContain("采样点 0 / 25 / 50 / 75 / 100%");
     await waitFor(() => {
       const source = savedWorkspace().document.visualSource;
@@ -1405,6 +1580,12 @@ describe("Motion Copilot app", () => {
     expect(document.querySelector('[data-zero-layer-id="28:34"]')).toBeTruthy();
     expect(document.querySelector(".zero-visual-main-stage")).toBeFalsy();
     await waitFor(() => expect(savedWorkspace().document.visualSource?.kind).toBe("zero-layer-morph"));
+    const diagnosticPanel = document.querySelector<HTMLDetailsElement>(
+      'details[aria-label="Zero 图层 harness 诊断"]'
+    );
+    expect(diagnosticPanel).toBeTruthy();
+    expect(diagnosticPanel?.open).toBe(false);
+    expect(diagnosticPanel?.textContent).toContain("普通使用不需要逐条确认");
 
     const htmlDownload = document.querySelector<HTMLAnchorElement>(
       'a[download="motion-composition-export.html"]'
@@ -1441,7 +1622,7 @@ describe("Motion Copilot app", () => {
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
 
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
 
     await waitFor(() => expect(app.textContent).toContain("自动优化"));
     expect(app.textContent).toContain("DOWNGRADE_LOW_CONFIDENCE_TO_FADE");
@@ -1480,9 +1661,20 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
 
-    expect(app.textContent).toContain("动效方案");
+    await waitFor(() => {
+      expect(savedWorkspace().compositionSteps?.some((step) => step.label === "容器优先形变")).toBe(true);
+    });
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="容器优先"]')?.getAttribute("aria-pressed")
+    ).toBe("true");
+    expect(app.textContent).toContain("智能推荐");
+    expect(app.textContent).toContain("horizontal-expand");
+    expect(app.textContent).toContain("应用推荐方案");
+    expect(app.textContent).toContain("动效质量提示");
+    expect(app.textContent).toContain("2 条建议");
+    expect(app.textContent).toContain("更多动效方案");
     expect(app.textContent).toContain("丝滑形变");
     expect(app.textContent).toContain("弹性展开");
     expect(app.textContent).toContain("状态切换");
@@ -1509,10 +1701,17 @@ describe("Motion Copilot app", () => {
       expect(
         workspace.compositionSteps
           ?.filter((step) => step.id.startsWith("zero-layer-match"))
-          .every((step) => step.easing?.type === "classic" && step.initial?.scale === 1)
+        .every((step) => step.easing?.type === "classic" && step.initial?.scale === 1)
       ).toBe(true);
     });
+    const springSignature = compositionSignature(savedWorkspace().compositionSteps);
     expect(app.textContent).toContain("弹性展开");
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="弹性展开"]')?.getAttribute("aria-pressed")
+    ).toBe("true");
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="状态切换"]')?.getAttribute("aria-pressed")
+    ).toBe("false");
 
     clickByLabel("状态切换");
 
@@ -1525,12 +1724,101 @@ describe("Motion Copilot app", () => {
             animate: expect.objectContaining({ opacity: 0 })
           }),
           expect.objectContaining({
-            initial: expect.objectContaining({ opacity: 0.72 }),
+            initial: expect.objectContaining({ opacity: 0 }),
             animate: expect.objectContaining({ opacity: 1 })
           })
         ])
       );
     });
+    const statusSignature = compositionSignature(savedWorkspace().compositionSteps);
+    expect(statusSignature).not.toBe(springSignature);
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="弹性展开"]')?.getAttribute("aria-pressed")
+    ).toBe("false");
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="状态切换"]')?.getAttribute("aria-pressed")
+    ).toBe("true");
+  });
+
+  it("renders Zero native recipe geometry in the live preview instead of opacity-only fades", () => {
+    const from = dropdownLayerFixture("from");
+    const to = dropdownLayerFixture("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+    const result = applyZeroLayerMotionRecipe(source, "dropdown-reveal", { spec });
+    const menu = to.layers.find((layer) => layer.nodeId === "menu");
+    if (!menu) throw new Error("expected menu layer");
+
+    act(() => {
+      host = document.createElement("div");
+      document.body.append(host);
+      root = createRoot(host);
+      root.render(
+        <ZeroLayerMotionStage
+          from={from}
+          to={to}
+          bindingResult={result.bindingResult}
+          progress={0.18}
+          compositionTrack={result.document.composition}
+        />
+      );
+    });
+
+    const renderedMenu = document.querySelector<HTMLElement>('[data-zero-layer-id="menu"]');
+    expect(renderedMenu).toBeTruthy();
+    expect(Number.parseFloat(renderedMenu?.style.top ?? "0")).toBeLessThan(menu.bounds.y);
+    expect(Number.parseFloat(renderedMenu?.style.height ?? "0")).toBeLessThan(menu.bounds.h);
+    expect(renderedMenu?.style.transformOrigin).toBe("top center");
+    expect(Number.parseFloat(renderedMenu?.style.opacity ?? "1")).toBeLessThan(1);
+  });
+
+  it("keeps Zero native recipe preview shapes distinct for dropdown and stagger recipes", () => {
+    const from = dropdownLayerFixture("from");
+    const to = dropdownLayerFixture("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+    const dropdown = applyZeroLayerMotionRecipe(source, "dropdown-reveal", { spec });
+    const stagger = applyZeroLayerMotionRecipe(source, "content-stagger", { spec });
+    const menu = to.layers.find((layer) => layer.nodeId === "menu");
+    if (!menu) throw new Error("expected menu layer");
+
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    act(() => {
+      root?.render(
+        <ZeroLayerMotionStage
+          from={from}
+          to={to}
+          bindingResult={dropdown.bindingResult}
+          progress={0.18}
+          compositionTrack={dropdown.document.composition}
+        />
+      );
+    });
+    const dropdownHeight = Number.parseFloat(
+      document.querySelector<HTMLElement>('[data-zero-layer-id="menu"]')?.style.height ?? "0"
+    );
+
+    act(() => {
+      root?.render(
+        <ZeroLayerMotionStage
+          from={from}
+          to={to}
+          bindingResult={stagger.bindingResult}
+          progress={0.18}
+          compositionTrack={stagger.document.composition}
+        />
+      );
+    });
+    const staggerHeight = Number.parseFloat(
+      document.querySelector<HTMLElement>('[data-zero-layer-id="menu"]')?.style.height ?? "0"
+    );
+
+    expect(dropdownHeight).toBeLessThan(menu.bounds.h);
+    expect(staggerHeight).toBe(menu.bounds.h);
   });
 
   it("selects Zero first and tail frames from derived node candidates", async () => {
@@ -1541,9 +1829,12 @@ describe("Motion Copilot app", () => {
         if (!String(url).includes("/api/zero/layer-snapshot")) {
           return new Response(JSON.stringify({ error: "unexpected endpoint" }), { status: 500 });
         }
-        return new Response(JSON.stringify({ snapshot: layerFixture(body.nodeId === "28:2" ? "28:2" : "28:19") }), {
-          status: 200
-        });
+        return new Response(
+          JSON.stringify({ snapshot: layerFixture(body.nodeId === "28:2" ? "28:2" : "28:19") }),
+          {
+            status: 200
+          }
+        );
       })
     );
 
@@ -1551,27 +1842,151 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
 
-    await waitFor(() => expect(app.textContent).toContain("首尾帧候选节点"));
-    const candidatePanel = document.querySelector<HTMLElement>('[aria-label="Zero 首尾帧候选节点"]');
+    await waitFor(() => expect(app.textContent).toContain("目标图层选择"));
+    clickByText("目标图层选择");
+    const candidatePanel = document.querySelector<HTMLElement>('[aria-label="Zero 目标图层选择"]');
     expect(candidatePanel?.textContent).toContain("组件背景");
-    expect(candidatePanel?.textContent).toContain("待确认文字");
+    expect(candidatePanel?.textContent).toContain("待确认");
+    expect(candidatePanel?.textContent).not.toContain("推荐首尾帧");
+    expect(candidatePanel?.textContent).not.toContain("结构候选");
 
-    clickByLabel("设为首帧 组件背景");
+    clickByLabel("选择局部动效目标 组件背景");
 
     await waitFor(() => {
-      expect(document.querySelector<HTMLInputElement>('input[aria-label="Zero 图层首帧 nodeId"]')?.value).toBe(
-        "28:28"
-      );
+      expect(document.querySelector(".zero-layer-edit-panel")?.textContent).toContain("组件背景");
     });
 
     changeInputByLabel("搜索 Zero 候选节点", "待确认文字");
     await waitFor(() => {
-      const nextCandidatePanel = document.querySelector<HTMLElement>('[aria-label="Zero 首尾帧候选节点"]');
-      expect(nextCandidatePanel?.textContent).toContain("待确认文字");
+      const nextCandidatePanel = document.querySelector<HTMLElement>('[aria-label="Zero 目标图层选择"]');
+      expect(nextCandidatePanel?.textContent).toContain("待确认");
       expect(nextCandidatePanel?.textContent).not.toContain("组件背景");
     });
+  });
+
+  it("discovers named Zero first-tail frame pairs across the current file", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).includes("/api/zero/layer-frame-pairs")) {
+          return new Response(
+            JSON.stringify({
+              source: "real-zero-mcp-http",
+              discovery: {
+                schemaVersion: "motion-copilot.zero-layer-frame-pair-discovery.v1",
+                pages: [
+                  { nodeId: "page-3", name: "页面 3", candidateCount: 2 },
+                  { nodeId: "page-4", name: "页面 4", candidateCount: 2 }
+                ],
+                candidates: [
+                  {
+                    nodeId: "33:36",
+                    name: "多选项-首帧",
+                    role: "from",
+                    baseName: "多选项",
+                    kind: "frame",
+                    pageName: "页面 3"
+                  },
+                  {
+                    nodeId: "33:35",
+                    name: "多选项-尾帧",
+                    role: "to",
+                    baseName: "多选项",
+                    kind: "frame",
+                    pageName: "页面 3"
+                  },
+                  {
+                    nodeId: "28:19",
+                    name: "信息卡片-首帧",
+                    role: "from",
+                    baseName: "信息卡片",
+                    kind: "frame",
+                    pageName: "页面 4"
+                  },
+                  {
+                    nodeId: "28:2",
+                    name: "信息卡片-尾帧",
+                    role: "to",
+                    baseName: "信息卡片",
+                    kind: "frame",
+                    pageName: "页面 4"
+                  }
+                ],
+                pairs: [
+                  {
+                    label: "多选项",
+                    baseName: "多选项",
+                    fromNodeId: "33:36",
+                    toNodeId: "33:35",
+                    fromPageName: "页面 3",
+                    toPageName: "页面 3",
+                    confidence: 96,
+                    reasons: ["文件级命名协议匹配"]
+                  },
+                  {
+                    label: "信息卡片",
+                    baseName: "信息卡片",
+                    fromNodeId: "28:19",
+                    toNodeId: "28:2",
+                    fromPageName: "页面 4",
+                    toPageName: "页面 4",
+                    confidence: 96,
+                    reasons: ["文件级命名协议匹配"]
+                  }
+                ]
+              }
+            }),
+            { status: 200 }
+          );
+        }
+        if (String(url).includes("/api/zero/layer-snapshot")) {
+          const body = JSON.parse(String(init?.body ?? "{}")) as { nodeId?: "28:19" | "28:2" };
+          return new Response(
+            JSON.stringify({
+              snapshot: layerFixture(body.nodeId ?? "28:19"),
+              source: "real-zero-mcp-http",
+              bridge: "node scripts/zero-mcp-layer-bridge.mjs --node-id {nodeId}"
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response(JSON.stringify({ error: "unexpected endpoint" }), { status: 500 });
+      })
+    );
+
+    const app = renderApp();
+    clickButton("开始使用");
+    clickButton("帧间动效");
+
+    clickButton("发现文件首尾帧");
+
+    await waitFor(() => expect(app.textContent).toContain("文件级首尾帧"));
+    expect(app.textContent).toContain("页面 3 / 33:36 → 页面 3 / 33:35");
+    expect(app.textContent).toContain("页面 4 / 28:19 → 页面 4 / 28:2");
+    expect(app.textContent).toContain("页面 3: 1 组");
+    expect(app.textContent).toContain("页面 4: 1 组");
+
+    clickByLabel("使用文件级首尾帧 信息卡片");
+
+    await waitFor(() => {
+      expect(
+        document.querySelector<HTMLInputElement>('input[aria-label="Zero 图层首帧 nodeId"]')?.value
+      ).toBe("28:19");
+      expect(
+        document.querySelector<HTMLInputElement>('input[aria-label="Zero 图层尾帧 nodeId"]')?.value
+      ).toBe("28:2");
+    });
+    await waitFor(() => expect(app.textContent).toContain("容器优先形变"));
+    expect(app.textContent).toContain("首帧：信息收起状态");
+    expect(app.textContent).toContain("尾帧：信息展开状态");
+    await waitFor(() => expect(globalThis.localStorage?.getItem("motion-copilot-workspace")).toBeTruthy());
+    const source = savedWorkspace().document.visualSource;
+    expect(source?.kind).toBe("zero-layer-morph");
+    if (source?.kind !== "zero-layer-morph") return;
+    expect(source.from.nodeId).toBe("28:19");
+    expect(source.to.nodeId).toBe("28:2");
   });
 
   it("edits selected Zero layer geometry through independent layer overrides", async () => {
@@ -1592,7 +2007,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
 
     const layerButton = document.querySelector<HTMLButtonElement>(
       '.zero-layer-preview-grid [data-zero-layer-id="28:34"]'
@@ -1653,7 +2068,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
 
     clickButton("属性");
 
@@ -1664,7 +2079,7 @@ describe("Motion Copilot app", () => {
     expect(inspectorText).not.toContain("画布与素材");
     expect(inspectorText).not.toContain("内容与动效");
     expect(inspectorText).not.toContain("图层圆角");
-    expect(app.textContent).toContain("Zero 图层形变");
+    expect(app.textContent).toContain("容器优先形变");
   });
 
   it("edits the Zero layer selected from the main canvas", async () => {
@@ -1685,7 +2100,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
 
     const canvasLayer = document.querySelector<HTMLButtonElement>(
       '.zero-layer-main-stage [data-zero-layer-id="28:34"]'
@@ -1728,7 +2143,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
 
     const layerButton = document.querySelector<HTMLButtonElement>(
       '.zero-layer-preview-grid [data-zero-layer-id="28:41"]'
@@ -1768,7 +2183,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
     await waitFor(() => expect(app.textContent).toContain("Harness 诊断"));
     await waitFor(() => {
       const source = savedWorkspace().document.visualSource;
@@ -1810,7 +2225,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     useLegacyZeroLayerFixtureIds();
-    await clickButtonAsync("从 Zero 原生图层生成动效");
+    await clickButtonAsync("生成首尾帧动效");
     await waitFor(() => expect(app.textContent).toContain("质量门禁"));
     await waitFor(() => expect(globalThis.localStorage?.getItem("motion-copilot-workspace")).toBeTruthy());
 
@@ -1992,6 +2407,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("高保真预览");
+    useFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取并生成高保真时间线");
     await waitFor(() => expect(app.textContent).toContain("matched"));
@@ -2039,6 +2455,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("高保真预览");
+    useFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取并生成高保真时间线");
     await waitFor(() =>
@@ -2069,6 +2486,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("低保真调试");
+    useFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取 legacy 低保真时间线");
     await waitFor(() => expect(app.textContent).toContain("帧间形变"));

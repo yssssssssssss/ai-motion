@@ -36,6 +36,7 @@
     "verify:embed-package": "node scripts/verify-embed-package-e2e.mjs",
     "verify:nutui-embed": "node scripts/verify-nutui-react-embed.mjs",
     "verify:zero-visual-export": "node scripts/verify-zero-visual-export.mjs",
+    "verify:zero-motion": "node scripts/zero-layer-diagnose.mjs --fixture --from 28:19 --to 28:2 --emit-spec --recommend-recipes --emit-salience --emit-repair-advice --pretty && node scripts/zero-layer-diagnose.mjs --fixture --from 28:19 --to 28:2 --recipe-samples --pretty",
     "deploy:cloud": "node scripts/deploy-cloud.mjs",
     "prepare": "husky"
   },

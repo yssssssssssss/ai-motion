@@ -6,15 +6,24 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   compileZeroLayerMotionBindings,
+  applyZeroLayerMotionRecipe,
+  buildZeroMotionSpec,
   createZeroLayerDiagnosticReport,
   createZeroLayerRecipeSampleReport,
+  createZeroMotionRepairAdvice,
+  classifyZeroLayerRoles,
+  createZeroMotionOrderPlan,
+  evaluateZeroMotionSalience,
   normalizeZeroLayerSnapshot,
+  recommendZeroLayerRecipes,
   zeroLayerMotionRecipes,
   type ZeroLayerDiagnosticReport,
   type ZeroLayerDiagnosticSource,
   type ZeroLayerMotionRecipeId,
   type ZeroLayerRecipeSampleReport,
-  type ZeroLayerSnapshot
+  type ZeroMotionSceneType,
+  type ZeroLayerSnapshot,
+  zeroLayerExpressionStrategyForStep
 } from "../packages/motion-copilot-core/src";
 
 type Args = Record<string, string | boolean>;
@@ -34,6 +43,11 @@ Options:
   --fail-on <level>    Exit non-zero when risks include warning or error.
   --recipe-samples     Output deterministic Zero native recipe sampling report.
   --recipe <id>        Restrict --recipe-samples to one recipe id.
+  --emit-spec          Include the ZeroMotionSpec decision summary.
+  --recommend-recipes  Include deterministic recipe recommendations.
+  --emit-salience      Include the motion salience report.
+  --emit-repair-advice Include user-facing repair advice.
+  --scene <type>       Override the classified scene for recommendation debugging.
 
 Environment:
   ZERO_MCP_HTTP_URL                         Used by scripts/zero-mcp-layer-bridge.mjs.
@@ -277,6 +291,97 @@ function recipeIdsArg(value: string | undefined): ZeroLayerMotionRecipeId[] | un
   return ids as ZeroLayerMotionRecipeId[];
 }
 
+function sceneArg(value: string | undefined): ZeroMotionSceneType | undefined {
+  if (!value) return undefined;
+  const available = new Set<ZeroMotionSceneType>([
+    "horizontal-expand",
+    "vertical-expand",
+    "list-reorder",
+    "tab-switch",
+    "card-enter",
+    "modal-enter",
+    "complex-state-change",
+    "unknown"
+  ]);
+  if (!available.has(value as ZeroMotionSceneType)) {
+    throw new Error(`Unknown --scene value: ${value}.`);
+  }
+  return value as ZeroMotionSceneType;
+}
+
+function formatHarnessPretty(input: {
+  spec?: ReturnType<typeof buildZeroMotionSpec>;
+  recommendation?: ReturnType<typeof recommendZeroLayerRecipes>;
+  salience?: ReturnType<typeof evaluateZeroMotionSalience>;
+  repairAdvice?: ReturnType<typeof createZeroMotionRepairAdvice>;
+  roles?: ReturnType<typeof classifyZeroLayerRoles>;
+  orderPlan?: ReturnType<typeof createZeroMotionOrderPlan>;
+  expressionStrategies?: string[];
+}): string {
+  const lines: string[] = [];
+  if (input.spec) {
+    lines.push(
+      "",
+      "Harness v2:",
+      `- scene=${input.spec.scene.type}; confidence=${Math.round(input.spec.scene.confidence * 100)}%`,
+      `- ${input.spec.summary}`,
+      `- reasons: ${input.spec.scene.reasons.join(" · ")}`
+    );
+  }
+  if (input.recommendation) {
+    lines.push("", "Recommended Recipes:");
+    for (const candidate of input.recommendation.candidates) {
+      lines.push(
+        `- ${candidate.recipeId}: score ${candidate.score}; ${candidate.reasons.join(" · ")}${
+          candidate.warnings.length ? `; warnings: ${candidate.warnings.join(" · ")}` : ""
+        }`
+      );
+    }
+  }
+  if (input.roles) {
+    const allRoles = [...input.roles.from, ...input.roles.to];
+    const counts = allRoles.reduce<Record<string, number>>((bucket, item) => {
+      bucket[item.role] = (bucket[item.role] ?? 0) + 1;
+      return bucket;
+    }, {});
+    lines.push(
+      "",
+      "Role Summary:",
+      `- ${Object.entries(counts)
+        .map(([role, count]) => `${role}=${count}`)
+        .join("; ")}`
+    );
+  }
+  if (input.orderPlan) {
+    lines.push("", "Order Plan:", `- ${input.orderPlan.summary}`);
+    for (const [group, items] of Object.entries(input.orderPlan.groups)) {
+      if (items.length === 0) continue;
+      lines.push(`- ${group}: ${items.slice(0, 4).map((item) => item.name).join(" / ")}`);
+    }
+  }
+  if (input.expressionStrategies?.length) {
+    lines.push("", "Expression Strategies:");
+    for (const strategy of input.expressionStrategies) {
+      lines.push(`- ${strategy}`);
+    }
+  }
+  if (input.salience) {
+    lines.push(
+      "",
+      "Motion Salience:",
+      `- ${input.salience.diagnosis}; score=${input.salience.score}`,
+      `- evidence: ${input.salience.evidence.join(" · ")}`
+    );
+  }
+  if (input.repairAdvice) {
+    lines.push("", "Repair Advice:", `- ${input.repairAdvice.userFacingMessage}`);
+    for (const action of input.repairAdvice.actions) {
+      lines.push(`- ${action.label}: ${action.description}${action.recipeId ? ` (${action.recipeId})` : ""}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (args.help === true || args.h === true) {
@@ -292,6 +397,11 @@ async function main(): Promise<void> {
   const failOn = stringArg(args, "fail-on");
   const recipeSamples = args["recipe-samples"] === true;
   const recipeIds = recipeIdsArg(stringArg(args, "recipe"));
+  const emitSpec = args["emit-spec"] === true;
+  const recommendRecipes = args["recommend-recipes"] === true;
+  const emitSalience = args["emit-salience"] === true;
+  const emitRepairAdvice = args["emit-repair-advice"] === true;
+  const sceneOverride = sceneArg(stringArg(args, "scene"));
   const durationMs = durationArg == null ? undefined : Number(durationArg);
   if (durationMs != null && (!Number.isFinite(durationMs) || durationMs <= 0)) {
     throw new Error("--duration-ms must be a positive number.");
@@ -330,16 +440,17 @@ async function main(): Promise<void> {
     ...(bridge ? { bridge } : {}),
     ...(durationMs ? { durationMs } : {})
   });
+  const bindingResult = compileZeroLayerMotionBindings(from, to);
+  const sourceForHarness = {
+    kind: "zero-layer-morph" as const,
+    from,
+    to,
+    bindingResult,
+    diagnosticReport: report
+  };
   if (recipeSamples) {
-    const bindingResult = compileZeroLayerMotionBindings(from, to);
     const sampleReport = createZeroLayerRecipeSampleReport(
-      {
-        kind: "zero-layer-morph",
-        from,
-        to,
-        bindingResult,
-        diagnosticReport: report
-      },
+      sourceForHarness,
       { ...(recipeIds ? { recipeIds } : {}) }
     );
     const output =
@@ -355,7 +466,67 @@ async function main(): Promise<void> {
     if (shouldFailRecipeSamples(sampleReport, failOn)) process.exitCode = 2;
     return;
   }
-  const output = args.pretty === true ? formatPretty(report) : JSON.stringify(report, null, 2);
+  const shouldEmitHarness = emitSpec || recommendRecipes || emitSalience || emitRepairAdvice;
+  const spec = shouldEmitHarness ? buildZeroMotionSpec(sourceForHarness) : undefined;
+  const recommendation =
+    spec && (recommendRecipes || emitSalience || emitRepairAdvice)
+      ? recommendZeroLayerRecipes(spec, { ...(sceneOverride ? { sceneOverride } : {}) })
+      : undefined;
+  const roles = shouldEmitHarness ? classifyZeroLayerRoles(sourceForHarness) : undefined;
+  const selectedRecipeResult =
+    recommendation?.selectedRecipeId && shouldEmitHarness
+      ? applyZeroLayerMotionRecipe(sourceForHarness, recommendation.selectedRecipeId, { spec })
+      : undefined;
+  const orderPlan =
+    spec && shouldEmitHarness
+      ? createZeroMotionOrderPlan(sourceForHarness, selectedRecipeResult?.steps ?? [], spec)
+      : undefined;
+  const expressionStrategies = selectedRecipeResult
+    ? [...new Set(selectedRecipeResult.steps.map((step) => zeroLayerExpressionStrategyForStep(step).id))]
+    : undefined;
+  const salience =
+    spec && (emitSalience || emitRepairAdvice)
+      ? evaluateZeroMotionSalience({
+          spec,
+          ...(selectedRecipeResult?.steps ? { steps: selectedRecipeResult.steps } : {})
+        })
+      : undefined;
+  const repairAdvice =
+    spec && emitRepairAdvice
+      ? createZeroMotionRepairAdvice({
+          spec,
+          ...(recommendation ? { recommendation } : {}),
+          ...(salience ? { salience } : {}),
+          diagnosticReport: report
+        })
+      : undefined;
+  const output =
+    args.pretty === true
+      ? `${formatPretty(report)}${formatHarnessPretty({
+          spec,
+          recommendation,
+          salience,
+          repairAdvice,
+          roles,
+          orderPlan,
+          expressionStrategies
+        })}`
+      : JSON.stringify(
+          shouldEmitHarness
+            ? {
+                diagnosticReport: report,
+                ...(emitSpec && spec ? { spec } : {}),
+                ...(recommendRecipes && recommendation ? { recommendation } : {}),
+                ...(emitSalience && salience ? { salience } : {}),
+                ...(emitRepairAdvice && repairAdvice ? { repairAdvice } : {}),
+                ...(roles ? { roles } : {}),
+                ...(orderPlan ? { orderPlan } : {}),
+                ...(expressionStrategies ? { expressionStrategies } : {})
+              }
+            : report,
+          null,
+          2
+        );
   const outPath = stringArg(args, "out");
   if (outPath) {
     await writeFile(resolve(process.cwd(), outPath), `${output}\n`);

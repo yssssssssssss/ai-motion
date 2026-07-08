@@ -24,6 +24,39 @@ function envValue(fileEnv: Record<string, string>, name: string): string | undef
   return process.env[name] || fileEnv[name] || undefined;
 }
 
+function prefixedEnv(fileEnv: Record<string, string>, prefix: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const names = new Set([...Object.keys(fileEnv), ...Object.keys(process.env)]);
+  for (const name of names) {
+    if (!name.startsWith(prefix)) continue;
+    const value = envValue(fileEnv, name);
+    if (value) result[name] = value;
+  }
+  return result;
+}
+
+function argsWithNodeId(args: string[] | undefined, fallback: string[]): string[] {
+  if (!args || args.length === 0) return fallback;
+  return args.some((arg) => arg.includes("{nodeId}")) ? args : [...args, "--node-id", "{nodeId}"];
+}
+
+function argsWithFramePairDiscovery(args: string[] | undefined, fallback: string[]): string[] {
+  if (!args || args.length === 0) return fallback;
+  if (args.includes("--discover-frame-pairs")) return args;
+  const output: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (!arg) continue;
+    if (arg === "--node-id") {
+      index += 1;
+      continue;
+    }
+    if (arg.includes("{nodeId}")) continue;
+    output.push(arg);
+  }
+  return [...output, "--discover-frame-pairs"];
+}
+
 function positiveNumber(value: string | undefined): number | undefined {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
@@ -47,6 +80,7 @@ const zeroVisualTimeoutMs = positiveNumber(envValue(fileEnv, "ZERO_MCP_VISUAL_TI
 const zeroLayerCommand = envValue(fileEnv, "ZERO_MCP_LAYER_COMMAND");
 const zeroLayerArgs = envValue(fileEnv, "ZERO_MCP_LAYER_ARGS")?.split(/\s+/).filter(Boolean);
 const zeroLayerTimeoutMs = positiveNumber(envValue(fileEnv, "ZERO_MCP_LAYER_TIMEOUT_MS"));
+const zeroBridgeEnv = prefixedEnv(fileEnv, "ZERO_MCP_");
 
 if (!Number.isFinite(port) || port <= 0) {
   throw new Error("PORT must be a positive number");
@@ -62,26 +96,33 @@ createMotionCopilotProductionServer({
   },
   zeroConfig: {
     snapshotCommand: zeroSnapshotCommand ?? process.execPath,
-    snapshotArgs:
-      zeroSnapshotArgs && zeroSnapshotArgs.length > 0
-        ? zeroSnapshotArgs
-        : [defaultZeroSnapshotScript, "--node-id", "{nodeId}"],
+    snapshotArgs: argsWithNodeId(zeroSnapshotArgs, [defaultZeroSnapshotScript, "--node-id", "{nodeId}"]),
+    commandEnv: zeroBridgeEnv,
     ...(zeroSnapshotTimeoutMs ? { timeoutMs: zeroSnapshotTimeoutMs } : {})
   },
   zeroVisualConfig: {
     visualCommand: zeroVisualCommand ?? process.execPath,
-    visualArgs:
-      zeroVisualArgs && zeroVisualArgs.length > 0
-        ? zeroVisualArgs
-        : [defaultZeroVisualScript, "--node-id", "{nodeId}"],
+    visualArgs: argsWithNodeId(zeroVisualArgs, [defaultZeroVisualScript, "--node-id", "{nodeId}"]),
+    commandEnv: zeroBridgeEnv,
     ...(zeroVisualTimeoutMs ? { timeoutMs: zeroVisualTimeoutMs } : {})
   },
   zeroLayerConfig: {
     layerCommand: zeroLayerCommand ?? process.execPath,
-    layerArgs:
-      zeroLayerArgs && zeroLayerArgs.length > 0
-        ? zeroLayerArgs
-        : [zeroMcpHttpUrl ? defaultZeroMcpLayerBridge : defaultZeroLayerScript, "--node-id", "{nodeId}"],
+    layerArgs: argsWithNodeId(zeroLayerArgs, [
+      zeroMcpHttpUrl ? defaultZeroMcpLayerBridge : defaultZeroLayerScript,
+      "--node-id",
+      "{nodeId}"
+    ]),
+    commandEnv: zeroBridgeEnv,
+    ...(zeroLayerTimeoutMs ? { timeoutMs: zeroLayerTimeoutMs } : {})
+  },
+  zeroLayerFramePairConfig: {
+    discoveryCommand: zeroLayerCommand ?? process.execPath,
+    discoveryArgs: argsWithFramePairDiscovery(zeroLayerArgs, [
+      defaultZeroMcpLayerBridge,
+      "--discover-frame-pairs"
+    ]),
+    commandEnv: zeroBridgeEnv,
     ...(zeroLayerTimeoutMs ? { timeoutMs: zeroLayerTimeoutMs } : {})
   }
 }).listen(port, host, () => {

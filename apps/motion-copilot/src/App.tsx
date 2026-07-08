@@ -1797,7 +1797,9 @@ const pxPerTimelineMs = 0.72;
 const minCompositionHeight = 220;
 const maxCompositionHeight = 760;
 const defaultCompositionHeight = 320;
-const stepCardWidthPx = 220;
+const compositionLaneLabelWidthPx = 118;
+const compositionLaneGapPx = 8;
+const stepCardWidthPx = 180;
 const timelineTickMs = 250;
 const timelineSnapThresholdMs = 30;
 
@@ -1822,12 +1824,33 @@ function compositionLaneKey(step: CompositionLaneTarget): string {
     : "target:primary";
 }
 
+function displayCompositionLayerName(name: string | undefined): string {
+  const trimmed = name?.trim();
+  if (!trimmed) return "图层";
+  const normalized = trimmed.replace(
+    /(?:[\s_-]*(?:首帧|初始帧|起始帧|开始帧|尾帧|末帧|结束帧|from|start|to|end))+$/iu,
+    ""
+  );
+  return normalized.trim() || trimmed;
+}
+
 function compositionLaneLabel(step: CompositionLaneTarget): string {
-  return step.target === "selected-layer" ? (step.layerName ?? "图层") : "未绑定图层";
+  return step.target === "selected-layer" ? displayCompositionLayerName(step.layerName) : "未绑定图层";
 }
 
 function compositionLaneHint(step: CompositionLaneTarget): string {
   return step.target === "selected-layer" ? "图层轨道" : "兼容旧数据";
+}
+
+function stepTimingLabel(step: CompositionStep): string {
+  return step.timing === "sequential" ? "串行" : "并行";
+}
+
+function compositionTimelineTicks(totalMs: number): number[] {
+  const ticks: number[] = [];
+  for (let tick = 0; tick <= totalMs; tick += timelineTickMs) ticks.push(tick);
+  if (ticks[ticks.length - 1] !== totalMs) ticks.push(totalMs);
+  return ticks;
 }
 
 function CompositionTimeline({
@@ -1842,6 +1865,8 @@ function CompositionTimeline({
   if (totalMs <= 0) return null;
 
   const windows = computeCompositionStepWindows(steps);
+  const durationWidthPx = Math.max(1, Math.ceil(totalMs * pxPerTimelineMs));
+  const ticks = compositionTimelineTicks(totalMs);
   const groupByStepId = new Map<string, { color: string; label: string }>();
   const groups = groupedCompositionSteps(steps);
 
@@ -1867,37 +1892,50 @@ function CompositionTimeline({
 
   return (
     <div className="composition-timeline">
-      <div className="timeline-scale" aria-hidden="true">
-        {Array.from({ length: Math.max(1, Math.ceil(totalMs / timelineTickMs) + 1) }, (_, index) => {
-          const tick = index * timelineTickMs;
-          const left = totalMs > 0 ? Math.min(100, (tick / totalMs) * 100) : 0;
-          return (
-            <div className="timeline-scale-tick" key={tick} style={{ left: `${left}%` }}>
-              <span>{tick}ms</span>
-            </div>
-          );
-        })}
+      <div className="timeline-gutter">
+        <span>时间</span>
       </div>
-      <div className="timeline-ruler">
-        {segments.map((seg) => (
-          <div
-            className={activeStepIds.has(seg.id) ? "timeline-segment is-active" : "timeline-segment"}
-            key={seg.id}
-            title={`${seg.label} ${seg.start}ms → ${seg.end}ms`}
-            style={{
-              left: `${(seg.start / totalMs) * 100}%`,
-              width: `${((seg.end - seg.start) / totalMs) * 100}%`,
-              backgroundColor: seg.color
-            }}
-          >
-            <span>{seg.label}</span>
-          </div>
-        ))}
-      </div>
-      <div className="timeline-labels">
-        <span>0ms</span>
-        <span>{Math.round(totalMs / 2)}ms</span>
-        <span>{totalMs}ms</span>
+      <div className="timeline-content">
+        <div className="timeline-scale" aria-hidden="true" style={{ width: `${durationWidthPx}px` }}>
+          {ticks.map((tick, index) => {
+            const left = Math.min(durationWidthPx, Math.round(tick * pxPerTimelineMs));
+            return (
+              <div
+                className={[
+                  "timeline-scale-tick",
+                  index === 0 ? "is-first" : "",
+                  index === ticks.length - 1 ? "is-last" : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                key={tick}
+                style={{ left: `${left}px` }}
+              >
+                <span>{tick}ms</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="timeline-ruler" style={{ width: `${durationWidthPx}px` }}>
+          {segments.map((seg) => (
+            <div
+              aria-label={`${seg.label} ${seg.start}ms 到 ${seg.end}ms`}
+              className={activeStepIds.has(seg.id) ? "timeline-segment is-active" : "timeline-segment"}
+              key={seg.id}
+              title={`${seg.label} ${seg.start}ms → ${seg.end}ms`}
+              style={{
+                left: `${Math.round(seg.start * pxPerTimelineMs)}px`,
+                width: `${Math.max(4, Math.round((seg.end - seg.start) * pxPerTimelineMs))}px`,
+                backgroundColor: seg.color
+              }}
+            />
+          ))}
+        </div>
+        <div className="timeline-labels" style={{ width: `${durationWidthPx}px` }}>
+          <span>0ms</span>
+          <span>{Math.round(totalMs / 2)}ms</span>
+          <span>{totalMs}ms</span>
+        </div>
       </div>
     </div>
   );
@@ -2026,7 +2064,9 @@ function CompositionPanel({
   }, [stepWindows, steps]);
   const timelineWidth = Math.max(
     minTimelineWidthPx,
-    Math.ceil(Math.max(track.totalDurationMs, 1) * pxPerTimelineMs + stepCardWidthPx)
+    compositionLaneLabelWidthPx +
+      compositionLaneGapPx +
+      Math.ceil(Math.max(track.totalDurationMs, 1) * pxPerTimelineMs + stepCardWidthPx)
   );
   const laneTargets: CompositionLaneTarget[] = [
     { target: "target" },
@@ -2336,7 +2376,11 @@ function CompositionPanel({
         style={options.style}
         role={options.ghost ? undefined : "button"}
         tabIndex={options.ghost ? undefined : 0}
-        title={options.ghost ? undefined : "左右拖拽调整顺序"}
+        title={
+          options.ghost
+            ? undefined
+            : `${step.label} · ${stepWindow?.start ?? 0}ms · ${step.durationMs}ms`
+        }
         data-step-id={step.id}
         onClick={options.ghost ? undefined : (event) => onStepClick(event, step.id)}
         onMouseDown={options.ghost ? undefined : (event) => onStepMouseDown(event, step.id)}
@@ -2356,6 +2400,17 @@ function CompositionPanel({
           <span className="step-index">{index + 1}</span>
           <strong>{step.label}</strong>
           <span className="step-target">{step.target === "selected-layer" ? "图层" : "未绑定图层"}</span>
+          <button
+            type="button"
+            className="step-delete"
+            aria-label={`删除片段 ${step.label}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove(step.id);
+            }}
+          >
+            ×
+          </button>
         </div>
         <div className="step-meta">
           <button
@@ -2367,26 +2422,10 @@ function CompositionPanel({
             }}
             disabled={index === 0}
           >
-            {step.timing === "sequential" ? "串行" : "并行于上一段"}
+            {stepTimingLabel(step)}
           </button>
-          <span className="step-start">开始 {stepWindow?.start ?? 0}ms</span>
-          <span className="step-duration">时长 {step.durationMs}ms</span>
-        </div>
-        {stepWindow ? (
-          <div className="step-window">
-            {stepWindow.start}ms - {stepWindow.end}ms
-          </div>
-        ) : null}
-        <div className="step-actions">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove(step.id);
-            }}
-          >
-            删除
-          </button>
+          <span className="step-start">{stepWindow?.start ?? 0}ms</span>
+          <span className="step-duration">{step.durationMs}ms</span>
         </div>
       </div>
     );
@@ -2412,9 +2451,17 @@ function CompositionPanel({
         <p className="composition-empty">点击左侧 preset 右侧 + 号，将动效添加到这里。</p>
       ) : (
         <>
-          <CompositionTimeline steps={steps} totalMs={track.totalDurationMs} activeStepIds={activeStepIds} />
           <div className="composition-track">
-            <div className="composition-lane-board" style={{ minWidth: `${timelineWidth}px` }}>
+            <div
+              className="composition-lane-board"
+              style={
+                {
+                  minWidth: `${timelineWidth}px`,
+                  "--timeline-tick-width": `${Math.round(timelineTickMs * pxPerTimelineMs)}px`
+                } as React.CSSProperties
+              }
+            >
+              <CompositionTimeline steps={steps} totalMs={track.totalDurationMs} activeStepIds={activeStepIds} />
               {lanes.map((lane) => {
                 const isCollapsed = collapsedLaneKeys.has(lane.key);
                 return (

@@ -472,8 +472,8 @@ export function FrameMorphPanel({
   onConvertToLayer,
   mode = "all"
 }: FrameMorphPanelProps) {
-  const [fromNodeId, setFromNodeId] = useState("28:19");
-  const [toNodeId, setToNodeId] = useState("28:2");
+  const [fromNodeId, setFromNodeId] = useState("");
+  const [toNodeId, setToNodeId] = useState("");
   const [motionPrompt, setMotionPrompt] = useState(
     "胶囊宽度丝滑展开，状态文字错峰淡入，按钮跟随移动，整体有轻微弹性"
   );
@@ -947,6 +947,7 @@ export function FrameMorphPanel({
               aria-label="起始 Zero nodeId"
               value={fromNodeId}
               onChange={(event) => setFromNodeId(event.target.value)}
+              placeholder="例如 28:19"
             />
           </label>
           <label className="field">
@@ -955,6 +956,7 @@ export function FrameMorphPanel({
               aria-label="结束 Zero nodeId"
               value={toNodeId}
               onChange={(event) => setToNodeId(event.target.value)}
+              placeholder="例如 28:2"
             />
           </label>
         </div>
@@ -976,6 +978,26 @@ export function FrameMorphPanel({
       {showVisual ? (
       <div className="panel-section">
         <p className="eyebrow">高保真预览</p>
+        <div className="field-row">
+          <label className="field">
+            <span>起始 Zero nodeId</span>
+            <input
+              aria-label="起始 Zero nodeId"
+              value={fromNodeId}
+              onChange={(event) => setFromNodeId(event.target.value)}
+              placeholder="例如 28:19"
+            />
+          </label>
+          <label className="field">
+            <span>结束 Zero nodeId</span>
+            <input
+              aria-label="结束 Zero nodeId"
+              value={toNodeId}
+              onChange={(event) => setToNodeId(event.target.value)}
+              placeholder="例如 28:2"
+            />
+          </label>
+        </div>
         <button
           type="button"
           className="primary-action"

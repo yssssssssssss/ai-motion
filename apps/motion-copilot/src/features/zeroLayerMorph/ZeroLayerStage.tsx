@@ -19,6 +19,7 @@ type LayerRenderItem = {
   frame: RenderFrame;
   zIndex: number;
   transform?: string | undefined;
+  transformOrigin?: string | undefined;
   opacityMultiplier?: number | undefined;
 };
 
@@ -153,6 +154,7 @@ function layerStyle(
     zIndex: item.zIndex,
     opacity,
     transform: item.transform,
+    transformOrigin: item.transformOrigin,
     overflow: node.clipsContent ? "hidden" : undefined,
     borderRadius: node.kind === "ellipse" ? "50%" : node.cornerRadius,
     boxSizing: "border-box",
@@ -262,6 +264,67 @@ function interpolatedNode(from: ZeroLayerNode, to: ZeroLayerNode, progress: numb
   return node;
 }
 
+function stepNumber(
+  source: Record<string, number | undefined> | undefined,
+  key: string,
+  fallback: number
+): number {
+  const value = source?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function stepTransformOrigin(step: CompositionStep | undefined): string | undefined {
+  return (step as (CompositionStep & { metadata?: { zeroLayerTransformOrigin?: string } }) | undefined)
+    ?.metadata?.zeroLayerTransformOrigin;
+}
+
+function layerIdForNodeId(nodeId: string): string {
+  return `zero-layer-${nodeId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")}`;
+}
+
+function motionTransform(step: CompositionStep, progress: number): string | undefined {
+  const fromScale = stepNumber(step.initial, "scale", 1);
+  const toScale = stepNumber(step.animate, "scale", fromScale);
+  const fromRotate = stepNumber(step.initial, "rotate", 0);
+  const toRotate = stepNumber(step.animate, "rotate", fromRotate);
+  const scale = lerp(fromScale, toScale, progress);
+  const rotate = lerp(fromRotate, toRotate, progress);
+  if (scale === 1 && rotate === 0) return undefined;
+  return `scale(${scale}) rotate(${rotate}deg)`;
+}
+
+function nodeWithStepMotion(
+  base: ZeroLayerNode,
+  step: CompositionStep,
+  progress: number,
+  opacityBase: number
+): ZeroLayerNode {
+  const fromWidth = stepNumber(step.initial, "width", base.bounds.w);
+  const fromHeight = stepNumber(step.initial, "height", base.bounds.h);
+  const toWidth = stepNumber(step.animate, "width", fromWidth);
+  const toHeight = stepNumber(step.animate, "height", fromHeight);
+  const fromX = stepNumber(step.initial, "x", 0);
+  const fromY = stepNumber(step.initial, "y", 0);
+  const toX = stepNumber(step.animate, "x", fromX);
+  const toY = stepNumber(step.animate, "y", fromY);
+  const fromOpacity = stepNumber(step.initial, "opacity", 1);
+  const toOpacity = stepNumber(step.animate, "opacity", fromOpacity);
+  return {
+    ...base,
+    bounds: {
+      x: base.bounds.x + lerp(fromX, toX, progress),
+      y: base.bounds.y + lerp(fromY, toY, progress),
+      w: lerp(fromWidth, toWidth, progress),
+      h: lerp(fromHeight, toHeight, progress)
+    },
+    opacity: opacityBase * lerp(fromOpacity, toOpacity, progress)
+  };
+}
+
 function stepProgress(
   compositionTrack: CompositionTrack | undefined,
   layerId: string,
@@ -349,28 +412,44 @@ export function ZeroLayerMotionStage({
     const resolvedTo = resolveNode(toNode, overrides, "to");
     const activeStep = stepProgress(compositionTrack, binding.layerId, p);
     const nodeProgress = activeStep?.progress ?? p;
+    const node = activeStep
+      ? nodeWithStepMotion(
+          resolvedFrom,
+          activeStep.step,
+          nodeProgress,
+          resolvedFrom.opacity
+        )
+      : interpolatedNode(resolvedFrom, resolvedTo, nodeProgress);
     items.push({
       item: {
         key: `match-${binding.nodeId}-${binding.toNodeId}`,
-        node: interpolatedNode(resolvedFrom, resolvedTo, nodeProgress),
+        node,
         frame: "from",
-        zIndex: toOrder.get(binding.toNodeId) ?? fromOrder.get(binding.nodeId) ?? 0
+        zIndex: toOrder.get(binding.toNodeId) ?? fromOrder.get(binding.nodeId) ?? 0,
+        transform: activeStep ? motionTransform(activeStep.step, nodeProgress) : undefined,
+        transformOrigin: stepTransformOrigin(activeStep?.step)
       },
-      assets: p < 0.5 ? fromAssets : toAssets
+      assets: activeStep ? fromAssets : p < 0.5 ? fromAssets : toAssets
     });
   }
 
   for (const node of from.layers) {
     if (!node.visible || boundFrom.has(node.nodeId) || node.nodeId === from.nodeId) continue;
     const isExit = exitIds.has(node.nodeId);
+    const resolved = resolveNode(node, overrides, "from");
+    const activeStep = isExit ? stepProgress(compositionTrack, layerIdForNodeId(node.nodeId), p) : undefined;
+    const renderedNode = activeStep
+      ? nodeWithStepMotion(resolved, activeStep.step, activeStep.progress, resolved.opacity)
+      : resolved;
     items.push({
       item: {
         key: `from-${node.nodeId}`,
-        node: resolveNode(node, overrides, "from"),
+        node: renderedNode,
         frame: "from",
         zIndex: (fromOrder.get(node.nodeId) ?? 0) - 1,
-        transform: undefined,
-        opacityMultiplier: isExit ? 1 - p : p < 1 ? 1 : 0
+        transform: activeStep ? motionTransform(activeStep.step, activeStep.progress) : undefined,
+        transformOrigin: stepTransformOrigin(activeStep?.step),
+        opacityMultiplier: activeStep ? 1 : isExit ? 1 - p : p < 1 ? 1 : 0
       },
       assets: fromAssets
     });
@@ -379,14 +458,20 @@ export function ZeroLayerMotionStage({
   for (const node of to.layers) {
     if (!node.visible || boundTo.has(node.nodeId) || node.nodeId === to.nodeId) continue;
     const isEnter = enterIds.has(node.nodeId);
+    const resolved = resolveNode(node, overrides, "to");
+    const activeStep = isEnter ? stepProgress(compositionTrack, layerIdForNodeId(node.nodeId), p) : undefined;
+    const renderedNode = activeStep
+      ? nodeWithStepMotion(resolved, activeStep.step, activeStep.progress, resolved.opacity)
+      : resolved;
     items.push({
       item: {
         key: `to-${node.nodeId}`,
-        node: resolveNode(node, overrides, "to"),
+        node: renderedNode,
         frame: "to",
         zIndex: toOrder.get(node.nodeId) ?? 0,
-        transform: undefined,
-        opacityMultiplier: isEnter ? p : p > 0 ? 1 : 0
+        transform: activeStep ? motionTransform(activeStep.step, activeStep.progress) : undefined,
+        transformOrigin: stepTransformOrigin(activeStep?.step),
+        opacityMultiplier: activeStep ? 1 : isEnter ? p : p > 0 ? 1 : 0
       },
       assets: toAssets
     });

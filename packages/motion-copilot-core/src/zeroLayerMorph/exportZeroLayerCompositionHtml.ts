@@ -14,6 +14,7 @@ import type {
   ZeroLayerNodeOverride,
   ZeroLayerSnapshot
 } from "./schema";
+import { zeroLayerExpressionStrategyForStep } from "./zeroLayerExpressionStrategies";
 
 type RenderFrame = "from" | "to";
 
@@ -213,6 +214,71 @@ function animationDeclaration(step: CompositionStep, name: string, startMs: numb
   return `${name} ${step.durationMs}ms ${easing} calc(${startMs}ms - var(--mc-zero-layer-time, 0ms)) both`;
 }
 
+function transformOriginCss(step: CompositionStep): string {
+  const metadata = (step as CompositionStep & { metadata?: { zeroLayerTransformOrigin?: string } }).metadata;
+  return metadata?.zeroLayerTransformOrigin ? `transform-origin:${metadata.zeroLayerTransformOrigin};` : "";
+}
+
+function mixNumber(from: number, to: number, progress: number): number {
+  return from + (to - from) * progress;
+}
+
+function mixedState(
+  step: CompositionStep,
+  progress: number,
+  from: { x: number; y: number; width: number; height: number; opacity: number },
+  to: { x: number; y: number; width: number; height: number; opacity: number },
+  opacityOverride?: number
+): string {
+  const initial = {
+    x: numberValue(step.initial, "x", from.x),
+    y: numberValue(step.initial, "y", from.y),
+    scale: numberValue(step.initial, "scale", 1),
+    rotate: numberValue(step.initial, "rotate", 0)
+  };
+  const animate = {
+    x: numberValue(step.animate, "x", to.x),
+    y: numberValue(step.animate, "y", to.y),
+    scale: numberValue(step.animate, "scale", 1),
+    rotate: numberValue(step.animate, "rotate", 0)
+  };
+  const width = mixNumber(numberValue(step.initial, "width", from.width), numberValue(step.animate, "width", to.width), progress);
+  const height = mixNumber(numberValue(step.initial, "height", from.height), numberValue(step.animate, "height", to.height), progress);
+  const opacity =
+    opacityOverride ??
+    mixNumber(numberValue(step.initial, "opacity", from.opacity), numberValue(step.animate, "opacity", to.opacity), progress);
+  const transform = `translate(${px(mixNumber(initial.x, animate.x, progress))},${px(
+    mixNumber(initial.y, animate.y, progress)
+  )}) scale(${mixNumber(initial.scale, animate.scale, progress)}) rotate(${mixNumber(initial.rotate, animate.rotate, progress)}deg)`;
+  return `transform:${transform};width:${px(width)};height:${px(height)};opacity:${opacity};`;
+}
+
+function matchedKeyframes(
+  step: CompositionStep,
+  name: string,
+  from: { x: number; y: number; width: number; height: number; opacity: number },
+  to: { x: number; y: number; width: number; height: number; opacity: number }
+): string {
+  const strategy = zeroLayerExpressionStrategyForStep(step);
+  const start = mixedState(step, 0, from, to);
+  const end = mixedState(step, 1, from, to);
+  const body = strategy.stops
+    .map((stop) => {
+      const state =
+        stop.progress === 0 && stop.opacity == null
+          ? start
+          : stop.progress === 1 && stop.opacity == null
+            ? end
+            : mixedState(step, stop.progress, from, to, stop.opacity);
+      return `  ${stop.percent}%{${state}}`;
+    })
+    .join("\n");
+  return `/* zero-layer-expression:${strategy.id} */
+@keyframes ${name}{
+${body}
+}`;
+}
+
 function matchedCss(
   source: ZeroLayerMorphSource,
   step: CompositionStep | undefined,
@@ -234,8 +300,6 @@ function matchedCss(
   const toHeight = toBounds.h;
   const fromOpacity = resolvedOpacity(source, nodeId, "from");
   const toOpacity = numberValue(step.animate, "opacity", resolvedOpacity(source, toNodeId, "to"));
-  const fromTransform = transformValue(step.initial, 0, 0);
-  const toTransform = transformValue(step.animate, toX, toY);
   const tailName = `mc-zero-layer-tail-${index}-${cssIdent(toNodeId)}`;
   const tailOpacity = resolvedOpacity(source, toNodeId, "to");
 
@@ -243,20 +307,14 @@ function matchedCss(
     step,
     tailName,
     startMs
-  )};will-change:opacity;}
+)};will-change:opacity;}
 ${layerSelector("mc-zero-layer-from", nodeId)}{animation:${animationDeclaration(step, name, startMs)};will-change:transform,width,height,opacity;}
-@keyframes ${name}{
-  from{transform:${fromTransform};width:${px(
-    numberValue(step.initial, "width", fromWidth)
-  )};height:${px(numberValue(step.initial, "height", fromHeight))};opacity:${numberValue(
-    step.initial,
-    "opacity",
-    fromOpacity
-  )};}
-  to{transform:${toTransform};width:${px(numberValue(step.animate, "width", toWidth))};height:${px(
-    numberValue(step.animate, "height", toHeight)
-  )};opacity:${toOpacity};}
-}
+${matchedKeyframes(
+  step,
+  name,
+  { x: 0, y: 0, width: fromWidth, height: fromHeight, opacity: fromOpacity },
+  { x: toX, y: toY, width: toWidth, height: toHeight, opacity: toOpacity }
+)}
 @keyframes ${tailName}{
   0%,99.8%{opacity:0;}
   100%{opacity:${tailOpacity};}
@@ -266,20 +324,28 @@ ${layerSelector("mc-zero-layer-from", nodeId)}{animation:${animationDeclaration(
 function enterCss(nodeId: string, step: CompositionStep | undefined, startMs: number, index: number): string {
   if (!step) return "";
   const name = `mc-zero-layer-enter-${index}-${cssIdent(nodeId)}`;
-  return `${layerSelector("mc-zero-layer-to", nodeId)}{animation:${animationDeclaration(step, name, startMs)};will-change:transform,opacity;}
+  const fromWidth = numberValue(step.initial, "width", numberValue(step.animate, "width", 0));
+  const fromHeight = numberValue(step.initial, "height", numberValue(step.animate, "height", 0));
+  const toWidth = numberValue(step.animate, "width", fromWidth);
+  const toHeight = numberValue(step.animate, "height", fromHeight);
+  return `${layerSelector("mc-zero-layer-to", nodeId)}{animation:${animationDeclaration(step, name, startMs)};will-change:transform,width,height,opacity;overflow:hidden;${transformOriginCss(step)}}
 @keyframes ${name}{
-  from{transform:${transformValue(step.initial, 0, 0)};opacity:${numberValue(step.initial, "opacity", 0)};}
-  to{transform:${transformValue(step.animate, 0, 0)};opacity:${numberValue(step.animate, "opacity", 1)};}
+  from{transform:${transformValue(step.initial, 0, 0)};width:${px(fromWidth)};height:${px(fromHeight)};opacity:${numberValue(step.initial, "opacity", 0)};}
+  to{transform:${transformValue(step.animate, 0, 0)};width:${px(toWidth)};height:${px(toHeight)};opacity:${numberValue(step.animate, "opacity", 1)};}
 }`;
 }
 
 function exitCss(nodeId: string, step: CompositionStep | undefined, startMs: number, index: number): string {
   if (!step) return "";
   const name = `mc-zero-layer-exit-${index}-${cssIdent(nodeId)}`;
-  return `${layerSelector("mc-zero-layer-from", nodeId)}{animation:${animationDeclaration(step, name, startMs)};will-change:transform,opacity;}
+  const fromWidth = numberValue(step.initial, "width", numberValue(step.animate, "width", 0));
+  const fromHeight = numberValue(step.initial, "height", numberValue(step.animate, "height", 0));
+  const toWidth = numberValue(step.animate, "width", fromWidth);
+  const toHeight = numberValue(step.animate, "height", fromHeight);
+  return `${layerSelector("mc-zero-layer-from", nodeId)}{animation:${animationDeclaration(step, name, startMs)};will-change:transform,width,height,opacity;overflow:hidden;${transformOriginCss(step)}}
 @keyframes ${name}{
-  from{transform:${transformValue(step.initial, 0, 0)};opacity:${numberValue(step.initial, "opacity", 1)};}
-  to{transform:${transformValue(step.animate, 0, 0)};opacity:${numberValue(step.animate, "opacity", 0)};}
+  from{transform:${transformValue(step.initial, 0, 0)};width:${px(fromWidth)};height:${px(fromHeight)};opacity:${numberValue(step.initial, "opacity", 1)};}
+  to{transform:${transformValue(step.animate, 0, 0)};width:${px(toWidth)};height:${px(toHeight)};opacity:${numberValue(step.animate, "opacity", 0)};}
 }`;
 }
 

@@ -7,6 +7,39 @@ function envValue(env: Record<string, string>, name: string): string | undefined
   return process.env[name] || env[name] || undefined;
 }
 
+function prefixedEnv(env: Record<string, string>, prefix: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const names = new Set([...Object.keys(env), ...Object.keys(process.env)]);
+  for (const name of names) {
+    if (!name.startsWith(prefix)) continue;
+    const value = envValue(env, name);
+    if (value) result[name] = value;
+  }
+  return result;
+}
+
+function argsWithNodeId(args: string[] | undefined, fallback: string[]): string[] {
+  if (!args || args.length === 0) return fallback;
+  return args.some((arg) => arg.includes("{nodeId}")) ? args : [...args, "--node-id", "{nodeId}"];
+}
+
+function argsWithFramePairDiscovery(args: string[] | undefined, fallback: string[]): string[] {
+  if (!args || args.length === 0) return fallback;
+  if (args.includes("--discover-frame-pairs")) return args;
+  const output: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (!arg) continue;
+    if (arg === "--node-id") {
+      index += 1;
+      continue;
+    }
+    if (arg.includes("{nodeId}")) continue;
+    output.push(arg);
+  }
+  return [...output, "--discover-frame-pairs"];
+}
+
 function parseEnvFile(url: URL): Record<string, string> {
   const file = fileURLToPath(url);
   if (!existsSync(file)) return {};
@@ -51,6 +84,7 @@ function copilotGenerateApiPlugin(env: Record<string, string>): Plugin {
   const defaultZeroMcpLayerBridge = fileURLToPath(
     new URL("../../scripts/zero-mcp-layer-bridge.mjs", import.meta.url)
   );
+  const zeroBridgeEnv = prefixedEnv(env, "ZERO_MCP_");
   const zeroMcpHttpUrl = envValue(env, "ZERO_MCP_HTTP_URL");
   const modelConfig = {
     apiKey: envValue(env, "OPENAI_API_KEY"),
@@ -60,32 +94,48 @@ function copilotGenerateApiPlugin(env: Record<string, string>): Plugin {
   };
   const zeroConfig = {
     snapshotCommand: envValue(env, "ZERO_MCP_SNAPSHOT_COMMAND") ?? process.execPath,
-    snapshotArgs: envValue(env, "ZERO_MCP_SNAPSHOT_ARGS")?.split(/\s+/).filter(Boolean) ?? [
+    snapshotArgs: argsWithNodeId(envValue(env, "ZERO_MCP_SNAPSHOT_ARGS")?.split(/\s+/).filter(Boolean), [
       defaultZeroSnapshotScript,
       "--node-id",
       "{nodeId}"
-    ],
+    ]),
+    commandEnv: zeroBridgeEnv,
     ...(Number.isFinite(zeroTimeoutMs) && zeroTimeoutMs > 0 ? { timeoutMs: zeroTimeoutMs } : {})
   };
   const zeroVisualConfig = {
     visualCommand: envValue(env, "ZERO_MCP_VISUAL_COMMAND") ?? process.execPath,
-    visualArgs: envValue(env, "ZERO_MCP_VISUAL_ARGS")?.split(/\s+/).filter(Boolean) ?? [
+    visualArgs: argsWithNodeId(envValue(env, "ZERO_MCP_VISUAL_ARGS")?.split(/\s+/).filter(Boolean), [
       defaultZeroVisualScript,
       "--node-id",
       "{nodeId}"
-    ],
+    ]),
+    commandEnv: zeroBridgeEnv,
     ...(Number.isFinite(zeroVisualTimeoutMs) && zeroVisualTimeoutMs > 0
       ? { timeoutMs: zeroVisualTimeoutMs }
       : {})
   };
   const zeroLayerConfig = {
     layerCommand: envValue(env, "ZERO_MCP_LAYER_COMMAND") ?? process.execPath,
-    layerArgs: envValue(env, "ZERO_MCP_LAYER_ARGS")?.split(/\s+/).filter(Boolean) ?? [
+    layerArgs: argsWithNodeId(envValue(env, "ZERO_MCP_LAYER_ARGS")?.split(/\s+/).filter(Boolean), [
       zeroMcpHttpUrl ? defaultZeroMcpLayerBridge : defaultZeroLayerScript,
       "--node-id",
       "{nodeId}"
-    ],
-    ...(Number.isFinite(zeroLayerTimeoutMs) && zeroLayerTimeoutMs > 0 ? { timeoutMs: zeroLayerTimeoutMs } : {})
+    ]),
+    commandEnv: zeroBridgeEnv,
+    ...(Number.isFinite(zeroLayerTimeoutMs) && zeroLayerTimeoutMs > 0
+      ? { timeoutMs: zeroLayerTimeoutMs }
+      : {})
+  };
+  const zeroLayerFramePairConfig = {
+    discoveryCommand: envValue(env, "ZERO_MCP_LAYER_COMMAND") ?? process.execPath,
+    discoveryArgs: argsWithFramePairDiscovery(
+      envValue(env, "ZERO_MCP_LAYER_ARGS")?.split(/\s+/).filter(Boolean),
+      [defaultZeroMcpLayerBridge, "--discover-frame-pairs"]
+    ),
+    commandEnv: zeroBridgeEnv,
+    ...(Number.isFinite(zeroLayerTimeoutMs) && zeroLayerTimeoutMs > 0
+      ? { timeoutMs: zeroLayerTimeoutMs }
+      : {})
   };
 
   return {
@@ -120,6 +170,12 @@ function copilotGenerateApiPlugin(env: Record<string, string>): Plugin {
           typeof import("./src/dev-api/zeroLayerSnapshot")
         >("/src/dev-api/zeroLayerSnapshot.ts");
         await createZeroLayerSnapshotHandler(zeroLayerConfig)(req, res);
+      });
+      server.middlewares.use("/api/zero/layer-frame-pairs", async (req, res) => {
+        const { createZeroLayerFramePairHandler } = await server.ssrLoadModule<
+          typeof import("./src/dev-api/zeroLayerFramePairs")
+        >("/src/dev-api/zeroLayerFramePairs.ts");
+        await createZeroLayerFramePairHandler(zeroLayerFramePairConfig)(req, res);
       });
       server.middlewares.use("/api/zero/asset", async (req, res) => {
         const { createZeroAssetProxyHandler } = await server.ssrLoadModule<

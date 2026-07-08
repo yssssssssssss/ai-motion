@@ -4,17 +4,24 @@ import {
   compileZeroLayerMotionComposition,
   createZeroLayerDiagnosticReport,
   createZeroLayerRecipeSampleReport,
-  deriveZeroLayerNodeCandidates,
+  classifyZeroLayerRoles,
+  createZeroMotionOrderPlan,
+  buildZeroMotionSpec,
+  createZeroMotionRepairAdvice,
   deriveZeroLayerDiagnosticGate,
+  evaluateZeroMotionSalience,
   applyZeroLayerMotionRecipe,
+  recommendZeroLayerRecipes,
   type ZeroLayerDiagnosticReport,
+  type ZeroLayerFramePair,
   type ZeroLayerMotionBinding,
   type ZeroLayerMotionCompositionResult,
+  type ZeroLayerFramePairDiscovery,
   type ZeroLayerMorphSource,
   type ZeroLayerNode,
-  type ZeroLayerNodeCandidate,
   type ZeroLayerNodeOverride,
   type ZeroLayerSnapshot,
+  type ZeroMotionOrderPlan,
   zeroLayerMotionRecipes,
   type ZeroLayerMotionRecipeCategory,
   type ZeroLayerMotionRecipeId
@@ -24,6 +31,7 @@ import {
   type ZeroLayerSnapshotResult,
   type ZeroLayerSnapshotSource
 } from "../../services/zeroLayerClient";
+import { fetchZeroLayerFramePairDiscovery } from "../../services/zeroLayerFramePairClient";
 import { ZeroLayerStage } from "./ZeroLayerStage";
 
 type ZeroLayerMorphPanelProps = {
@@ -50,11 +58,15 @@ type OverrideTarget = {
   nodeId: string;
 };
 
-type CandidateFrame = "from" | "to";
 type RecipeCategoryFilter = "all" | ZeroLayerMotionRecipeCategory;
 
-const defaultFromNodeId = "32:34";
-const defaultToNodeId = "32:35";
+type FramePairInput = {
+  fromNodeId: string;
+  toNodeId: string;
+};
+
+const defaultFromNodeId = "";
+const defaultToNodeId = "";
 const recipeCategoryLabels: Record<RecipeCategoryFilter, string> = {
   all: "全部",
   state: "状态",
@@ -62,7 +74,8 @@ const recipeCategoryLabels: Record<RecipeCategoryFilter, string> = {
   content: "内容",
   navigation: "导航",
   overlay: "浮层",
-  list: "列表"
+  list: "列表",
+  transition: "转场"
 };
 
 const recipeCategoryFilters = Object.keys(recipeCategoryLabels) as RecipeCategoryFilter[];
@@ -98,12 +111,14 @@ function diagnosticMotionSummary(report: ZeroLayerDiagnosticReport): string {
   return `${report.motion.durationMs}ms · matched ${report.motion.matched.length} · enter ${report.motion.enter.length} · exit ${report.motion.exit.length} · y-motion ${yMotion}`;
 }
 
-function recipeSampleSummary(source: ZeroLayerMorphSource | undefined): {
-  recipeCount: number;
-  distinctSignatures: number;
-  errorCount: number;
-  warningCount: number;
-} | undefined {
+function recipeSampleSummary(source: ZeroLayerMorphSource | undefined):
+  | {
+      recipeCount: number;
+      distinctSignatures: number;
+      errorCount: number;
+      warningCount: number;
+    }
+  | undefined {
   if (!source) return undefined;
   const report = createZeroLayerRecipeSampleReport(source);
   return {
@@ -112,6 +127,43 @@ function recipeSampleSummary(source: ZeroLayerMorphSource | undefined): {
     errorCount: report.risks.filter((risk) => risk.severity === "error").length,
     warningCount: report.risks.filter((risk) => risk.severity === "warning").length
   };
+}
+
+function roleSummary(source: ZeroLayerMorphSource | undefined): string | undefined {
+  if (!source) return undefined;
+  const roles = classifyZeroLayerRoles(source);
+  const allRoles = [...roles.from, ...roles.to];
+  const count = (role: string) => allRoles.filter((item) => item.role === role).length;
+  return [
+    `容器 ${count("root-container") + count("surface") + count("background")}`,
+    `内容 ${count("content-text")}`,
+    `进入 ${source.bindingResult.enter.length}`,
+    `退出 ${source.bindingResult.exit.length}`,
+    `未知 ${count("unknown")}`
+  ].join(" · ");
+}
+
+function orderGroupLabel(group: keyof ZeroMotionOrderPlan["groups"]): string {
+  if (group === "foundation") return "基础层";
+  if (group === "structure") return "结构层";
+  if (group === "exit-content") return "退出内容";
+  if (group === "enter-content") return "进入内容";
+  if (group === "emphasis") return "强调层";
+  return "装饰层";
+}
+
+function recipeOrderStrategy(recipeId: ZeroLayerMotionRecipeId): string {
+  if (recipeId === "container-first") return "容器先行 / 内容跟随";
+  if (recipeId === "content-stagger") return "阅读顺序 / 内容错峰";
+  if (recipeId === "axis-expand") return "主轴展开 / 结构优先";
+  if (recipeId === "tab-indicator-slide") return "指示器先动 / 内容替换";
+  if (recipeId === "card-expand-reveal") return "容器展开 / 裁切揭示";
+  if (recipeId === "list-insert-push") return "列表推开 / 新项补位";
+  if (recipeId === "bottom-sheet-rise") return "蒙层先行 / 面板上升";
+  if (recipeId === "content-replace") return "旧内容退出 / 新内容补入";
+  if (recipeId === "dropdown-reveal") return "触发区稳定 / 下拉揭示";
+  if (recipeId === "mask-reveal") return "遮罩揭示 / 内容后入";
+  return "确定性首尾帧编排";
 }
 
 function diagnosticGate(report: ZeroLayerDiagnosticReport) {
@@ -129,29 +181,74 @@ function nodeLabel(node: ZeroLayerNode | undefined): string {
   return `${node.text?.trim() || node.name} · ${node.nodeId}`;
 }
 
-function frameLabel(frame: "from" | "to"): string {
-  return frame === "from" ? "首帧" : "尾帧";
+function pagePairCount(discovery: ZeroLayerFramePairDiscovery, pageName: string): number {
+  return discovery.pairs.filter((pair) => pair.fromPageName === pageName || pair.toPageName === pageName)
+    .length;
 }
 
-function candidateSummary(candidate: ZeroLayerNodeCandidate): string {
-  const { bounds } = candidate;
-  return `${candidate.kind} · ${Math.round(bounds.w)}x${Math.round(bounds.h)} · ${candidate.nodeId}`;
+function framePairKey(pair: FramePairInput): string {
+  return `${pair.fromNodeId}->${pair.toNodeId}`;
 }
 
-function candidatePath(candidate: ZeroLayerNodeCandidate): string {
-  return candidate.path?.join(" / ") ?? candidate.name;
+type LocalTargetCandidate = {
+  nodeId: string;
+  label: string;
+  summary: string;
+  phase: "matched" | "enter" | "exit";
+  searchText: string;
+};
+
+const targetPhaseLabels: Record<LocalTargetCandidate["phase"], string> = {
+  matched: "形变",
+  enter: "进入",
+  exit: "离开"
+};
+
+function targetNodeLabel(node: ZeroLayerNode): string {
+  return node.text?.trim() || node.name;
 }
 
-function filterCandidates(
-  candidates: ZeroLayerNodeCandidate[],
-  query: string
-): ZeroLayerNodeCandidate[] {
-  const keyword = query.trim().toLowerCase();
-  if (!keyword) return candidates;
-  return candidates.filter((candidate) => {
-    const haystack = `${candidate.nodeId} ${candidate.name} ${candidate.kind} ${candidatePath(candidate)}`.toLowerCase();
-    return haystack.includes(keyword);
-  });
+function targetSearchText(node: ZeroLayerNode, extra = ""): string {
+  return `${node.name} ${node.text ?? ""} ${node.nodeId} ${node.kind} ${extra}`;
+}
+
+function localTargetCandidates(source: ZeroLayerMorphSource | undefined): LocalTargetCandidate[] {
+  if (!source) return [];
+  const fromById = new Map(source.from.layers.map((node) => [node.nodeId, node]));
+  const toById = new Map(source.to.layers.map((node) => [node.nodeId, node]));
+  const matched = source.bindingResult.bindings
+    .filter((binding) => {
+      const from = fromById.get(binding.nodeId);
+      const to = toById.get(binding.toNodeId);
+      return from && to && binding.nodeId !== source.from.nodeId;
+    })
+    .map((binding) => {
+      const from = fromById.get(binding.nodeId)!;
+      return {
+        nodeId: binding.nodeId,
+        label: targetNodeLabel(from),
+        summary: `${from.kind} · ${binding.nodeId} → ${binding.toNodeId}`,
+        phase: "matched" as const,
+        searchText: targetSearchText(from, binding.toNodeId)
+      };
+    });
+  const enter = source.bindingResult.enter.map((node) => ({
+    nodeId: node.nodeId,
+    label: targetNodeLabel(node),
+    summary: `${node.kind} · 仅尾帧 · ${node.nodeId}`,
+    phase: "enter" as const,
+    searchText: targetSearchText(node)
+  }));
+  const exit = source.bindingResult.exit
+    .filter((node) => node.nodeId !== source.from.nodeId)
+    .map((node) => ({
+      nodeId: node.nodeId,
+      label: targetNodeLabel(node),
+      summary: `${node.kind} · 仅首帧 · ${node.nodeId}`,
+      phase: "exit" as const,
+      searchText: targetSearchText(node)
+    }));
+  return [...matched, ...enter, ...exit];
 }
 
 function selectedBinding(
@@ -260,8 +357,20 @@ export function ZeroLayerMorphPanel({
   const [candidateQuery, setCandidateQuery] = useState("");
   const [recipeCategory, setRecipeCategory] = useState<RecipeCategoryFilter>("all");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDiscoveringPairs, setIsDiscoveringPairs] = useState(false);
+  const [fileDiscovery, setFileDiscovery] = useState<ZeroLayerFramePairDiscovery | undefined>(undefined);
+  const [selectedPairKey, setSelectedPairKey] = useState<string | undefined>(undefined);
+  const [activeRecipeId, setActiveRecipeId] = useState<ZeroLayerMotionRecipeId | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const selectedNodeId = selectedNodeIdProp ?? localSelectedNodeId;
+  const localTargets = useMemo(() => localTargetCandidates(savedSource), [savedSource]);
+  const visibleLocalTargets = useMemo(() => {
+    const keyword = candidateQuery.trim().toLowerCase();
+    if (!keyword) return localTargets;
+    return localTargets.filter((target) =>
+      `${target.label} ${target.summary} ${target.phase} ${target.searchText}`.toLowerCase().includes(keyword)
+    );
+  }, [candidateQuery, localTargets]);
 
   useEffect(() => {
     if (!savedSource || (selectedNodeId && selectedNode(savedSource, selectedNodeId))) return;
@@ -276,22 +385,6 @@ export function ZeroLayerMorphPanel({
 
   const stageWidth = savedSource ? Math.max(savedSource.from.width, savedSource.to.width) : undefined;
   const stageHeight = savedSource ? Math.max(savedSource.from.height, savedSource.to.height) : undefined;
-  const fromCandidates = useMemo(
-    () => (savedSource ? deriveZeroLayerNodeCandidates(savedSource.from) : []),
-    [savedSource]
-  );
-  const toCandidates = useMemo(
-    () => (savedSource ? deriveZeroLayerNodeCandidates(savedSource.to) : []),
-    [savedSource]
-  );
-  const visibleFromCandidates = useMemo(
-    () => filterCandidates(fromCandidates, candidateQuery),
-    [candidateQuery, fromCandidates]
-  );
-  const visibleToCandidates = useMemo(
-    () => filterCandidates(toCandidates, candidateQuery),
-    [candidateQuery, toCandidates]
-  );
   const visibleRecipes = useMemo(
     () =>
       recipeCategory === "all"
@@ -303,8 +396,57 @@ export function ZeroLayerMorphPanel({
   const node = selectedNode(savedSource, selectedNodeId);
   const target = savedSource && selectedNodeId ? overrideTargets(savedSource, selectedNodeId)[0] : undefined;
   const override = overrideFor(savedSource, target);
+  const activeMotionSpec = useMemo(
+    () => (savedSource ? buildZeroMotionSpec(savedSource) : undefined),
+    [savedSource]
+  );
+  const activeRecipeRecommendation = useMemo(
+    () => (activeMotionSpec ? recommendZeroLayerRecipes(activeMotionSpec) : undefined),
+    [activeMotionSpec]
+  );
+  const activeEvaluatedRecipeId = activeRecipeId ?? activeRecipeRecommendation?.selectedRecipeId;
+  const activeRecommendedRecipeResult = useMemo(() => {
+    if (!savedSource || !activeEvaluatedRecipeId) return undefined;
+    return applyZeroLayerMotionRecipe(savedSource, activeEvaluatedRecipeId, {
+      ...(activeMotionSpec ? { spec: activeMotionSpec } : {})
+    });
+  }, [activeEvaluatedRecipeId, activeMotionSpec, savedSource]);
+  const activeRoleSummary = useMemo(() => roleSummary(savedSource), [savedSource]);
+  const activeOrderPlan = useMemo(() => {
+    if (!savedSource || !activeRecommendedRecipeResult?.steps) return undefined;
+    return createZeroMotionOrderPlan(savedSource, activeRecommendedRecipeResult.steps, activeMotionSpec);
+  }, [activeMotionSpec, activeRecommendedRecipeResult?.steps, savedSource]);
+  const activeRecommendedParameters = activeRecipeRecommendation?.candidates.find(
+    (candidate) => candidate.recipeId === activeEvaluatedRecipeId
+  )?.adaptedParameters;
+  const activeMotionSalience = useMemo(
+    () =>
+      activeMotionSpec
+        ? evaluateZeroMotionSalience({
+            spec: activeMotionSpec,
+            ...(activeRecommendedRecipeResult?.steps ? { steps: activeRecommendedRecipeResult.steps } : {}),
+            ...(activeRecommendedParameters ? { adaptedParameters: activeRecommendedParameters } : {})
+          })
+        : undefined,
+    [activeMotionSpec, activeRecommendedParameters, activeRecommendedRecipeResult?.steps]
+  );
+  const activeRepairAdvice = useMemo(
+    () =>
+      activeMotionSpec
+        ? createZeroMotionRepairAdvice({
+            spec: activeMotionSpec,
+            ...(activeRecipeRecommendation ? { recommendation: activeRecipeRecommendation } : {}),
+            ...(activeMotionSalience ? { salience: activeMotionSalience } : {}),
+            ...(diagnosticReport ? { diagnosticReport } : {})
+          })
+        : undefined,
+    [activeMotionSpec, activeRecipeRecommendation, activeMotionSalience, diagnosticReport]
+  );
   const activeDiagnosticGate = diagnosticReport ? diagnosticGate(diagnosticReport) : undefined;
   const activeRecipeSampleSummary = useMemo(() => recipeSampleSummary(savedSource), [savedSource]);
+  const activeRepairActions = activeRepairAdvice?.failures.length
+    ? activeRepairAdvice.actions.filter((action) => action.type !== "change-recipe")
+    : [];
   const geometry = useMemo(() => {
     if (!node) return undefined;
     return {
@@ -317,13 +459,19 @@ export function ZeroLayerMorphPanel({
     };
   }, [node, override]);
 
-  async function generateFromZeroLayers() {
+  async function generateFromZeroLayers(input?: FramePairInput) {
+    const nextFromNodeId = (input?.fromNodeId ?? fromNodeId).trim();
+    const nextToNodeId = (input?.toNodeId ?? toNodeId).trim();
+    if (!nextFromNodeId || !nextToNodeId) {
+      setError("请先发现文件首尾帧，或在高级模式填写首帧和尾帧 nodeId。");
+      return;
+    }
     setIsLoading(true);
     setError(undefined);
     try {
       const [fromResult, toResult] = await Promise.all([
-        fetchZeroLayerSnapshotResult(fromNodeId),
-        fetchZeroLayerSnapshotResult(toNodeId)
+        fetchZeroLayerSnapshotResult(nextFromNodeId),
+        fetchZeroLayerSnapshotResult(nextToNodeId)
       ]);
       const bindingResult = compileZeroLayerMotionBindings(fromResult.snapshot, toResult.snapshot);
       const source = fromResult.source === toResult.source ? fromResult.source : "custom-command";
@@ -335,12 +483,24 @@ export function ZeroLayerMorphPanel({
         source,
         ...(bridge ? { bridge } : {})
       });
-      const result = compileZeroLayerMotionComposition({
+      const recipeSource: ZeroLayerMorphSource = {
+        kind: "zero-layer-morph",
         from: fromResult.snapshot,
         to: toResult.snapshot,
         bindingResult,
         diagnosticReport: report
-      });
+      };
+      const spec = buildZeroMotionSpec(recipeSource);
+      const recommendation = recommendZeroLayerRecipes(spec);
+      const appliedRecipeId = recommendation.selectedRecipeId;
+      const result = appliedRecipeId
+        ? applyZeroLayerMotionRecipe(recipeSource, appliedRecipeId, { spec })
+        : compileZeroLayerMotionComposition({
+            from: fromResult.snapshot,
+            to: toResult.snapshot,
+            bindingResult,
+            diagnosticReport: report
+          });
       const nextReadInfo = layerReadInfo(fromResult, toResult);
       nextReadInfo.objects = {
         from:
@@ -354,6 +514,7 @@ export function ZeroLayerMorphPanel({
       };
       setReadInfo(nextReadInfo);
       setDiagnosticReport(report);
+      setActiveRecipeId(appliedRecipeId);
       setLocalSelectedNodeId(bindingResult.bindings[0]?.nodeId ?? fromResult.snapshot.layers[0]?.nodeId);
       if (result.document.visualSource?.kind === "zero-layer-morph") {
         result.document.visualSource = {
@@ -370,6 +531,20 @@ export function ZeroLayerMorphPanel({
     }
   }
 
+  async function discoverFileFramePairs() {
+    setIsDiscoveringPairs(true);
+    setError(undefined);
+    try {
+      const result = await fetchZeroLayerFramePairDiscovery();
+      setFileDiscovery(result.discovery);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Zero 文件级首尾帧发现失败");
+      setFileDiscovery(undefined);
+    } finally {
+      setIsDiscoveringPairs(false);
+    }
+  }
+
   function updateSelectedOverride(patch: Partial<Omit<ZeroLayerNodeOverride, "frame" | "nodeId">>) {
     if (!savedSource) return;
     onUpdateSource(upsertOverrides(savedSource, selectedNodeId, patch));
@@ -377,8 +552,19 @@ export function ZeroLayerMorphPanel({
 
   function applyRecipe(recipeId: ZeroLayerMotionRecipeId) {
     if (!savedSource) return;
-    const result = applyZeroLayerMotionRecipe(savedSource, recipeId);
+    const result = applyZeroLayerMotionRecipe(savedSource, recipeId, {
+      ...(activeMotionSpec ? { spec: activeMotionSpec } : {})
+    });
+    setActiveRecipeId(recipeId);
     onApplyComposition(result);
+  }
+
+  function useFramePair(pair: ZeroLayerFramePair) {
+    setFromNodeId(pair.fromNodeId);
+    setToNodeId(pair.toNodeId);
+    setSelectedPairKey(framePairKey(pair));
+    selectNode(pair.fromNodeId);
+    void generateFromZeroLayers({ fromNodeId: pair.fromNodeId, toNodeId: pair.toNodeId });
   }
 
   function updateNumber(field: keyof Omit<ZeroLayerNodeOverride, "frame" | "nodeId">, value: string) {
@@ -392,78 +578,94 @@ export function ZeroLayerMorphPanel({
     onSelectNode?.(nodeId);
   }
 
-  function useCandidate(frame: CandidateFrame, candidate: ZeroLayerNodeCandidate) {
-    if (frame === "from") {
-      setFromNodeId(candidate.nodeId);
-    } else {
-      setToNodeId(candidate.nodeId);
-    }
-    selectNode(candidate.nodeId);
-  }
-
-  function renderCandidateList(
-    frame: CandidateFrame,
-    candidates: ZeroLayerNodeCandidate[],
-    currentNodeId: string
-  ) {
-    return (
-      <div className="zero-layer-candidate-column">
-        <div className="zero-layer-candidate-column-header">
-          <strong>{frameLabel(frame)}候选</strong>
-          <span>{candidates.length}</span>
-        </div>
-        <div className="zero-layer-candidate-list">
-          {candidates.slice(0, 24).map((candidate) => (
-            <button
-              type="button"
-              className={`zero-layer-candidate-button${
-                currentNodeId === candidate.nodeId ? " is-selected" : ""
-              }`}
-              onClick={() => useCandidate(frame, candidate)}
-              aria-label={`设为${frameLabel(frame)} ${candidate.name}`}
-              key={`${frame}:${candidate.nodeId}`}
-            >
-              <strong>{candidate.name}</strong>
-              <span>{candidateSummary(candidate)}</span>
-              <small>{candidatePath(candidate)}</small>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <section className="zero-layer-panel">
       <div className="panel-section">
         <p className="eyebrow">Zero 原生图层</p>
-        <div className="field-row">
-          <label className="field">
-            <span>首帧 nodeId</span>
-            <input
-              aria-label="Zero 图层首帧 nodeId"
-              value={fromNodeId}
-              onChange={(event) => setFromNodeId(event.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>尾帧 nodeId</span>
-            <input
-              aria-label="Zero 图层尾帧 nodeId"
-              value={toNodeId}
-              onChange={(event) => setToNodeId(event.target.value)}
-            />
-          </label>
+        <div className="zero-layer-workflow">
+          <button
+            type="button"
+            className="primary-action"
+            onClick={discoverFileFramePairs}
+            disabled={isDiscoveringPairs}
+          >
+            {isDiscoveringPairs ? "发现中…" : "发现文件首尾帧"}
+          </button>
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={() => void generateFromZeroLayers()}
+            disabled={isLoading}
+          >
+            {isLoading ? "读取中…" : "生成首尾帧动效"}
+          </button>
         </div>
-        <button
-          type="button"
-          className="primary-action"
-          onClick={generateFromZeroLayers}
-          disabled={isLoading}
-        >
-          {isLoading ? "读取中…" : "从 Zero 原生图层生成动效"}
-        </button>
         {error ? <p className="frame-morph-error">{error}</p> : null}
+        {fileDiscovery ? (
+          <div className="zero-layer-file-pair-panel" aria-label="Zero 文件级首尾帧发现">
+            <div className="zero-layer-file-pair-header">
+              <strong>文件级首尾帧</strong>
+              <span>
+                {fileDiscovery.pairs.length} 组 · {fileDiscovery.candidates.length} 个候选 ·{" "}
+                {fileDiscovery.pages.length} 页
+              </span>
+            </div>
+            {fileDiscovery.pairs.length > 0 ? (
+              <div className="zero-layer-frame-pair-list">
+                {fileDiscovery.pairs.slice(0, 8).map((pair) => (
+                  <button
+                    type="button"
+                    className={selectedPairKey === framePairKey(pair) ? "is-selected" : undefined}
+                    onClick={() => useFramePair(pair)}
+                    aria-label={`使用文件级首尾帧 ${pair.label}`}
+                    key={`file:${pair.fromNodeId}:${pair.toNodeId}`}
+                  >
+                    <strong>{pair.label}</strong>
+                    <span>
+                      {pair.fromPageName ?? "未知页面"} / {pair.fromNodeId} → {pair.toPageName ?? "未知页面"}{" "}
+                      / {pair.toNodeId}
+                    </span>
+                    <small>文件级命名匹配 · confidence {pair.confidence}</small>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="zero-layer-frame-pair-empty">
+                当前文件没有发现以 -首帧 / -尾帧 结尾的 frame、group、component 或 instance。
+              </p>
+            )}
+            <div className="zero-layer-page-status" aria-label="Zero 文件页面扫描状态">
+              {fileDiscovery.pages.map((page) => (
+                <span key={page.nodeId}>
+                  {page.name}: {pagePairCount(fileDiscovery, page.name)} 组
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        <details className="zero-layer-advanced-panel">
+          <summary>手动输入 / 高级模式</summary>
+          <div className="field-row">
+            <label className="field">
+              <span>首帧 nodeId</span>
+              <input
+                aria-label="Zero 图层首帧 nodeId"
+                value={fromNodeId}
+                onChange={(event) => setFromNodeId(event.target.value)}
+                placeholder="例如 28:19"
+              />
+            </label>
+            <label className="field">
+              <span>尾帧 nodeId</span>
+              <input
+                aria-label="Zero 图层尾帧 nodeId"
+                value={toNodeId}
+                onChange={(event) => setToNodeId(event.target.value)}
+                placeholder="例如 28:2"
+              />
+            </label>
+          </div>
+        </details>
         {readInfo ? (
           <div className="zero-layer-source-panel">
             <p>
@@ -478,11 +680,12 @@ export function ZeroLayerMorphPanel({
           </div>
         ) : null}
         {savedSource ? (
-          <div className="zero-layer-candidate-panel" aria-label="Zero 首尾帧候选节点">
+          <details className="zero-layer-candidate-panel" aria-label="Zero 目标图层选择">
+            <summary>目标图层选择</summary>
             <div className="zero-layer-candidate-header">
               <div>
-                <strong>首尾帧候选节点</strong>
-                <p>从已读取的 Zero 原生图层中选择，手动 nodeId 仍可直接输入。</p>
+                <strong>局部动效目标图层</strong>
+                <p>仅在需要对子图层做局部动效时使用，默认按首尾帧整体生成。</p>
               </div>
               <label className="field zero-layer-candidate-search">
                 <span>搜索</span>
@@ -494,22 +697,42 @@ export function ZeroLayerMorphPanel({
                 />
               </label>
             </div>
-            <div className="zero-layer-candidate-grid">
-              {renderCandidateList("from", visibleFromCandidates, fromNodeId)}
-              {renderCandidateList("to", visibleToCandidates, toNodeId)}
+            <div className="zero-layer-target-list" aria-label="Zero 局部动效目标图层">
+              {visibleLocalTargets.length > 0 ? (
+                visibleLocalTargets.slice(0, 36).map((target) => (
+                  <button
+                    type="button"
+                    className={`zero-layer-target-button${
+                      selectedNodeId === target.nodeId ? " is-selected" : ""
+                    }`}
+                    onClick={() => selectNode(target.nodeId)}
+                    aria-label={`选择局部动效目标 ${target.label}`}
+                    key={`${target.phase}:${target.nodeId}`}
+                  >
+                    <strong>
+                      {target.label}
+                      <em>{targetPhaseLabels[target.phase]}</em>
+                    </strong>
+                    <span>{target.summary}</span>
+                  </button>
+                ))
+              ) : (
+                <p className="zero-layer-frame-pair-empty">当前首尾帧没有可单独选择的局部动效目标。</p>
+              )}
             </div>
-          </div>
+          </details>
         ) : null}
         {diagnosticReport ? (
-          <div className="zero-layer-diagnostic-panel" aria-label="Zero 图层 harness 诊断">
-            <div className="zero-layer-diagnostic-header">
+          <details className="zero-layer-diagnostic-panel" aria-label="Zero 图层 harness 诊断">
+            <summary className="zero-layer-diagnostic-header">
               <strong>Harness 诊断</strong>
               <span>
                 error {diagnosticRiskCount(diagnosticReport, "error")} · warning{" "}
                 {diagnosticRiskCount(diagnosticReport, "warning")} · info{" "}
                 {diagnosticRiskCount(diagnosticReport, "info")}
               </span>
-            </div>
+            </summary>
+            <p>质量门禁和调试信息，主要用于判断图层匹配、尾帧还原和动效采样是否可靠；普通使用不需要逐条确认。</p>
             <p>{diagnosticSummary(diagnosticReport)}</p>
             <p>motion {diagnosticMotionSummary(diagnosticReport)}</p>
             {activeDiagnosticGate ? (
@@ -574,14 +797,146 @@ export function ZeroLayerMorphPanel({
                 <p>采样点 0 / 25 / 50 / 75 / 100%，用于检查尾帧还原、过程越界和方案差异。</p>
               </div>
             ) : null}
-          </div>
+          </details>
         ) : null}
       </div>
 
       {savedSource ? (
         <>
+          {activeMotionSpec && activeRecipeRecommendation ? (
+            <div className="panel-section zero-layer-smart-panel" aria-label="Zero 智能推荐">
+              <div className="zero-layer-smart-header">
+                <div>
+                  <p className="eyebrow">智能推荐</p>
+                  <strong>
+                    {activeMotionSpec.scene.type} · 置信度{" "}
+                    {Math.round(activeMotionSpec.scene.confidence * 100)}% ·{" "}
+                    {activeRecipeRecommendation.interactionPattern.label}
+                  </strong>
+                </div>
+                {activeRecipeRecommendation.selectedRecipeId ? (
+                  <button
+                    type="button"
+                    className="primary-action"
+                    onClick={() => applyRecipe(activeRecipeRecommendation.selectedRecipeId!)}
+                  >
+                    应用推荐方案
+                  </button>
+                ) : null}
+              </div>
+              <div className="zero-layer-smart-reasons">
+                {activeRecipeRecommendation.interactionPattern.reasons.slice(0, 2).map((reason) => (
+                  <p key={`pattern-${reason}`}>{reason}</p>
+                ))}
+                {activeMotionSpec.scene.reasons.slice(0, 3).map((reason) => (
+                  <p key={reason}>{reason}</p>
+                ))}
+              </div>
+              {activeRoleSummary || activeOrderPlan ? (
+                <div className="zero-layer-order-summary" aria-label="Zero 图层角色与动效顺序">
+                  {activeRoleSummary ? (
+                    <p>
+                      <strong>角色识别</strong>
+                      <span>{activeRoleSummary}</span>
+                    </p>
+                  ) : null}
+                  {activeOrderPlan ? (
+                    <div>
+                      <strong>动效顺序</strong>
+                      {Object.entries(activeOrderPlan.groups)
+                        .filter(([, items]) => items.length > 0)
+                        .slice(0, 5)
+                        .map(([group, items]) => (
+                          <span key={group}>
+                            {orderGroupLabel(group as keyof ZeroMotionOrderPlan["groups"])}：
+                            {items.slice(0, 3).map((item) => item.name).join(" / ")}
+                          </span>
+                        ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="zero-layer-recommendation-cards">
+                {activeRecipeRecommendation.candidates.map((candidate, index) => {
+                  const recipe = zeroLayerMotionRecipes.find((item) => item.id === candidate.recipeId);
+                  const isActiveRecipe = activeRecipeId === candidate.recipeId;
+                  return (
+                    <button
+                      type="button"
+                      className={`zero-layer-recommendation-card${
+                        candidate.recipeId === activeRecipeRecommendation.selectedRecipeId
+                          ? " is-recommended"
+                          : ""
+                      }${isActiveRecipe ? " is-selected" : ""}`}
+                      onClick={() => applyRecipe(candidate.recipeId)}
+                      aria-label={`应用推荐动效 ${recipe?.label ?? candidate.recipeId}`}
+                      aria-pressed={isActiveRecipe}
+                      key={candidate.recipeId}
+                    >
+                      <strong>
+                        {recipe?.label ?? candidate.recipeId}
+                        <small>{isActiveRecipe ? "已应用" : index === 0 ? "推荐" : `score ${candidate.score}`}</small>
+                      </strong>
+                      <span>{candidate.reasons.slice(0, 2).join("；")}</span>
+                      <span className="zero-layer-pattern-badge">
+                        {recipeOrderStrategy(candidate.recipeId)}
+                      </span>
+                      <span className="zero-layer-adapted-params">{candidate.adaptedParameters.summary}</span>
+                      {candidate.warnings[0] ? <em>{candidate.warnings[0]}</em> : null}
+                      {!candidate.warnings[0] && candidate.score < 55 ? (
+                        <em>该方案偏保守，动效差异可能较弱。</em>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {activeMotionSalience ? (
+                <details className="zero-layer-quality-details">
+                  <summary>
+                    <strong>动效质量提示</strong>
+                    <span>
+                      显著度 {activeMotionSalience.score} ·{" "}
+                      {activeRepairActions.length > 0 ? `${activeRepairActions.length} 条建议` : "无需处理"}
+                    </span>
+                  </summary>
+                  <div className={`zero-layer-salience is-${activeMotionSalience.diagnosis}`}>
+                    <p>
+                      <strong>动效显著度</strong>用于判断当前方案是否有足够可感知变化，不会直接改变画布。
+                    </p>
+                    <p>
+                      {activeMotionSalience.diagnosis} · score {activeMotionSalience.score}
+                    </p>
+                    {activeMotionSalience.evidence.slice(0, 2).map((item) => (
+                      <p key={item}>{item}</p>
+                    ))}
+                  </div>
+                  {activeRepairAdvice && activeRepairActions.length > 0 ? (
+                    <div className="zero-layer-repair-advice">
+                      <p>
+                        <strong>修复建议</strong>只在低置信匹配、体感过弱或空间风险时出现，用于辅助选择更稳妥的方案。
+                      </p>
+                      <p>{activeRepairAdvice.userFacingMessage}</p>
+                      <div>
+                        {activeRepairActions.slice(0, 3).map((action) => (
+                          <button
+                            type="button"
+                            onClick={() => (action.recipeId ? applyRecipe(action.recipeId) : undefined)}
+                            disabled={!action.recipeId}
+                            key={action.id}
+                          >
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </details>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="panel-section">
-            <p className="eyebrow">动效方案</p>
+            <p className="eyebrow">更多动效方案</p>
             <div className="zero-layer-recipe-filters" aria-label="Zero 原生动效方案分类">
               {recipeCategoryFilters.map((category) => (
                 <button
@@ -598,8 +953,9 @@ export function ZeroLayerMorphPanel({
               {visibleRecipes.map((recipe) => (
                 <button
                   type="button"
-                  className="zero-layer-recipe-button"
+                  className={`zero-layer-recipe-button${activeRecipeId === recipe.id ? " is-selected" : ""}`}
                   aria-label={recipe.label}
+                  aria-pressed={activeRecipeId === recipe.id}
                   onClick={() => applyRecipe(recipe.id)}
                   key={recipe.id}
                 >

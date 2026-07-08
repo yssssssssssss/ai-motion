@@ -27,6 +27,7 @@ export type ZeroVisualSnapshotSource = "real-zero-mcp-http" | "fixture" | "zero-
 export type ZeroVisualSnapshotOptions = {
   visualCommand?: string | undefined;
   visualArgs?: string[] | undefined;
+  commandEnv?: Record<string, string | undefined> | undefined;
   maxBodyBytes?: number;
   timeoutMs?: number;
 };
@@ -110,29 +111,43 @@ function rewriteZeroAssetUrls(snapshot: ZeroVisualSnapshot, origin: string): Zer
   };
 }
 
-function sourceForBridge(command: string, args: string[]): ZeroVisualSnapshotSource {
+function sourceForBridge(
+  command: string,
+  args: string[],
+  commandEnv: Record<string, string | undefined> | undefined
+): ZeroVisualSnapshotSource {
   const bridgeText = [command, ...args].join(" ");
-  if (process.env.ZERO_MCP_HTTP_URL) return "real-zero-mcp-http";
+  if (commandEnv?.ZERO_MCP_HTTP_URL || process.env.ZERO_MCP_HTTP_URL) return "real-zero-mcp-http";
   if (bridgeText.includes("zero-visual-snapshot-fixture")) return "fixture";
   if (bridgeText.includes("zero-mcp-visual-bridge")) return "zero-mcp-bridge";
   return "custom-command";
 }
 
-function runVisualCommand(command: string, args: string[], timeoutMs: number): Promise<ZeroVisualSnapshot> {
+function runVisualCommand(
+  command: string,
+  args: string[],
+  timeoutMs: number,
+  commandEnv: Record<string, string | undefined> | undefined
+): Promise<ZeroVisualSnapshot> {
   return new Promise((resolve, reject) => {
-    execFile(command, args, { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024 }, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(stderr.trim() || error.message));
-        return;
+    execFile(
+      command,
+      args,
+      { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, env: { ...process.env, ...commandEnv } },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(stderr.trim() || error.message));
+          return;
+        }
+        try {
+          resolve(normalizeZeroVisualSnapshotOrCreateFromMcp(JSON.parse(stdout) as unknown));
+        } catch (parseError) {
+          reject(
+            parseError instanceof Error ? parseError : new Error("Zero visual snapshot output is invalid.")
+          );
+        }
       }
-      try {
-        resolve(normalizeZeroVisualSnapshotOrCreateFromMcp(JSON.parse(stdout) as unknown));
-      } catch (parseError) {
-        reject(
-          parseError instanceof Error ? parseError : new Error("Zero visual snapshot output is invalid.")
-        );
-      }
-    });
+    );
   });
 }
 
@@ -167,10 +182,13 @@ export function createZeroVisualSnapshotHandler(options: ZeroVisualSnapshotOptio
         return;
       }
       const args = argsForNode(options.visualArgs, nodeId);
-      const snapshot = rewriteZeroAssetUrls(await runVisualCommand(command, args, timeoutMs), requestOrigin(req));
+      const snapshot = rewriteZeroAssetUrls(
+        await runVisualCommand(command, args, timeoutMs, options.commandEnv),
+        requestOrigin(req)
+      );
       writeJson(res, 200, {
         snapshot,
-        source: sourceForBridge(command, args),
+        source: sourceForBridge(command, args, options.commandEnv),
         bridge: [command, ...args].join(" ")
       });
     } catch (error) {

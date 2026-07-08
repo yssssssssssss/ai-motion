@@ -8,10 +8,11 @@ import {
   createZeroVisualSnapshotHandler,
   type ZeroVisualSnapshotOptions
 } from "../dev-api/zeroVisualSnapshot";
+import { createZeroLayerSnapshotHandler, type ZeroLayerSnapshotOptions } from "../dev-api/zeroLayerSnapshot";
 import {
-  createZeroLayerSnapshotHandler,
-  type ZeroLayerSnapshotOptions
-} from "../dev-api/zeroLayerSnapshot";
+  createZeroLayerFramePairHandler,
+  type ZeroLayerFramePairOptions
+} from "../dev-api/zeroLayerFramePairs";
 import { createZeroAssetProxyHandler } from "../dev-api/zeroAssetProxy";
 
 type CopilotModelConfig = Parameters<typeof createGenerateDraftHandler>[0];
@@ -22,6 +23,7 @@ type ProductionServerInput = {
   zeroConfig?: ZeroFrameSnapshotOptions;
   zeroVisualConfig?: ZeroVisualSnapshotOptions;
   zeroLayerConfig?: ZeroLayerSnapshotOptions;
+  zeroLayerFramePairConfig?: ZeroLayerFramePairOptions;
 };
 
 const MIME_TYPES: Record<string, string> = {
@@ -68,6 +70,7 @@ export function createMotionCopilotProductionServer(input: ProductionServerInput
   const zeroFrameHandler = createZeroFrameSnapshotHandler(input.zeroConfig);
   const zeroVisualHandler = createZeroVisualSnapshotHandler(input.zeroVisualConfig);
   const zeroLayerHandler = createZeroLayerSnapshotHandler(input.zeroLayerConfig);
+  const zeroLayerFramePairHandler = createZeroLayerFramePairHandler(input.zeroLayerFramePairConfig);
   const zeroAssetHandler = createZeroAssetProxyHandler();
 
   return createServer((req, res) => {
@@ -95,6 +98,11 @@ export function createMotionCopilotProductionServer(input: ProductionServerInput
 
     if (pathName === "/api/zero/layer-snapshot") {
       void zeroLayerHandler(req, res);
+      return;
+    }
+
+    if (pathName === "/api/zero/layer-frame-pairs") {
+      void zeroLayerFramePairHandler(req, res);
       return;
     }
 

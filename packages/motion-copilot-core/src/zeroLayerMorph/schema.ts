@@ -75,8 +75,44 @@ export type ZeroLayerNodeCandidate = {
   name: string;
   kind: ZeroLayerKind;
   bounds: Bounds;
+  role?: "from" | "to";
+  baseName?: string;
+  priority?: number;
   path?: string[];
   preview?: string;
+};
+
+export type ZeroLayerFramePair = {
+  label: string;
+  baseName: string;
+  fromNodeId: string;
+  toNodeId: string;
+  fromPageName?: string;
+  toPageName?: string;
+  confidence: number;
+  reasons: string[];
+};
+
+export type ZeroLayerFramePairCandidate = {
+  nodeId: string;
+  name: string;
+  role: "from" | "to";
+  baseName: string;
+  kind: ZeroLayerKind;
+  pageId?: string;
+  pageName?: string;
+  bounds?: Bounds;
+};
+
+export type ZeroLayerFramePairDiscovery = {
+  schemaVersion: "motion-copilot.zero-layer-frame-pair-discovery.v1";
+  pages: Array<{
+    nodeId: string;
+    name: string;
+    candidateCount: number;
+  }>;
+  candidates: ZeroLayerFramePairCandidate[];
+  pairs: ZeroLayerFramePair[];
 };
 
 export type ZeroLayerSnapshot = {

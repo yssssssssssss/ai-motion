@@ -23,6 +23,7 @@ function parseArgs(argv) {
 function usage() {
   return `Usage:
   node scripts/zero-mcp-layer-bridge.mjs --node-id 28:2
+  node scripts/zero-mcp-layer-bridge.mjs --discover-frame-pairs
 
 Required environment:
   ZERO_MCP_HTTP_URL       Zero MCP streamable HTTP endpoint, for example http://127.0.0.1:27618/mcp
@@ -389,6 +390,258 @@ function scriptForNode(nodeId) {
   return layerScript.replaceAll("__NODE_ID__", nodeId.replaceAll("\\", "\\\\").replaceAll('"', '\\"'));
 }
 
+const framePairDiscoveryScript = String.raw`
+if ("skipInvisibleInstanceChildren" in relay) relay.skipInvisibleInstanceChildren = false
+
+const suffixes = [
+  { suffix: "-首帧", role: "from" },
+  { suffix: "-尾帧", role: "to" }
+]
+
+function parseRole(name) {
+  const trimmed = String(name || "").trim()
+  const lower = trimmed.toLowerCase()
+  for (const item of suffixes) {
+    if (!lower.endsWith(item.suffix.toLowerCase())) continue
+    const baseName = trimmed.slice(0, -item.suffix.length).trim().replace(/\s+/g, " ")
+    if (!baseName) return undefined
+    return { role: item.role, baseName }
+  }
+  return undefined
+}
+
+function kindForType(type) {
+  const t = String(type || "").toUpperCase()
+  if (t === "FRAME") return "frame"
+  if (t === "GROUP") return "group"
+  if (t === "SECTION") return "section"
+  if (t === "COMPONENT") return "component"
+  if (t === "INSTANCE") return "instance"
+  if (t === "RECTANGLE") return "rect"
+  if (t === "TEXT") return "text"
+  if (t === "VECTOR") return "vector"
+  return "unknown"
+}
+
+function isFrameCandidate(node) {
+  const kind = kindForType(node.type)
+  return kind === "frame" || kind === "group" || kind === "component" || kind === "instance" || kind === "section"
+}
+
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value)
+}
+
+function boundsFor(node) {
+  const box = node.absoluteBoundingBox
+  if (box && finiteNumber(box.x) && finiteNumber(box.y) && finiteNumber(box.width) && finiteNumber(box.height)) {
+    return { x: box.x, y: box.y, w: box.width, h: box.height }
+  }
+  return { x: node.x || 0, y: node.y || 0, w: node.width || 0, h: node.height || 0 }
+}
+
+async function loadNode(node) {
+  if (node && typeof node.loadAsync === "function") await node.loadAsync()
+}
+
+async function pagesInFile() {
+  const rootChildren = relay.root && Array.isArray(relay.root.children) ? relay.root.children : undefined
+  if (rootChildren && rootChildren.length) return rootChildren
+  return relay.currentPage ? [relay.currentPage] : []
+}
+
+const pages = await pagesInFile()
+const candidates = []
+const pageSummaries = []
+
+async function visit(node, page, depth) {
+  if (!node || !("id" in node) || node.visible === false || depth > 6) return
+  await loadNode(node)
+  const parsed = parseRole(node.name)
+  if (parsed && isFrameCandidate(node)) {
+    candidates.push({
+      nodeId: node.id,
+      name: node.name || node.id,
+      role: parsed.role,
+      baseName: parsed.baseName,
+      kind: kindForType(node.type),
+      pageId: page.id,
+      pageName: page.name || page.id,
+      bounds: boundsFor(node)
+    })
+  }
+  const children = "children" in node && Array.isArray(node.children) ? node.children : []
+  for (const child of children) await visit(child, page, depth + 1)
+}
+
+for (const page of pages) {
+  await loadNode(page)
+  const before = candidates.length
+  const children = "children" in page && Array.isArray(page.children) ? page.children : []
+  for (const child of children) await visit(child, page, 0)
+  pageSummaries.push({
+    nodeId: page.id,
+    name: page.name || page.id,
+    candidateCount: candidates.length - before
+  })
+}
+
+function area(candidate) {
+  const bounds = candidate.bounds || { w: 0, h: 0 }
+  return Math.max(0, bounds.w || 0) * Math.max(0, bounds.h || 0)
+}
+
+function keyFor(candidate) {
+  return candidate.baseName.trim().toLowerCase()
+}
+
+function pageKeyFor(candidate) {
+  return candidate.pageId || candidate.pageName || ""
+}
+
+function stateKeyFor(candidate) {
+  const normalized = candidate.baseName
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[-_]/g, "")
+  const stripped = normalized
+    .replace(/(收起|展开|折叠|默认|选中|未选中|已选中|打开|关闭|开启|收缩)(状态|态)?/g, "")
+    .replace(/(前|后)(状态|态)/g, "")
+    .replace(/状态/g, "")
+  return stripped || normalized
+}
+
+function strongest(items) {
+  return [...items].sort((left, right) => area(right) - area(left) || left.nodeId.localeCompare(right.nodeId))[0]
+}
+
+function groupCandidates(items, keyBuilder) {
+  const grouped = new Map()
+  for (const candidate of items) {
+    const key = keyBuilder(candidate)
+    if (!key) continue
+    grouped.set(key, [...(grouped.get(key) || []), candidate])
+  }
+  return grouped
+}
+
+function pairKeyFor(candidate, baseName) {
+  return pageKeyFor(candidate) + "::" + baseName
+}
+
+function pushPair({ pairs, usedFrom, usedTo, from, to, baseName, confidence, reason, extraReasons = [] }) {
+  if (!from || !to || usedFrom.has(from.nodeId) || usedTo.has(to.nodeId)) return
+  pairs.push({
+    label: baseName || from.baseName || to.baseName,
+    baseName: baseName || from.baseName || to.baseName,
+    fromNodeId: from.nodeId,
+    toNodeId: to.nodeId,
+    fromPageName: from.pageName,
+    toPageName: to.pageName,
+    confidence,
+    reasons: [
+      reason,
+      (from.pageName || "") + " / " + from.name + " -> " + (to.pageName || "") + " / " + to.name,
+      ...extraReasons
+    ]
+  })
+  usedFrom.add(from.nodeId)
+  usedTo.add(to.nodeId)
+}
+
+const fromCandidates = candidates.filter((candidate) => candidate.role === "from")
+const toCandidates = candidates.filter((candidate) => candidate.role === "to")
+const fromGroups = groupCandidates(fromCandidates, (candidate) => pairKeyFor(candidate, keyFor(candidate)))
+const toGroups = groupCandidates(toCandidates, (candidate) => pairKeyFor(candidate, keyFor(candidate)))
+const pairs = []
+const usedFrom = new Set()
+const usedTo = new Set()
+
+for (const [baseName, fromItems] of fromGroups) {
+  const toItems = toGroups.get(baseName)
+  if (!toItems || !toItems.length) continue
+  const from = strongest(fromItems)
+  const to = strongest(toItems)
+  const duplicatePenalty = fromItems.length > 1 || toItems.length > 1 ? 16 : 0
+  pushPair({
+    pairs,
+    usedFrom,
+    usedTo,
+    from,
+    to,
+    baseName: from.baseName || to.baseName || baseName.split("::").pop() || baseName,
+    confidence: Math.max(60, 96 - duplicatePenalty),
+    reason: "文件级命名协议匹配",
+    extraReasons: duplicatePenalty ? ["存在同名候选，已按面积选择"] : []
+  })
+}
+
+const looseFromGroups = groupCandidates(
+  fromCandidates.filter((candidate) => !usedFrom.has(candidate.nodeId)),
+  (candidate) => pairKeyFor(candidate, stateKeyFor(candidate))
+)
+const looseToGroups = groupCandidates(
+  toCandidates.filter((candidate) => !usedTo.has(candidate.nodeId)),
+  (candidate) => pairKeyFor(candidate, stateKeyFor(candidate))
+)
+for (const [baseName, fromItems] of looseFromGroups) {
+  const normalizedBaseName = baseName.split("::").pop() || ""
+  if (normalizedBaseName.length < 2) continue
+  const toItems = looseToGroups.get(baseName)
+  if (!toItems || !toItems.length) continue
+  pushPair({
+    pairs,
+    usedFrom,
+    usedTo,
+    from: strongest(fromItems),
+    to: strongest(toItems),
+    baseName: normalizedBaseName,
+    confidence: 84,
+    reason: "文件级状态词归一化匹配"
+  })
+}
+
+const candidatesByPage = groupCandidates(candidates, pageKeyFor)
+for (const [, pageCandidates] of candidatesByPage) {
+  const remainingFrom = pageCandidates.filter((candidate) => candidate.role === "from" && !usedFrom.has(candidate.nodeId))
+  const remainingTo = pageCandidates.filter((candidate) => candidate.role === "to" && !usedTo.has(candidate.nodeId))
+  if (remainingFrom.length !== 1 || remainingTo.length !== 1) continue
+  const from = remainingFrom[0]
+  const to = remainingTo[0]
+  pushPair({
+    pairs,
+    usedFrom,
+    usedTo,
+    from,
+    to,
+    baseName: from.baseName || to.baseName || "唯一首尾帧",
+    confidence: 78,
+    reason: "文件级同页唯一首尾帧兜底匹配"
+  })
+}
+
+pairs.sort((left, right) => right.confidence - left.confidence || left.label.localeCompare(right.label))
+
+return {
+  schemaVersion: "motion-copilot.zero-layer-frame-pair-discovery.v1",
+  pages: pageSummaries,
+  candidates,
+  pairs
+}
+`;
+
+async function discoverFramePairs({ httpUrl, command, timeoutMs }) {
+  if (httpUrl) return runHttpTool(httpUrl, "use_design_script", "", framePairDiscoveryScript, timeoutMs);
+  const scriptArgs = toolArgs(
+    requiredToolArgsTemplate("use_design_script"),
+    "use_design_script",
+    "",
+    framePairDiscoveryScript
+  );
+  return runTool(command, scriptArgs, timeoutMs);
+}
+
 function payloadSummary(value) {
   if (typeof value === "string") return value.trim().slice(0, 1000);
   try {
@@ -441,12 +694,19 @@ async function main() {
   const command = process.env.ZERO_MCP_TOOL_COMMAND?.trim();
   const timeoutMs = Number.isFinite(args.timeoutMs) && args.timeoutMs > 0 ? args.timeoutMs : 30000;
 
-  if (!nodeId) throw new Error("Missing --node-id.");
   if (!httpUrl && !command) {
     throw new Error(
       "Zero MCP is not configured. Set ZERO_MCP_HTTP_URL or ZERO_MCP_TOOL_COMMAND/ZERO_MCP_TOOL_ARGS."
     );
   }
+
+  if (args["discover-frame-pairs"]) {
+    const discovery = extractPayload(await discoverFramePairs({ httpUrl, command, timeoutMs }));
+    process.stdout.write(`${JSON.stringify(discovery, null, 2)}\n`);
+    return;
+  }
+
+  if (!nodeId) throw new Error("Missing --node-id.");
 
   const script = scriptForNode(nodeId);
   const [scriptResult, screenshotResult] = httpUrl

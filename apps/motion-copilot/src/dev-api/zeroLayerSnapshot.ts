@@ -23,6 +23,7 @@ export type ZeroLayerSnapshotSource = "real-zero-mcp-http" | "fixture" | "zero-l
 export type ZeroLayerSnapshotOptions = {
   layerCommand?: string | undefined;
   layerArgs?: string[] | undefined;
+  commandEnv?: Record<string, string | undefined> | undefined;
   maxBodyBytes?: number;
   timeoutMs?: number;
 };
@@ -87,28 +88,44 @@ function rewriteAssetUrls(snapshot: ZeroLayerSnapshot, origin: string): ZeroLaye
   };
 }
 
-function sourceForBridge(command: string, args: string[]): ZeroLayerSnapshotSource {
+function sourceForBridge(
+  command: string,
+  args: string[],
+  commandEnv: Record<string, string | undefined> | undefined
+): ZeroLayerSnapshotSource {
   const bridgeText = [command, ...args].join(" ");
   if (bridgeText.includes("zero-layer-snapshot-fixture")) return "fixture";
   if (bridgeText.includes("zero-mcp-layer-bridge")) {
-    return process.env.ZERO_MCP_HTTP_URL ? "real-zero-mcp-http" : "zero-layer-bridge";
+    return commandEnv?.ZERO_MCP_HTTP_URL || process.env.ZERO_MCP_HTTP_URL
+      ? "real-zero-mcp-http"
+      : "zero-layer-bridge";
   }
   return "custom-command";
 }
 
-function runLayerCommand(command: string, args: string[], timeoutMs: number): Promise<ZeroLayerSnapshot> {
+function runLayerCommand(
+  command: string,
+  args: string[],
+  timeoutMs: number,
+  commandEnv: Record<string, string | undefined> | undefined
+): Promise<ZeroLayerSnapshot> {
   return new Promise((resolve, reject) => {
-    execFile(command, args, { timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(stderr.trim() || error.message));
-        return;
+    execFile(
+      command,
+      args,
+      { timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, ...commandEnv } },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(stderr.trim() || error.message));
+          return;
+        }
+        try {
+          resolve(normalizeZeroLayerSnapshot(JSON.parse(stdout) as unknown));
+        } catch (parseError) {
+          reject(parseError instanceof Error ? parseError : new Error("Zero layer snapshot output is invalid."));
+        }
       }
-      try {
-        resolve(normalizeZeroLayerSnapshot(JSON.parse(stdout) as unknown));
-      } catch (parseError) {
-        reject(parseError instanceof Error ? parseError : new Error("Zero layer snapshot output is invalid."));
-      }
-    });
+    );
   });
 }
 
@@ -140,10 +157,13 @@ export function createZeroLayerSnapshotHandler(options: ZeroLayerSnapshotOptions
         return;
       }
       const args = argsForNode(options.layerArgs, nodeId);
-      const snapshot = rewriteAssetUrls(await runLayerCommand(command, args, timeoutMs), requestOrigin(req));
+      const snapshot = rewriteAssetUrls(
+        await runLayerCommand(command, args, timeoutMs, options.commandEnv),
+        requestOrigin(req)
+      );
       writeJson(res, 200, {
         snapshot,
-        source: sourceForBridge(command, args),
+        source: sourceForBridge(command, args, options.commandEnv),
         bridge: [command, ...args].join(" ")
       });
     } catch (error) {

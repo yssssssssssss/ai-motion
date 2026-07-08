@@ -130,7 +130,7 @@ describe("motion-copilot production server", () => {
     } finally {
       await close(server);
     }
-  });
+  }, 10_000);
 
   it("routes Zero layer snapshot requests through the configured layer bridge", async () => {
     const server = createMotionCopilotProductionServer({
@@ -171,6 +171,107 @@ describe("motion-copilot production server", () => {
     }
   });
 
+  it("passes configured Zero env to layer bridge subprocesses", async () => {
+    const scriptDir = await mkdtemp(join(tmpdir(), "copilot-zero-layer-env-"));
+    tempDirs.push(scriptDir);
+    const bridgeScript = join(scriptDir, "zero-mcp-layer-bridge.mjs");
+    await writeFile(
+      bridgeScript,
+      `if (process.env.ZERO_MCP_HTTP_URL !== "http://example.test/mcp") {
+  console.error("missing ZERO_MCP_HTTP_URL");
+  process.exit(2);
+}
+process.stdout.write(JSON.stringify({
+  schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
+  frameId: "1:1",
+  nodeId: "1:1",
+  name: "Frame",
+  width: 10,
+  height: 10,
+  screenshotUrl: "inline://frame",
+  assets: [],
+  layers: [{ nodeId: "1:1", name: "Frame", kind: "frame", bounds: { x: 0, y: 0, w: 10, h: 10 } }]
+}));`
+    );
+    const server = createMotionCopilotProductionServer({
+      distDir: await createDist(),
+      zeroLayerConfig: {
+        layerCommand: process.execPath,
+        layerArgs: [bridgeScript, "--node-id", "{nodeId}"],
+        commandEnv: { ZERO_MCP_HTTP_URL: "http://example.test/mcp" }
+      }
+    });
+
+    try {
+      const baseUrl = await listen(server);
+      const response = await fetch(`${baseUrl}/api/zero/layer-snapshot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodeId: "1:1" })
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.source).toBe("real-zero-mcp-http");
+      expect(body.snapshot.nodeId).toBe("1:1");
+    } finally {
+      await close(server);
+    }
+  });
+
+  it("routes Zero file-level frame pair discovery through the configured layer bridge", async () => {
+    const scriptDir = await mkdtemp(join(tmpdir(), "copilot-zero-frame-pairs-"));
+    tempDirs.push(scriptDir);
+    const bridgeScript = join(scriptDir, "zero-mcp-layer-bridge.mjs");
+    await writeFile(
+      bridgeScript,
+      `if (!process.argv.includes("--discover-frame-pairs")) {
+  console.error("missing discovery flag");
+  process.exit(2);
+}
+process.stdout.write(JSON.stringify({
+  schemaVersion: "motion-copilot.zero-layer-frame-pair-discovery.v1",
+  pages: [{ nodeId: "page-4", name: "页面 4", candidateCount: 2 }],
+  candidates: [
+    { nodeId: "28:19", name: "信息卡片-首帧", role: "from", baseName: "信息卡片", kind: "frame", pageName: "页面 4" },
+    { nodeId: "28:2", name: "信息卡片-尾帧", role: "to", baseName: "信息卡片", kind: "frame", pageName: "页面 4" }
+  ],
+  pairs: [{ label: "信息卡片", baseName: "信息卡片", fromNodeId: "28:19", toNodeId: "28:2", fromPageName: "页面 4", toPageName: "页面 4", confidence: 96, reasons: ["文件级命名协议匹配"] }]
+}));`
+    );
+    const server = createMotionCopilotProductionServer({
+      distDir: await createDist(),
+      zeroLayerFramePairConfig: {
+        discoveryCommand: process.execPath,
+        discoveryArgs: [bridgeScript, "--discover-frame-pairs"],
+        commandEnv: { ZERO_MCP_HTTP_URL: "http://example.test/mcp" }
+      }
+    });
+
+    try {
+      const baseUrl = await listen(server);
+      const response = await fetch(`${baseUrl}/api/zero/layer-frame-pairs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.source).toBe("real-zero-mcp-http");
+      expect(body.discovery.pairs).toEqual([
+        expect.objectContaining({
+          label: "信息卡片",
+          fromNodeId: "28:19",
+          toNodeId: "28:2",
+          fromPageName: "页面 4"
+        })
+      ]);
+    } finally {
+      await close(server);
+    }
+  });
+
   it("does not label fixture layer responses as real Zero MCP even when an MCP URL is present", async () => {
     const server = createMotionCopilotProductionServer({
       distDir: await createDist(),
@@ -196,6 +297,56 @@ describe("motion-copilot production server", () => {
     } finally {
       if (previousUrl == null) delete process.env.ZERO_MCP_HTTP_URL;
       else process.env.ZERO_MCP_HTTP_URL = previousUrl;
+      await close(server);
+    }
+  });
+
+  it("passes configured Zero env to visual bridge subprocesses", async () => {
+    const scriptDir = await mkdtemp(join(tmpdir(), "copilot-zero-visual-env-"));
+    tempDirs.push(scriptDir);
+    const bridgeScript = join(scriptDir, "zero-mcp-visual-bridge.mjs");
+    await writeFile(
+      bridgeScript,
+      `if (process.env.ZERO_MCP_HTTP_URL !== "http://example.test/mcp") {
+  console.error("missing ZERO_MCP_HTTP_URL");
+  process.exit(2);
+}
+process.stdout.write(JSON.stringify({
+  schemaVersion: "motion-copilot.zero-visual-snapshot.v1",
+  frameId: "1:1",
+  nodeId: "1:1",
+  name: "Frame",
+  width: 10,
+  height: 10,
+  screenshotUrl: "",
+  html: '<div data-node-id="1:1"></div>',
+  css: "",
+  assets: [],
+  nodes: [{ nodeId: "1:1", name: "Frame", kind: "group", bounds: { x: 0, y: 0, w: 10, h: 10 } }]
+}));`
+    );
+    const server = createMotionCopilotProductionServer({
+      distDir: await createDist(),
+      zeroVisualConfig: {
+        visualCommand: process.execPath,
+        visualArgs: [bridgeScript, "--node-id", "{nodeId}"],
+        commandEnv: { ZERO_MCP_HTTP_URL: "http://example.test/mcp" }
+      }
+    });
+
+    try {
+      const baseUrl = await listen(server);
+      const response = await fetch(`${baseUrl}/api/zero/visual-snapshot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodeId: "1:1" })
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.source).toBe("real-zero-mcp-http");
+      expect(body.snapshot.nodeId).toBe("1:1");
+    } finally {
       await close(server);
     }
   });
