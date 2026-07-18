@@ -45,6 +45,7 @@ export * from "./zeroLayerMorph/schema";
 export * from "./zeroLayerMorph/zeroLayerRecipeRecommender";
 export * from "./zeroLayerMorph/adaptZeroLayerRecipeParameters";
 export * from "./zeroLayerMorph/zeroLayerMotionRecipes";
+export * from "./zeroLayerMorph/zeroLayerRecipeManifests";
 export * from "./zeroLayerMorph/zeroLayerExpressionStrategies";
 export * from "./zeroLayerMorph/zeroLayerRoleClassifier";
 export * from "./zeroLayerMorph/zeroMotionOrdering";

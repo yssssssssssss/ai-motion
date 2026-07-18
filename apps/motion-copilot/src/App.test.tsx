@@ -163,16 +163,6 @@ function setPromptInput(value: string) {
   });
 }
 
-function setTextareaByLabel(label: string, value: string) {
-  const textarea = document.querySelector<HTMLTextAreaElement>(`textarea[aria-label="${label}"]`);
-  if (!textarea) throw new Error(`Textarea not found: ${label}`);
-  act(() => {
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(textarea, value);
-    textarea.dispatchEvent(new InputEvent("input", { bubbles: true, data: value }));
-    textarea.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-}
-
 function frameFixture(name: string): string {
   const candidates = [
     resolve(process.cwd(), "fixtures/frames", `${name}.json`),
@@ -316,17 +306,6 @@ function lowConfidenceLayerFixture(nodeId: "28:19" | "28:2") {
   return fixture;
 }
 
-function namedFrameLayerFixture(nodeId: "28:19" | "28:2") {
-  const fixture = layerFixture(nodeId);
-  const isCollapsed = nodeId === "28:19";
-  return {
-    ...fixture,
-    layers: fixture.layers.map((layer) =>
-      layer.nodeId === nodeId ? { ...layer, name: isCollapsed ? "信息卡片-首帧" : "信息卡片-尾帧" } : layer
-    )
-  };
-}
-
 function dropdownLayerFixture(kind: "from" | "to"): ZeroLayerSnapshot {
   const isTo = kind === "to";
   const rootId = isTo ? "33:35" : "33:36";
@@ -407,7 +386,7 @@ async function importVisualFrameMorphFixture(): Promise<HTMLDivElement> {
   const app = renderApp();
   clickButton("开始使用");
   openFrameMotionMode("高保真预览");
-  useFrameMorphFixtureIds();
+  stubFrameMorphFixtureIds();
   await clickButtonAsync("从 Zero 读取并生成高保真时间线");
   await waitFor(() => expect(app.textContent).toContain("matched"));
   return app;
@@ -519,7 +498,7 @@ function useLegacyZeroLayerFixtureIds() {
   changeInputByLabel("Zero 图层尾帧 nodeId", "28:2");
 }
 
-function useFrameMorphFixtureIds() {
+function stubFrameMorphFixtureIds() {
   changeInputByLabel("起始 Zero nodeId", "28:19");
   changeInputByLabel("结束 Zero nodeId", "28:2");
 }
@@ -1395,7 +1374,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("低保真调试");
-    useFrameMorphFixtureIds();
+    stubFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取 legacy 低保真时间线");
 
@@ -1453,7 +1432,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("高保真预览");
-    useFrameMorphFixtureIds();
+    stubFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取并生成高保真时间线");
 
@@ -1500,7 +1479,9 @@ describe("Motion Copilot app", () => {
   });
 
   it("keeps Zero native generation empty until a first-tail frame pair is provided", async () => {
-    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: "unexpected endpoint" }), { status: 500 }));
+    const fetchSpy = vi.fn(
+      async () => new Response(JSON.stringify({ error: "unexpected endpoint" }), { status: 500 })
+    );
     vi.stubGlobal("fetch", fetchSpy);
 
     const app = renderApp();
@@ -1672,6 +1653,10 @@ describe("Motion Copilot app", () => {
     expect(app.textContent).toContain("智能推荐");
     expect(app.textContent).toContain("horizontal-expand");
     expect(app.textContent).toContain("应用推荐方案");
+    expect(app.textContent).toContain("适合");
+    expect(app.textContent).toContain("不建议");
+    expect(app.textContent).toContain("真机看点");
+    expect(app.textContent).toContain("已选择");
     expect(app.textContent).toContain("动效质量提示");
     expect(app.textContent).toContain("2 条建议");
     expect(app.textContent).toContain("更多动效方案");
@@ -1684,6 +1669,22 @@ describe("Motion Copilot app", () => {
     expect(app.textContent).toContain("焦点引导");
     expect(app.textContent).toContain("轴向展开");
     expect(app.textContent).toContain("列表重排");
+
+    const smartCards = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".zero-layer-recommendation-card")
+    );
+    expect(smartCards.length).toBeGreaterThan(1);
+    expect(smartCards[0]?.getAttribute("aria-pressed")).toBe("true");
+    act(() => {
+      smartCards[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitFor(() => {
+      const nextSmartCards = Array.from(
+        document.querySelectorAll<HTMLButtonElement>(".zero-layer-recommendation-card")
+      );
+      expect(nextSmartCards[0]?.getAttribute("aria-pressed")).toBe("false");
+      expect(nextSmartCards[1]?.getAttribute("aria-pressed")).toBe("true");
+    });
 
     clickButton("展开");
     expect(app.textContent).toContain("弹性展开");
@@ -1701,7 +1702,7 @@ describe("Motion Copilot app", () => {
       expect(
         workspace.compositionSteps
           ?.filter((step) => step.id.startsWith("zero-layer-match"))
-        .every((step) => step.easing?.type === "classic" && step.initial?.scale === 1)
+          .every((step) => step.easing?.type === "classic" && step.initial?.scale === 1)
       ).toBe(true);
     });
     const springSignature = compositionSignature(savedWorkspace().compositionSteps);
@@ -2407,7 +2408,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("高保真预览");
-    useFrameMorphFixtureIds();
+    stubFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取并生成高保真时间线");
     await waitFor(() => expect(app.textContent).toContain("matched"));
@@ -2455,7 +2456,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("高保真预览");
-    useFrameMorphFixtureIds();
+    stubFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取并生成高保真时间线");
     await waitFor(() =>
@@ -2486,7 +2487,7 @@ describe("Motion Copilot app", () => {
     clickButton("开始使用");
     clickButton("帧间动效");
     clickButton("低保真调试");
-    useFrameMorphFixtureIds();
+    stubFrameMorphFixtureIds();
 
     await clickButtonAsync("从 Zero 读取 legacy 低保真时间线");
     await waitFor(() => expect(app.textContent).toContain("帧间形变"));

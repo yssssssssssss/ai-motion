@@ -12,6 +12,7 @@ import {
   evaluateZeroMotionSalience,
   applyZeroLayerMotionRecipe,
   recommendZeroLayerRecipes,
+  getZeroLayerRecipeManifest,
   type ZeroLayerDiagnosticReport,
   type ZeroLayerFramePair,
   type ZeroLayerMotionBinding,
@@ -22,6 +23,7 @@ import {
   type ZeroLayerNodeOverride,
   type ZeroLayerSnapshot,
   type ZeroMotionOrderPlan,
+  zeroLayerExpressionStrategies,
   zeroLayerMotionRecipes,
   type ZeroLayerMotionRecipeCategory,
   type ZeroLayerMotionRecipeId
@@ -164,6 +166,20 @@ function recipeOrderStrategy(recipeId: ZeroLayerMotionRecipeId): string {
   if (recipeId === "dropdown-reveal") return "触发区稳定 / 下拉揭示";
   if (recipeId === "mask-reveal") return "遮罩揭示 / 内容后入";
   return "确定性首尾帧编排";
+}
+
+function recipeExpressionSummary(strategyIds: readonly string[]): string {
+  return strategyIds
+    .map((strategyId) => zeroLayerExpressionStrategies.find((strategy) => strategy.id === strategyId)?.label)
+    .filter((label): label is string => Boolean(label))
+    .slice(0, 2)
+    .join(" / ");
+}
+
+function recipeRestraintLabel(intensity: "subtle" | "balanced" | "strong"): string {
+  if (intensity === "strong") return "强表现";
+  if (intensity === "balanced") return "均衡";
+  return "稳妥";
 }
 
 function diagnosticGate(report: ZeroLayerDiagnosticReport) {
@@ -559,7 +575,7 @@ export function ZeroLayerMorphPanel({
     onApplyComposition(result);
   }
 
-  function useFramePair(pair: ZeroLayerFramePair) {
+  function applyFramePair(pair: ZeroLayerFramePair) {
     setFromNodeId(pair.fromNodeId);
     setToNodeId(pair.toNodeId);
     setSelectedPairKey(framePairKey(pair));
@@ -616,7 +632,7 @@ export function ZeroLayerMorphPanel({
                   <button
                     type="button"
                     className={selectedPairKey === framePairKey(pair) ? "is-selected" : undefined}
-                    onClick={() => useFramePair(pair)}
+                    onClick={() => applyFramePair(pair)}
                     aria-label={`使用文件级首尾帧 ${pair.label}`}
                     key={`file:${pair.fromNodeId}:${pair.toNodeId}`}
                   >
@@ -732,7 +748,9 @@ export function ZeroLayerMorphPanel({
                 {diagnosticRiskCount(diagnosticReport, "info")}
               </span>
             </summary>
-            <p>质量门禁和调试信息，主要用于判断图层匹配、尾帧还原和动效采样是否可靠；普通使用不需要逐条确认。</p>
+            <p>
+              质量门禁和调试信息，主要用于判断图层匹配、尾帧还原和动效采样是否可靠；普通使用不需要逐条确认。
+            </p>
             <p>{diagnosticSummary(diagnosticReport)}</p>
             <p>motion {diagnosticMotionSummary(diagnosticReport)}</p>
             {activeDiagnosticGate ? (
@@ -849,7 +867,10 @@ export function ZeroLayerMorphPanel({
                         .map(([group, items]) => (
                           <span key={group}>
                             {orderGroupLabel(group as keyof ZeroMotionOrderPlan["groups"])}：
-                            {items.slice(0, 3).map((item) => item.name).join(" / ")}
+                            {items
+                              .slice(0, 3)
+                              .map((item) => item.name)
+                              .join(" / ")}
                           </span>
                         ))}
                     </div>
@@ -859,14 +880,17 @@ export function ZeroLayerMorphPanel({
               <div className="zero-layer-recommendation-cards">
                 {activeRecipeRecommendation.candidates.map((candidate, index) => {
                   const recipe = zeroLayerMotionRecipes.find((item) => item.id === candidate.recipeId);
-                  const isActiveRecipe = activeRecipeId === candidate.recipeId;
+                  const manifest = getZeroLayerRecipeManifest(candidate.recipeId);
+                  const isRecommended = candidate.recipeId === activeRecipeRecommendation.selectedRecipeId;
+                  const isActiveRecipe = activeEvaluatedRecipeId === candidate.recipeId;
+                  const expressionSummary = manifest
+                    ? recipeExpressionSummary(manifest.expressionStrategies)
+                    : "";
                   return (
                     <button
                       type="button"
                       className={`zero-layer-recommendation-card${
-                        candidate.recipeId === activeRecipeRecommendation.selectedRecipeId
-                          ? " is-recommended"
-                          : ""
+                        isRecommended ? " is-recommended" : ""
                       }${isActiveRecipe ? " is-selected" : ""}`}
                       onClick={() => applyRecipe(candidate.recipeId)}
                       aria-label={`应用推荐动效 ${recipe?.label ?? candidate.recipeId}`}
@@ -875,15 +899,45 @@ export function ZeroLayerMorphPanel({
                     >
                       <strong>
                         {recipe?.label ?? candidate.recipeId}
-                        <small>{isActiveRecipe ? "已应用" : index === 0 ? "推荐" : `score ${candidate.score}`}</small>
+                        <span className="zero-layer-recipe-badges">
+                          {manifest ? (
+                            <small>{recipeRestraintLabel(manifest.restraint.intensity)}</small>
+                          ) : null}
+                          <small>
+                            {isActiveRecipe
+                              ? "已选择"
+                              : isRecommended || index === 0
+                                ? "推荐"
+                                : `score ${candidate.score}`}
+                          </small>
+                        </span>
                       </strong>
-                      <span>{candidate.reasons.slice(0, 2).join("；")}</span>
+                      <span className="zero-layer-manifest-line">
+                        <b>适合</b>
+                        {manifest?.bestFor.slice(0, 2).join("；") ?? candidate.reasons.slice(0, 2).join("；")}
+                      </span>
+                      {manifest ? (
+                        <span className="zero-layer-manifest-line">
+                          <b>真机看点</b>
+                          {manifest.mobileGuidance.expectedFeel}
+                        </span>
+                      ) : null}
                       <span className="zero-layer-pattern-badge">
                         {recipeOrderStrategy(candidate.recipeId)}
                       </span>
+                      {expressionSummary ? (
+                        <span className="zero-layer-expression-label">策略：{expressionSummary}</span>
+                      ) : null}
                       <span className="zero-layer-adapted-params">{candidate.adaptedParameters.summary}</span>
-                      {candidate.warnings[0] ? <em>{candidate.warnings[0]}</em> : null}
-                      {!candidate.warnings[0] && candidate.score < 55 ? (
+                      {manifest?.avoidWhen[0] ? (
+                        <em>
+                          <b>不建议</b>
+                          {manifest.avoidWhen[0]}
+                        </em>
+                      ) : candidate.warnings[0] ? (
+                        <em>{candidate.warnings[0]}</em>
+                      ) : null}
+                      {!manifest?.avoidWhen[0] && !candidate.warnings[0] && candidate.score < 55 ? (
                         <em>该方案偏保守，动效差异可能较弱。</em>
                       ) : null}
                     </button>
@@ -913,7 +967,8 @@ export function ZeroLayerMorphPanel({
                   {activeRepairAdvice && activeRepairActions.length > 0 ? (
                     <div className="zero-layer-repair-advice">
                       <p>
-                        <strong>修复建议</strong>只在低置信匹配、体感过弱或空间风险时出现，用于辅助选择更稳妥的方案。
+                        <strong>修复建议</strong>
+                        只在低置信匹配、体感过弱或空间风险时出现，用于辅助选择更稳妥的方案。
                       </p>
                       <p>{activeRepairAdvice.userFacingMessage}</p>
                       <div>

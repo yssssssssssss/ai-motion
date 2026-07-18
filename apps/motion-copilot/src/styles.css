@@ -3050,7 +3050,7 @@ button:disabled {
   border-radius: 4px;
   background: rgba(91, 83, 255, 0.08);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .zero-layer-recommendation-card span,
@@ -3061,9 +3061,29 @@ button:disabled {
   line-height: 1.35;
 }
 
+.zero-layer-recipe-badges {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.zero-layer-recommendation-card b {
+  margin-right: 6px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.zero-layer-recommendation-card .zero-layer-manifest-line {
+  display: block;
+}
+
 .zero-layer-recommendation-card .zero-layer-adapted-params {
   color: var(--accent);
   font-weight: 700;
+}
+
+.zero-layer-recommendation-card .zero-layer-expression-label {
+  color: var(--muted);
 }
 
 .zero-layer-recommendation-card .zero-layer-pattern-badge {

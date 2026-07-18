@@ -1,4 +1,9 @@
 import type { CompositionStep } from "../schema/document";
+import { getZeroLayerRecipeManifest, type ZeroLayerRecipeManifest } from "./zeroLayerRecipeManifests";
+import {
+  zeroLayerExpressionStrategyById,
+  type ZeroLayerExpressionStrategyId
+} from "./zeroLayerExpressionStrategies";
 import type { ZeroLayerMotionRecipeId } from "./zeroLayerMotionRecipes";
 import type { ZeroMotionOrderPlan } from "./zeroMotionOrdering";
 import type { ZeroMotionSpec } from "./zeroMotionSpec";
@@ -12,7 +17,7 @@ export type ZeroLayerRecipeAdaptedParameters = {
   enterOffsetX: number;
   enterOffsetY: number;
   clipFromRatio: number;
-  transformOrigin: "center center" | "top center" | "left center";
+  transformOrigin: "center center" | "top center" | "left center" | "bottom center";
   containerPhaseRatio: number;
   itemStaggerStrategy: "spatial" | "together" | "none";
   scaleFrom: number;
@@ -21,6 +26,9 @@ export type ZeroLayerRecipeAdaptedParameters = {
   opacityTo: number;
   overshootRatio: number;
   emphasisLevel: "subtle" | "balanced" | "strong";
+  primaryExpressionStrategyId: ZeroLayerExpressionStrategyId;
+  enterExpressionStrategyId: ZeroLayerExpressionStrategyId;
+  manifestIntensity: ZeroLayerRecipeManifest["restraint"]["intensity"];
   summary: string;
   reasons: string[];
 };
@@ -96,6 +104,30 @@ function durationFor(recipeId: ZeroLayerMotionRecipeId, spec: ZeroMotionSpec): n
   return clamp(base + enterExitBonus + distanceBonus, 220, 760);
 }
 
+function primaryManifestStrategy(recipeId: ZeroLayerMotionRecipeId): ZeroLayerExpressionStrategyId {
+  return getZeroLayerRecipeManifest(recipeId)?.expressionStrategies[0] ?? "linear-morph";
+}
+
+function manifestIntensity(
+  recipeId: ZeroLayerMotionRecipeId
+): ZeroLayerRecipeManifest["restraint"]["intensity"] {
+  return getZeroLayerRecipeManifest(recipeId)?.restraint.intensity ?? "balanced";
+}
+
+function strategyOffset(
+  recipeId: ZeroLayerMotionRecipeId,
+  fallback: { x: number; y: number },
+  offsetPx: number
+): { x: number; y: number } {
+  const runtime = zeroLayerExpressionStrategyById(primaryManifestStrategy(recipeId))?.runtime;
+  if (!runtime || runtime.enterOffsetAxis === "none") return fallback;
+  const direction = runtime.enterOffsetDirection ?? -1;
+  const amount = Math.max(6, Math.min(offsetPx, 48));
+  if (runtime.enterOffsetAxis === "x") return { x: direction * amount, y: 0 };
+  if (runtime.enterOffsetAxis === "y") return { x: 0, y: direction * amount };
+  return fallback;
+}
+
 function staggerFor(recipeId: ZeroLayerMotionRecipeId, spec: ZeroMotionSpec): number {
   if (recipeId === "status-switch") return spec.deltas.averageMoveDistance < 8 ? 24 : 36;
   if (recipeId === "dropdown-reveal") return mainAxis(spec) === "y" ? 58 : 46;
@@ -118,6 +150,9 @@ export function adaptZeroLayerRecipeParameters(
 ): ZeroLayerRecipeAdaptedParameters {
   const axis = mainAxis(spec);
   const level = emphasis(spec);
+  const strategyId = primaryManifestStrategy(recipeId);
+  const strategyRuntime = zeroLayerExpressionStrategyById(strategyId)?.runtime;
+  const intensity = manifestIntensity(recipeId);
   const offsetPx =
     level === "subtle"
       ? 8
@@ -152,23 +187,14 @@ export function adaptZeroLayerRecipeParameters(
     recipeId === "bottom-sheet-rise";
   const verticalReveal = axis === "y" || (dropdownLike && isDropdownRecipe);
   const dropdownOffsetY = -Math.min(offsetPx, Math.max(8, Math.abs(spec.deltas.stageHeightDelta) * 0.18));
-  const enterOffsetY = isDropdownRecipe
-    ? dropdownOffsetY
-    : isPopoverRecipe
-      ? -Math.min(offsetPx, 14)
-      : 0;
+  const enterOffsetY = isDropdownRecipe ? dropdownOffsetY : isPopoverRecipe ? -Math.min(offsetPx, 14) : 0;
   const enterOffsetX =
     axis === "x" && !dropdownLike && recipeId !== "status-switch" && !isPopoverRecipe
       ? -Math.min(offsetPx, Math.max(8, Math.abs(spec.deltas.stageWidthDelta) * 0.18))
       : 0;
+  const strategyEnterOffset = strategyOffset(recipeId, { x: enterOffsetX, y: enterOffsetY }, offsetPx);
   const clipFromRatio =
-    isRevealRecipe || isDropdownRecipe
-      ? verticalReveal
-        ? isDropdownRecipe
-          ? 0.08
-          : 0.24
-        : 0.32
-      : 1;
+    isRevealRecipe || isDropdownRecipe ? (verticalReveal ? (isDropdownRecipe ? 0.08 : 0.24) : 0.32) : 1;
   const containerPhaseRatio =
     recipeId === "container-first"
       ? 0.58
@@ -176,47 +202,49 @@ export function adaptZeroLayerRecipeParameters(
         ? 0.5
         : recipeId === "bottom-sheet-rise"
           ? 0.44
-      : recipeId === "dropdown-reveal"
-        ? 0.46
-        : recipeId === "mask-reveal" || recipeId === "axis-expand"
-          ? 0.42
-          : 0;
+          : recipeId === "dropdown-reveal"
+            ? 0.46
+            : recipeId === "mask-reveal" || recipeId === "axis-expand"
+              ? 0.42
+              : 0;
   const itemStaggerStrategy =
     recipeId === "content-stagger" || recipeId === "list-reorder" || isDropdownRecipe
       ? "spatial"
       : recipeId === "list-insert-push" || recipeId === "content-replace"
         ? "spatial"
-      : recipeId === "smooth-morph"
-        ? "none"
-        : "together";
+        : recipeId === "smooth-morph"
+          ? "none"
+          : "together";
 
   return {
     durationMs,
     easing,
-    staggerMs,
-    maskAxis:
-      isRevealRecipe || isDropdownRecipe
-        ? verticalReveal
-          ? "y"
-          : axis
-        : "none",
+    staggerMs: Math.round(staggerMs * (strategyRuntime?.staggerMultiplier ?? 1)),
+    maskAxis: isRevealRecipe || isDropdownRecipe ? (verticalReveal ? "y" : axis) : "none",
     offsetPx,
-    enterOffsetX,
-    enterOffsetY,
-    clipFromRatio,
-    transformOrigin: isDropdownRecipe || (isRevealRecipe && verticalReveal) || isPopoverRecipe
-      ? "top center"
-      : axis === "x"
-        ? "left center"
-        : "center center",
+    enterOffsetX: strategyEnterOffset.x,
+    enterOffsetY: strategyEnterOffset.y,
+    clipFromRatio: strategyRuntime?.clipFromRatio ?? clipFromRatio,
+    transformOrigin:
+      strategyRuntime?.transformOrigin ??
+      (isDropdownRecipe || (isRevealRecipe && verticalReveal) || isPopoverRecipe
+        ? "top center"
+        : axis === "x"
+          ? "left center"
+          : "center center"),
     containerPhaseRatio,
     itemStaggerStrategy,
-    scaleFrom: level === "subtle" ? 0.99 : 0.96,
+    scaleFrom:
+      strategyRuntime?.enterScale ??
+      (intensity === "subtle" || level === "subtle" ? 0.99 : intensity === "strong" ? 0.94 : 0.96),
     scaleTo: 1,
     opacityFrom: level === "subtle" ? 0.72 : 0,
     opacityTo: 1,
     overshootRatio: 0,
     emphasisLevel: level,
+    primaryExpressionStrategyId: strategyId,
+    enterExpressionStrategyId: strategyId,
+    manifestIntensity: intensity,
     summary: `${axis === "x" ? "X 轴" : axis === "y" ? "Y 轴" : "弱几何"} / ${durationMs}ms / 错峰 ${staggerMs}ms / ${level}${
       isDropdownRecipe && dropdownLike ? " / 下拉展开" : ""
     }`,
@@ -241,12 +269,31 @@ function isExit(step: CompositionStep): boolean {
 
 function withTransformOrigin(
   step: CompositionStep,
-  transformOrigin: ZeroLayerRecipeAdaptedParameters["transformOrigin"]
+  transformOrigin: ZeroLayerRecipeAdaptedParameters["transformOrigin"],
+  expressionStrategyId?: ZeroLayerExpressionStrategyId
 ): CompositionStep {
   const current = step as CompositionStep & { metadata?: Record<string, string> };
   return {
     ...step,
-    metadata: { ...current.metadata, zeroLayerTransformOrigin: current.metadata?.zeroLayerTransformOrigin ?? transformOrigin }
+    metadata: {
+      ...current.metadata,
+      zeroLayerTransformOrigin: current.metadata?.zeroLayerTransformOrigin ?? transformOrigin,
+      ...(expressionStrategyId ? { zeroLayerExpressionStrategy: expressionStrategyId } : {})
+    }
+  } as CompositionStep;
+}
+
+function withExpressionStrategy(
+  step: CompositionStep,
+  expressionStrategyId: ZeroLayerExpressionStrategyId
+): CompositionStep {
+  const current = step as CompositionStep & { metadata?: Record<string, string> };
+  return {
+    ...step,
+    metadata: {
+      ...current.metadata,
+      zeroLayerExpressionStrategy: current.metadata?.zeroLayerExpressionStrategy ?? expressionStrategyId
+    }
   } as CompositionStep;
 }
 
@@ -274,48 +321,67 @@ export function applyZeroLayerRecipeAdaptedParameters(
         (step.initial?.height != null &&
           step.animate?.height != null &&
           Math.abs(step.initial.height - step.animate.height) > 0.5);
-      const axisPatch =
-        hasRecipeGeometry
-          ? {}
-          : params.maskAxis === "x"
-          ? { width: Math.max(1, (step.animate?.width ?? step.initial?.width ?? 1) * 0.35) }
+      const axisPatch = hasRecipeGeometry
+        ? {}
+        : params.maskAxis === "x"
+          ? { width: Math.max(1, (step.animate?.width ?? step.initial?.width ?? 1) * params.clipFromRatio) }
           : params.maskAxis === "y"
-            ? { height: Math.max(1, (step.animate?.height ?? step.initial?.height ?? 1) * 0.35) }
+            ? {
+                height: Math.max(
+                  1,
+                  (step.animate?.height ?? step.initial?.height ?? 1) * params.clipFromRatio
+                )
+              }
             : {};
-      return withTransformOrigin({
-        ...step,
-        delayMs,
-        durationMs,
-        initial: {
-          ...step.initial,
-          ...axisPatch,
-          x: (step.initial?.x ?? 0) + params.enterOffsetX,
-          y: (step.initial?.y ?? 0) + params.enterOffsetY,
-          scale: params.scaleFrom,
-          opacity: params.opacityFrom
+      return withTransformOrigin(
+        {
+          ...step,
+          delayMs,
+          durationMs,
+          initial: {
+            ...step.initial,
+            ...axisPatch,
+            x: (step.initial?.x ?? 0) + params.enterOffsetX,
+            y: (step.initial?.y ?? 0) + params.enterOffsetY,
+            scale: params.scaleFrom,
+            opacity: params.opacityFrom
+          },
+          animate: {
+            ...step.animate,
+            x: step.animate?.x ?? 0,
+            y: step.animate?.y ?? 0,
+            scale: params.scaleTo,
+            opacity: params.opacityTo
+          }
         },
-        animate: {
-          ...step.animate,
-          x: step.animate?.x ?? 0,
-          y: step.animate?.y ?? 0,
-          scale: params.scaleTo,
-          opacity: params.opacityTo
-        }
-      }, params.transformOrigin);
+        params.transformOrigin,
+        params.enterExpressionStrategyId
+      );
     }
     if (isExit(step)) {
-      return withTransformOrigin({
-        ...step,
-        delayMs: Math.max(0, Math.round(delayMs * 0.45)),
-        durationMs,
-        initial: { ...step.initial, scale: 1, opacity: 1 },
-        animate: { ...step.animate, scale: params.scaleFrom, opacity: 0 }
-      }, params.transformOrigin);
+      return withTransformOrigin(
+        {
+          ...step,
+          delayMs: Math.max(0, Math.round(delayMs * 0.45)),
+          durationMs,
+          initial: { ...step.initial, scale: 1, opacity: 1 },
+          animate: { ...step.animate, scale: params.scaleFrom, opacity: 0 }
+        },
+        params.transformOrigin,
+        params.enterExpressionStrategyId
+      );
     }
-    return {
-      ...step,
-      delayMs,
-      durationMs
-    };
+    return withExpressionStrategy(
+      {
+        ...step,
+        delayMs: Math.round(
+          delayMs *
+            (zeroLayerExpressionStrategyById(params.primaryExpressionStrategyId)?.runtime
+              ?.matchedDelayMultiplier ?? 1)
+        ),
+        durationMs
+      },
+      params.primaryExpressionStrategyId
+    );
   });
 }

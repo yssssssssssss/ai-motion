@@ -41,7 +41,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function stringField(source: Record<string, unknown>, key: string, path: string, issues: string[]): string | undefined {
+function stringField(
+  source: Record<string, unknown>,
+  key: string,
+  path: string,
+  issues: string[]
+): string | undefined {
   const value = source[key];
   if (typeof value === "string" && value.trim()) return value;
   issues.push(`${path}.${key} must be a non-empty string`);
@@ -143,7 +148,9 @@ function normalizeStroke(input: unknown, path: string, issues: string[]): ZeroLa
   const color = stringField(input, "color", path, issues);
   const opacity = optionalNumberField(input, "opacity", path, issues, 0);
   const width = optionalNumberField(input, "width", path, issues, 0);
-  return color ? { color, ...(opacity != null ? { opacity } : {}), ...(width != null ? { width } : {}) } : undefined;
+  return color
+    ? { color, ...(opacity != null ? { opacity } : {}), ...(width != null ? { width } : {}) }
+    : undefined;
 }
 
 function normalizeEffect(input: unknown, path: string, issues: string[]): ZeroLayerEffect | undefined {
@@ -176,12 +183,39 @@ function normalizeTextStyle(input: unknown, path: string, issues: string[]): Zer
       ? textAlignValue
       : undefined;
   if (textAlignValue != null && !textAlign) issues.push(`${path}.textAlign must be left, center, or right`);
+  const letterSpacing = optionalNumberField(input, "letterSpacing", path, issues);
+  const fontStyleValue = input.fontStyle;
+  const fontStyle = fontStyleValue === "normal" || fontStyleValue === "italic" ? fontStyleValue : undefined;
+  if (fontStyleValue != null && !fontStyle) issues.push(`${path}.fontStyle must be normal or italic`);
+  const textDecorationValue = input.textDecoration;
+  const textDecoration =
+    textDecorationValue === "none" ||
+    textDecorationValue === "underline" ||
+    textDecorationValue === "line-through"
+      ? textDecorationValue
+      : undefined;
+  if (textDecorationValue != null && !textDecoration)
+    issues.push(`${path}.textDecoration must be none, underline, or line-through`);
+  const textCaseValue = input.textCase;
+  const textCase =
+    textCaseValue === "none" ||
+    textCaseValue === "upper" ||
+    textCaseValue === "lower" ||
+    textCaseValue === "capitalize"
+      ? textCaseValue
+      : undefined;
+  if (textCaseValue != null && !textCase)
+    issues.push(`${path}.textCase must be none, upper, lower, or capitalize`);
   return {
     ...(fontFamily ? { fontFamily } : {}),
     ...(fontSize != null ? { fontSize } : {}),
     ...(fontWeight != null ? { fontWeight } : {}),
     ...(lineHeight != null ? { lineHeight } : {}),
-    ...(textAlign ? { textAlign } : {})
+    ...(textAlign ? { textAlign } : {}),
+    ...(letterSpacing != null ? { letterSpacing } : {}),
+    ...(fontStyle ? { fontStyle } : {}),
+    ...(textDecoration ? { textDecoration } : {}),
+    ...(textCase ? { textCase } : {})
   };
 }
 
@@ -221,17 +255,25 @@ function normalizeLayer(input: unknown, index: number, issues: string[]): ZeroLa
   const parentId = optionalStringField(input, "parentId", path, issues);
   const name = stringField(input, "name", path, issues);
   const kindValue = input.kind;
-  const kind = typeof kindValue === "string" && layerKinds.has(kindValue as ZeroLayerKind) ? kindValue : undefined;
+  const kind =
+    typeof kindValue === "string" && layerKinds.has(kindValue as ZeroLayerKind) ? kindValue : undefined;
   if (!kind) issues.push(`${path}.kind must be one of ${Array.from(layerKinds).join(", ")}`);
   const bounds = normalizeBounds(input.bounds, `${path}.bounds`, issues);
   const opacity = optionalNumberField(input, "opacity", path, issues, 0) ?? 1;
   const visible = typeof input.visible === "boolean" ? input.visible : true;
   const clipsContent = typeof input.clipsContent === "boolean" ? input.clipsContent : undefined;
   const cornerRadius = optionalNumberField(input, "cornerRadius", path, issues, 0);
+  const rotation = optionalNumberField(input, "rotation", path, issues);
+  const blendMode = optionalStringField(input, "blendMode", path, issues);
+  const renderModeValue = input.renderMode;
+  const renderMode = renderModeValue === "dom" || renderModeValue === "image" ? renderModeValue : undefined;
+  if (renderModeValue != null && !renderMode) issues.push(`${path}.renderMode must be dom or image`);
   const text = optionalStringField(input, "text", path, issues);
   const assetId = optionalStringField(input, "assetId", path, issues);
   const fills = Array.isArray(input.fills)
-    ? input.fills.map((item, fillIndex) => normalizeFill(item, `${path}.fills[${fillIndex}]`, issues)).filter(Boolean)
+    ? input.fills
+        .map((item, fillIndex) => normalizeFill(item, `${path}.fills[${fillIndex}]`, issues))
+        .filter(Boolean)
     : undefined;
   const strokes = Array.isArray(input.strokes)
     ? input.strokes
@@ -259,6 +301,9 @@ function normalizeLayer(input: unknown, index: number, issues: string[]): ZeroLa
     visible,
     ...(clipsContent != null ? { clipsContent } : {}),
     ...(cornerRadius != null ? { cornerRadius } : {}),
+    ...(rotation != null ? { rotation } : {}),
+    ...(blendMode ? { blendMode } : {}),
+    ...(renderMode ? { renderMode } : {}),
     ...(fills?.length ? { fills: fills as ZeroLayerFill[] } : {}),
     ...(strokes?.length ? { strokes: strokes as ZeroLayerStroke[] } : {}),
     ...(effects?.length ? { effects: effects as ZeroLayerEffect[] } : {}),

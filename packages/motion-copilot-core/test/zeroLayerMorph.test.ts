@@ -25,8 +25,11 @@ import {
   parseZeroLayerFrameRole,
   applyZeroLayerMotionRecipe,
   recommendZeroLayerRecipes,
+  getZeroLayerRecipeManifest,
+  validateZeroLayerRecipeManifestRegistry,
   zeroLayerExpressionStrategyForStep,
   zeroLayerExpressionStrategies,
+  zeroLayerRecipeManifests,
   zeroLayerMotionRecipes,
   type ZeroLayerSnapshot
 } from "../src";
@@ -560,7 +563,9 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(orderPlan.schemaVersion).toBe("motion-copilot.zero-motion-order-plan.v1");
     expect(orderPlan.groups.foundation.length + orderPlan.groups.structure.length).toBeGreaterThan(0);
     expect(firstStructure).toBeLessThan(firstEnter);
-    expect(orderPlan.items.map((item) => item.layerId)).toEqual([...new Set(orderPlan.items.map((item) => item.layerId))]);
+    expect(orderPlan.items.map((item) => item.layerId)).toEqual([
+      ...new Set(orderPlan.items.map((item) => item.layerId))
+    ]);
   });
 
   it("adapts recipe parameters by scene axis and applies them without changing tail bounds", () => {
@@ -862,7 +867,7 @@ describe("ZeroLayerSnapshot morph", () => {
       bindingResult
     };
 
-  expect(zeroLayerMotionRecipes.map((recipe) => recipe.id)).toEqual([
+    expect(zeroLayerMotionRecipes.map((recipe) => recipe.id)).toEqual([
       "smooth-morph",
       "spring-expand",
       "status-switch",
@@ -938,6 +943,27 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(status.document.composition?.steps).toHaveLength(status.steps.length);
   });
 
+  it("keeps Zero native recipe manifests complete and safe", () => {
+    expect(zeroLayerRecipeManifests.map((manifest) => manifest.id)).toEqual(
+      zeroLayerMotionRecipes.map((recipe) => recipe.id)
+    );
+    expect(validateZeroLayerRecipeManifestRegistry()).toEqual([]);
+  });
+
+  it("binds each Zero native recipe manifest to known expression strategies", () => {
+    const strategyIds = new Set(zeroLayerExpressionStrategies.map((strategy) => strategy.id));
+    for (const manifest of zeroLayerRecipeManifests) {
+      expect(manifest.expressionStrategies.length).toBeGreaterThan(0);
+      for (const strategyId of manifest.expressionStrategies) {
+        expect(strategyIds.has(strategyId)).toBe(true);
+      }
+    }
+  });
+
+  it("exposes a lookup helper for Zero native recipe manifests", () => {
+    expect(getZeroLayerRecipeManifest("dropdown-reveal")?.mobileGuidance.expectedFeel).toContain("下拉");
+  });
+
   it("samples Zero native recipes and gates corridor and tail-frame geometry", () => {
     const from = makeLayerSnapshot("from");
     const to = makeLayerSnapshot("to");
@@ -954,6 +980,7 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(report.recipes).toHaveLength(zeroLayerMotionRecipes.length);
     expect(report.comparison.distinctSignatures).toBeGreaterThan(3);
     expect(report.risks.filter((risk) => risk.severity === "error")).toHaveLength(0);
+    expect(report.risks.some((risk) => risk.code.startsWith("RECIPE_MANIFEST"))).toBe(false);
     for (const recipe of report.recipes) {
       expect(recipe.adaptedParameters?.summary).toContain("ms");
       expect(recipe.signature.signatureKey).toContain("g");
@@ -1002,7 +1029,9 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(containerEnter.some((step) => (step.initial?.height ?? 0) < (step.animate?.height ?? 0))).toBe(
       false
     );
-    expect(staggerEnter.some((step) => (step.initial?.height ?? 0) < (step.animate?.height ?? 0))).toBe(false);
+    expect(staggerEnter.some((step) => (step.initial?.height ?? 0) < (step.animate?.height ?? 0))).toBe(
+      false
+    );
     expect(dropdownHtml).toContain("transform-origin:top center");
     expect(new Set(staggerEnter.map((step) => step.delayMs ?? 0)).size).toBeGreaterThan(1);
     expect(sampleReport.comparison.distinctSignatures).toBeGreaterThanOrEqual(3);
@@ -1030,6 +1059,8 @@ describe("ZeroLayerSnapshot morph", () => {
       expect.arrayContaining(["container-first", "axis-expand", "content-stagger"])
     );
     expect(recommendation.selectedRecipeId).toBe("container-first");
+    expect(recommendation.candidates[0]?.reasons.join(" ")).toContain("适合");
+    expect(recommendation.candidates[0]?.warnings).toEqual(expect.any(Array));
     expect(salience.schemaVersion).toBe("motion-copilot.zero-motion-salience.v1");
     expect(salience.score).toBeGreaterThan(0);
     expect(advice.actions.length).toBeGreaterThan(0);
@@ -1526,9 +1557,7 @@ describe("ZeroLayerSnapshot morph", () => {
     const ids = zeroLayerExpressionStrategies.map((strategy) => strategy.id);
     const curveSignatures = new Set(
       zeroLayerExpressionStrategies.map((strategy) =>
-        strategy.stops
-          .map((stop) => `${stop.percent}:${stop.progress}:${stop.opacity ?? ""}`)
-          .join("|")
+        strategy.stops.map((stop) => `${stop.percent}:${stop.progress}:${stop.opacity ?? ""}`).join("|")
       )
     );
 
@@ -1540,11 +1569,40 @@ describe("ZeroLayerSnapshot morph", () => {
         "dropdown-accordion-y",
         "anchor-pop-contained",
         "focus-shift-contained",
-        "list-reorder-cascade"
+        "list-reorder-cascade",
+        "horizontal-stretch-reveal",
+        "vertical-stack-reveal",
+        "container-hold-content-rise",
+        "content-exit-replace",
+        "list-displace-push",
+        "focus-snap-shift",
+        "sheet-dock-rise",
+        "anchor-scale-pop",
+        "subtle-snap",
+        "strong-reveal"
       ])
     );
-    expect(zeroLayerExpressionStrategies.length).toBeGreaterThanOrEqual(18);
+    expect(zeroLayerExpressionStrategies.length).toBeGreaterThanOrEqual(28);
     expect(curveSignatures.size).toBe(zeroLayerExpressionStrategies.length);
+  });
+
+  it("uses manifest runtime traits when adapting Zero native recipe execution", () => {
+    const from = makeDropdownLayerSnapshot("from");
+    const to = makeDropdownLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+    const sheet = applyZeroLayerMotionRecipe(source, "bottom-sheet-rise", { spec });
+    const status = applyZeroLayerMotionRecipe(source, "status-switch", { spec });
+    const sheetStrategies = new Set(sheet.steps.map((step) => zeroLayerExpressionStrategyForStep(step).id));
+    const statusStrategies = new Set(status.steps.map((step) => zeroLayerExpressionStrategyForStep(step).id));
+    const sheetEnter = sheet.steps.find((step) => step.id.startsWith("zero-layer-enter"));
+    const statusEnter = status.steps.find((step) => step.id.startsWith("zero-layer-enter"));
+
+    expect(sheetStrategies).toContain("sheet-dock-rise");
+    expect(statusStrategies).toContain("subtle-snap");
+    expect((sheetEnter?.initial?.y ?? 0) - (sheetEnter?.animate?.y ?? 0)).toBeGreaterThanOrEqual(0);
+    expect(statusEnter?.initial?.scale ?? 1).toBeGreaterThanOrEqual(0.985);
   });
 
   it("wires expanded expression strategies to visibly different Zero native recipes", () => {
@@ -1564,9 +1622,10 @@ describe("ZeroLayerSnapshot morph", () => {
       ].map((recipeId) => [
         recipeId,
         new Set(
-          applyZeroLayerMotionRecipe(source, recipeId as Parameters<typeof applyZeroLayerMotionRecipe>[1]).steps.map(
-            (step) => zeroLayerExpressionStrategyForStep(step).id
-          )
+          applyZeroLayerMotionRecipe(
+            source,
+            recipeId as Parameters<typeof applyZeroLayerMotionRecipe>[1]
+          ).steps.map((step) => zeroLayerExpressionStrategyForStep(step).id)
         )
       ])
     );

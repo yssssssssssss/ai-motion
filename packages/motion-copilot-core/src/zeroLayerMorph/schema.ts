@@ -40,6 +40,10 @@ export type ZeroLayerTextStyle = {
   fontWeight?: number;
   lineHeight?: number;
   textAlign?: "left" | "center" | "right";
+  letterSpacing?: number;
+  fontStyle?: "normal" | "italic";
+  textDecoration?: "none" | "underline" | "line-through";
+  textCase?: "none" | "upper" | "lower" | "capitalize";
 };
 
 export type ZeroLayerAsset = {
@@ -61,6 +65,9 @@ export type ZeroLayerNode = {
   visible: boolean;
   clipsContent?: boolean;
   cornerRadius?: number;
+  rotation?: number;
+  blendMode?: string;
+  renderMode?: "dom" | "image";
   fills?: ZeroLayerFill[];
   strokes?: ZeroLayerStroke[];
   effects?: ZeroLayerEffect[];

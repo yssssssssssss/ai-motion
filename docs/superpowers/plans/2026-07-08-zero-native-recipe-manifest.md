@@ -8,6 +8,12 @@
 
 **Tech Stack:** pnpm monorepo, React 19, TypeScript 5.8, Vite, Vitest, Motion Copilot independent product line on port 5177.
 
+**Execution Status (2026-07-08):**
+
+- Done: typed recipe manifest registry, manifest-derived recipe list, manifest-driven recommender, smart recommendation UI guidance, selected recipe state, harness manifest gates, expression strategy runtime hints, and runtime consumption of manifest parameters.
+- Verified: `/opt/homebrew/bin/pnpm --filter @motion-copilot/core typecheck`, `/opt/homebrew/bin/pnpm --filter @motion-copilot/core test`, `/opt/homebrew/bin/pnpm --filter @motion-copilot/app typecheck`, `/opt/homebrew/bin/pnpm --filter @motion-copilot/app test`, `/opt/homebrew/bin/pnpm verify:zero-motion`, `/opt/homebrew/bin/pnpm --filter @motion-copilot/app build`, and `git diff --check`.
+- Not run by Codex: manual browser acceptance with a live Zero MCP file and real `-首帧` / `-尾帧` pair. This remains the user-facing final acceptance step.
+
 ---
 
 ## Scope
@@ -149,24 +155,24 @@ export function validateZeroLayerRecipeManifestRegistry(): Array<{
 
 Use these bindings for the first implementation. Keep copy concise in UI; the manifest can carry richer guidance for diagnostics.
 
-| Recipe | Scene Types | Targets | Intent | Expression Strategies | Capability Notes |
-|---|---|---|---|---|---|
-| `smooth-morph` | `unknown`, `complex-state-change` | `mixed` | `state-transition` | `linear-morph` | safe fallback, subtle motion |
-| `spring-expand` | `horizontal-expand`, `vertical-expand`, `card-enter` | `container`, `card` | `continuity` | `spring-settle-contained`, `axis-expand-contained` | enter/exit capable, balanced |
-| `status-switch` | `tab-switch`, `complex-state-change` | `status`, `text` | `feedback` | `status-snap-replace`, `content-cross-replace` | subtle, content replacement |
-| `container-first` | `horizontal-expand`, `vertical-expand`, `card-enter`, `modal-enter` | `container`, `card`, `mixed` | `continuity` | `staged-container`, `delayed-follow` | enter/exit capable |
-| `content-stagger` | `horizontal-expand`, `vertical-expand`, `list-reorder`, `tab-switch` | `text`, `list`, `mixed` | `reveal` | `delayed-follow`, `content-cross-replace` | subtle, multi-content |
-| `mask-reveal` | `vertical-expand`, `card-enter`, `modal-enter` | `container`, `popover`, `card` | `reveal` | `mask-scan-reveal`, `clip-reveal-y` | enter/exit capable |
-| `dropdown-reveal` | `modal-enter`, `vertical-expand` | `popover`, `list`, `container` | `reveal` | `dropdown-accordion-y`, `clip-reveal-y` | dropdown-specific |
-| `anchored-popover` | `modal-enter`, `card-enter` | `popover`, `container` | `reveal` | `anchor-pop-contained`, `spring-settle-contained` | anchor relation |
-| `focus-guide` | `tab-switch`, `complex-state-change` | `tab`, `status`, `mixed` | `navigation` | `focus-shift-contained`, `indicator-slide` | subtle focus motion |
-| `axis-expand` | `horizontal-expand`, `vertical-expand` | `container`, `card`, `mixed` | `continuity` | `axis-expand-contained`, `clip-reveal-x`, `clip-reveal-y` | axis-aware |
-| `list-reorder` | `list-reorder` | `list` | `continuity` | `list-reorder-cascade` | reorder capable |
-| `tab-indicator-slide` | `tab-switch`, `horizontal-expand` | `tab`, `status` | `navigation` | `indicator-slide`, `focus-shift-contained` | subtle indicator motion |
-| `card-expand-reveal` | `card-enter`, `vertical-expand`, `horizontal-expand` | `card`, `container` | `reveal` | `clip-reveal-x`, `clip-reveal-y`, `staged-container` | enter/exit capable |
-| `list-insert-push` | `list-reorder`, `vertical-expand` | `list` | `continuity` | `list-push-insert`, `list-reorder-cascade` | reorder + enter/exit |
-| `bottom-sheet-rise` | `modal-enter`, `vertical-expand` | `sheet`, `container` | `reveal` | `sheet-rise-contained`, `delayed-follow` | bottom sheet specific |
-| `content-replace` | `tab-switch`, `complex-state-change` | `text`, `status`, `mixed` | `state-transition` | `content-cross-replace`, `status-snap-replace` | text/content changes |
+| Recipe                | Scene Types                                                          | Targets                        | Intent             | Expression Strategies                                     | Capability Notes             |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------ | ------------------ | --------------------------------------------------------- | ---------------------------- |
+| `smooth-morph`        | `unknown`, `complex-state-change`                                    | `mixed`                        | `state-transition` | `linear-morph`                                            | safe fallback, subtle motion |
+| `spring-expand`       | `horizontal-expand`, `vertical-expand`, `card-enter`                 | `container`, `card`            | `continuity`       | `spring-settle-contained`, `axis-expand-contained`        | enter/exit capable, balanced |
+| `status-switch`       | `tab-switch`, `complex-state-change`                                 | `status`, `text`               | `feedback`         | `status-snap-replace`, `content-cross-replace`            | subtle, content replacement  |
+| `container-first`     | `horizontal-expand`, `vertical-expand`, `card-enter`, `modal-enter`  | `container`, `card`, `mixed`   | `continuity`       | `staged-container`, `delayed-follow`                      | enter/exit capable           |
+| `content-stagger`     | `horizontal-expand`, `vertical-expand`, `list-reorder`, `tab-switch` | `text`, `list`, `mixed`        | `reveal`           | `delayed-follow`, `content-cross-replace`                 | subtle, multi-content        |
+| `mask-reveal`         | `vertical-expand`, `card-enter`, `modal-enter`                       | `container`, `popover`, `card` | `reveal`           | `mask-scan-reveal`, `clip-reveal-y`                       | enter/exit capable           |
+| `dropdown-reveal`     | `modal-enter`, `vertical-expand`                                     | `popover`, `list`, `container` | `reveal`           | `dropdown-accordion-y`, `clip-reveal-y`                   | dropdown-specific            |
+| `anchored-popover`    | `modal-enter`, `card-enter`                                          | `popover`, `container`         | `reveal`           | `anchor-pop-contained`, `spring-settle-contained`         | anchor relation              |
+| `focus-guide`         | `tab-switch`, `complex-state-change`                                 | `tab`, `status`, `mixed`       | `navigation`       | `focus-shift-contained`, `indicator-slide`                | subtle focus motion          |
+| `axis-expand`         | `horizontal-expand`, `vertical-expand`                               | `container`, `card`, `mixed`   | `continuity`       | `axis-expand-contained`, `clip-reveal-x`, `clip-reveal-y` | axis-aware                   |
+| `list-reorder`        | `list-reorder`                                                       | `list`                         | `continuity`       | `list-reorder-cascade`                                    | reorder capable              |
+| `tab-indicator-slide` | `tab-switch`, `horizontal-expand`                                    | `tab`, `status`                | `navigation`       | `indicator-slide`, `focus-shift-contained`                | subtle indicator motion      |
+| `card-expand-reveal`  | `card-enter`, `vertical-expand`, `horizontal-expand`                 | `card`, `container`            | `reveal`           | `clip-reveal-x`, `clip-reveal-y`, `staged-container`      | enter/exit capable           |
+| `list-insert-push`    | `list-reorder`, `vertical-expand`                                    | `list`                         | `continuity`       | `list-push-insert`, `list-reorder-cascade`                | reorder + enter/exit         |
+| `bottom-sheet-rise`   | `modal-enter`, `vertical-expand`                                     | `sheet`, `container`           | `reveal`           | `sheet-rise-contained`, `delayed-follow`                  | bottom sheet specific        |
+| `content-replace`     | `tab-switch`, `complex-state-change`                                 | `text`, `status`, `mixed`      | `state-transition` | `content-cross-replace`, `status-snap-replace`            | text/content changes         |
 
 ## Data Flow
 
@@ -597,20 +603,22 @@ If regressions appear:
 
 ## Final Todo List
 
-- [ ] Create typed Zero recipe manifest registry.
-- [ ] Add manifest completeness and safety tests.
-- [ ] Export manifest API from core package.
-- [ ] Derive `zeroLayerMotionRecipes` from manifest.
-- [ ] Replace recommender local capabilities with manifest capabilities.
-- [ ] Preserve existing recommendation order tests.
-- [ ] Add manifest-derived recommendation reasons and warnings.
-- [ ] Show recipe guidance in Zero 原生 UI cards.
-- [ ] Fix recipe selected state so user-selected recipe is visually selected.
-- [ ] Keep harness diagnostics collapsed unless there are errors.
-- [ ] Add manifest validation into recipe sample harness.
-- [ ] Ensure expression strategies declared by manifest match sampled recipe signatures.
-- [ ] Run core typecheck/tests.
-- [ ] Run app typecheck/tests.
-- [ ] Run `pnpm verify:zero-motion`.
-- [ ] Run Motion Copilot app build.
+- [x] Create typed Zero recipe manifest registry.
+- [x] Add manifest completeness and safety tests.
+- [x] Export manifest API from core package.
+- [x] Derive `zeroLayerMotionRecipes` from manifest.
+- [x] Replace recommender local capabilities with manifest capabilities.
+- [x] Preserve existing recommendation order tests.
+- [x] Add manifest-derived recommendation reasons and warnings.
+- [x] Show recipe guidance in Zero 原生 UI cards.
+- [x] Fix recipe selected state so user-selected recipe is visually selected.
+- [x] Keep harness diagnostics collapsed unless there are errors.
+- [x] Add manifest validation into recipe sample harness.
+- [x] Ensure expression strategies declared by manifest match sampled recipe signatures.
+- [x] Let recipe execution consume manifest runtime parameters.
+- [x] Expand expression strategy library beyond the original recipes.
+- [x] Run core typecheck/tests.
+- [x] Run app typecheck/tests.
+- [x] Run `pnpm verify:zero-motion`.
+- [x] Run Motion Copilot app build.
 - [ ] Manual test with Zero MCP and a real `-首帧` / `-尾帧` pair.

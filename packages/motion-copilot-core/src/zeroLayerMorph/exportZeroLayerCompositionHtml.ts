@@ -154,7 +154,23 @@ function layerStyle(layer: ZeroLayerNode, assets: Map<string, ZeroLayerAsset>): 
     layer.textStyle?.fontSize != null ? `font-size:${px(layer.textStyle.fontSize)}` : "",
     layer.textStyle?.fontWeight != null ? `font-weight:${layer.textStyle.fontWeight}` : "",
     layer.textStyle?.lineHeight != null ? `line-height:${px(layer.textStyle.lineHeight)}` : "",
-    layer.textStyle?.textAlign ? `text-align:${layer.textStyle.textAlign}` : ""
+    layer.textStyle?.textAlign ? `text-align:${layer.textStyle.textAlign}` : "",
+    layer.textStyle?.letterSpacing != null ? `letter-spacing:${px(layer.textStyle.letterSpacing)}` : "",
+    layer.textStyle?.fontStyle ? `font-style:${layer.textStyle.fontStyle}` : "",
+    layer.textStyle?.textDecoration ? `text-decoration:${layer.textStyle.textDecoration}` : "",
+    layer.textStyle?.textCase && layer.textStyle.textCase !== "none"
+      ? `text-transform:${
+          layer.textStyle.textCase === "upper"
+            ? "uppercase"
+            : layer.textStyle.textCase === "lower"
+              ? "lowercase"
+              : "capitalize"
+        }`
+      : "",
+    layer.rotation ? `transform:rotate(${layer.rotation}deg)` : "",
+    layer.blendMode && layer.blendMode !== "normal" && layer.blendMode !== "pass-through"
+      ? `mix-blend-mode:${layer.blendMode}`
+      : ""
   ].filter(Boolean);
   return styles.join(";");
 }
@@ -242,11 +258,23 @@ function mixedState(
     scale: numberValue(step.animate, "scale", 1),
     rotate: numberValue(step.animate, "rotate", 0)
   };
-  const width = mixNumber(numberValue(step.initial, "width", from.width), numberValue(step.animate, "width", to.width), progress);
-  const height = mixNumber(numberValue(step.initial, "height", from.height), numberValue(step.animate, "height", to.height), progress);
+  const width = mixNumber(
+    numberValue(step.initial, "width", from.width),
+    numberValue(step.animate, "width", to.width),
+    progress
+  );
+  const height = mixNumber(
+    numberValue(step.initial, "height", from.height),
+    numberValue(step.animate, "height", to.height),
+    progress
+  );
   const opacity =
     opacityOverride ??
-    mixNumber(numberValue(step.initial, "opacity", from.opacity), numberValue(step.animate, "opacity", to.opacity), progress);
+    mixNumber(
+      numberValue(step.initial, "opacity", from.opacity),
+      numberValue(step.animate, "opacity", to.opacity),
+      progress
+    );
   const transform = `translate(${px(mixNumber(initial.x, animate.x, progress))},${px(
     mixNumber(initial.y, animate.y, progress)
   )}) scale(${mixNumber(initial.scale, animate.scale, progress)}) rotate(${mixNumber(initial.rotate, animate.rotate, progress)}deg)`;
@@ -307,7 +335,7 @@ function matchedCss(
     step,
     tailName,
     startMs
-)};will-change:opacity;}
+  )};will-change:opacity;}
 ${layerSelector("mc-zero-layer-from", nodeId)}{animation:${animationDeclaration(step, name, startMs)};will-change:transform,width,height,opacity;}
 ${matchedKeyframes(
   step,

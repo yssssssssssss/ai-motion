@@ -6,3 +6,7 @@ dist-server/
 .env
 .env.*
 !.env.example
+
+# 本地 pnpm store 与一次性调试探针产物
+.pnpm-store/
+.tmp-*

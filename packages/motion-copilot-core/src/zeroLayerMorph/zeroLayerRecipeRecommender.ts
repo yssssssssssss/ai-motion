@@ -7,7 +7,8 @@ import {
   classifyZeroMotionInteractionPattern,
   type ZeroMotionInteractionPattern
 } from "./zeroMotionInteractionPattern";
-import { zeroLayerMotionRecipes, type ZeroLayerMotionRecipeId } from "./zeroLayerMotionRecipes";
+import { zeroLayerRecipeManifests, type ZeroLayerRecipeManifest } from "./zeroLayerRecipeManifests";
+import type { ZeroLayerMotionRecipeId } from "./zeroLayerMotionRecipes";
 
 export type ZeroLayerRecipeRecommendation = {
   recipeId: ZeroLayerMotionRecipeId;
@@ -26,169 +27,88 @@ export type ZeroLayerRecipeRecommendationResult = {
   summary: string;
 };
 
-type RecipeCapability = {
-  recipeId: ZeroLayerMotionRecipeId;
-  bestFor: ZeroMotionSceneType[];
-  handlesEnterExit?: boolean;
-  handlesReorder?: boolean;
-  handlesSubtleMotion?: boolean;
-  safeFallback?: boolean;
-};
-
-const capabilities: RecipeCapability[] = [
-  {
-    recipeId: "bottom-sheet-rise",
-    bestFor: ["modal-enter", "vertical-expand"],
-    handlesEnterExit: true
-  },
-  {
-    recipeId: "card-expand-reveal",
-    bestFor: ["card-enter", "vertical-expand", "horizontal-expand"],
-    handlesEnterExit: true
-  },
-  {
-    recipeId: "list-insert-push",
-    bestFor: ["list-reorder", "vertical-expand"],
-    handlesEnterExit: true,
-    handlesReorder: true
-  },
-  {
-    recipeId: "tab-indicator-slide",
-    bestFor: ["tab-switch", "horizontal-expand"],
-    handlesSubtleMotion: true
-  },
-  {
-    recipeId: "content-replace",
-    bestFor: ["tab-switch", "complex-state-change"],
-    handlesEnterExit: true,
-    handlesSubtleMotion: true
-  },
-  {
-    recipeId: "dropdown-reveal",
-    bestFor: ["modal-enter", "vertical-expand"],
-    handlesEnterExit: true,
-    handlesSubtleMotion: true
-  },
-  {
-    recipeId: "anchored-popover",
-    bestFor: ["modal-enter", "card-enter"],
-    handlesEnterExit: true,
-    handlesSubtleMotion: true
-  },
-  {
-    recipeId: "container-first",
-    bestFor: ["horizontal-expand", "vertical-expand", "card-enter", "modal-enter"],
-    handlesEnterExit: true
-  },
-  { recipeId: "axis-expand", bestFor: ["horizontal-expand", "vertical-expand"], handlesEnterExit: true },
-  {
-    recipeId: "content-stagger",
-    bestFor: ["horizontal-expand", "vertical-expand", "list-reorder", "tab-switch"],
-    handlesEnterExit: true,
-    handlesSubtleMotion: true
-  },
-  {
-    recipeId: "mask-reveal",
-    bestFor: ["vertical-expand", "card-enter", "modal-enter"],
-    handlesEnterExit: true,
-    handlesSubtleMotion: true
-  },
-  { recipeId: "list-reorder", bestFor: ["list-reorder"], handlesReorder: true },
-  { recipeId: "status-switch", bestFor: ["tab-switch"], handlesSubtleMotion: true },
-  { recipeId: "focus-guide", bestFor: ["tab-switch", "complex-state-change"], handlesSubtleMotion: true },
-  {
-    recipeId: "spring-expand",
-    bestFor: ["horizontal-expand", "vertical-expand", "card-enter"],
-    handlesEnterExit: true
-  },
-  { recipeId: "smooth-morph", bestFor: ["unknown", "complex-state-change"], safeFallback: true }
-];
-
 function recipeLabel(recipeId: ZeroLayerMotionRecipeId): string {
-  return zeroLayerMotionRecipes.find((recipe) => recipe.id === recipeId)?.label ?? recipeId;
+  return zeroLayerRecipeManifests.find((recipe) => recipe.id === recipeId)?.label ?? recipeId;
 }
 
 function clampScore(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
-function scoreCapability(
-  capability: RecipeCapability,
+function scoreManifest(
+  manifest: ZeroLayerRecipeManifest,
   spec: ZeroMotionSpec,
   pattern: ZeroMotionInteractionPattern
 ): ZeroLayerRecipeRecommendation {
-  let score = capability.bestFor.includes(spec.scene.type) ? 62 : 30;
+  const recipeId = manifest.id;
+  const capability = manifest.capabilities;
+  const sceneMatches = manifest.sceneTypes.includes(spec.scene.type);
+  let score = sceneMatches ? 62 : 30;
   const reasons: string[] = [];
   const warnings: string[] = [];
 
-  if (capability.bestFor.includes(spec.scene.type)) {
-    reasons.push(`适合${spec.scene.type}场景`);
+  if (sceneMatches) {
+    reasons.push(`适合${spec.scene.type}场景：${manifest.bestFor[0] ?? manifest.summary}`);
+  } else if (manifest.avoidWhen.length > 0) {
+    warnings.push(`不建议：${manifest.avoidWhen[0]}`);
   }
   if (
     (spec.scene.type === "horizontal-expand" || spec.scene.type === "vertical-expand") &&
-    (capability.recipeId === "container-first" ||
-      capability.recipeId === "axis-expand" ||
-      (spec.scene.type === "vertical-expand" && capability.recipeId === "dropdown-reveal"))
+    (recipeId === "container-first" ||
+      recipeId === "axis-expand" ||
+      (spec.scene.type === "vertical-expand" && recipeId === "dropdown-reveal"))
   ) {
-    score +=
-      capability.recipeId === "container-first"
-        ? 18
-        : capability.recipeId === "dropdown-reveal"
-          ? 16
-          : 14;
+    score += recipeId === "container-first" ? 18 : recipeId === "dropdown-reveal" ? 16 : 14;
     reasons.push("主容器尺寸变化明显，优先保持容器形变节奏");
   }
-  if (spec.scene.type === "tab-switch" && capability.recipeId === "tab-indicator-slide") {
+  if (spec.scene.type === "tab-switch" && recipeId === "tab-indicator-slide") {
     score += 30;
     reasons.push("Tab 状态切换适合先移动高亮/指示器，再替换内容");
   }
-  if (spec.scene.type === "card-enter" && capability.recipeId === "card-expand-reveal") {
+  if (spec.scene.type === "card-enter" && recipeId === "card-expand-reveal") {
     score += 28;
     reasons.push("卡片出现或展开适合容器揭示节奏");
   }
-  if (spec.scene.type === "list-reorder" && capability.recipeId === "list-insert-push") {
+  if (spec.scene.type === "list-reorder" && recipeId === "list-insert-push") {
     score += 30;
     reasons.push("列表变化适合用推开补位表达空间关系");
   }
-  if (spec.scene.type === "modal-enter" && capability.recipeId === "bottom-sheet-rise") {
+  if (spec.scene.type === "modal-enter" && recipeId === "bottom-sheet-rise") {
     score += spec.deltas.dominantDy >= 0 ? 24 : 18;
     reasons.push("浮层出现适合使用蒙层和面板分阶段进入");
   }
-  if (spec.deltas.textChangeCount > 0 && capability.recipeId === "content-replace") {
+  if (spec.deltas.textChangeCount > 0 && recipeId === "content-replace") {
     score += 24;
     reasons.push("检测到文案变化，适合旧内容先退、新内容补入");
   }
-  if (pattern.type === "dropdown-reveal" && capability.recipeId === "dropdown-reveal") {
+  if (pattern.type === "dropdown-reveal" && recipeId === "dropdown-reveal") {
     score += 58;
     reasons.push(pattern.reasons[0] ?? "尾帧出现下拉内容，优先使用下拉展开空间策略");
   }
   if (
     pattern.type === "dropdown-reveal" &&
-    capability.recipeId !== "dropdown-reveal" &&
-    capability.recipeId !== "anchored-popover"
+    recipeId !== "dropdown-reveal" &&
+    recipeId !== "anchored-popover"
   ) {
     score -= 26;
     warnings.push("检测到下拉结构，该方案不作为首选。");
   }
-  if (pattern.type === "anchored-popover" && capability.recipeId === "anchored-popover") {
+  if (pattern.type === "anchored-popover" && recipeId === "anchored-popover") {
     score += 18;
     reasons.push("新增浮层与触发区相邻，适合锚点浮层进入");
   }
-  if (pattern.type === "cascade-items" && capability.recipeId === "content-stagger") {
+  if (pattern.type === "cascade-items" && recipeId === "content-stagger") {
     score += spec.scene.type === "list-reorder" ? 6 : 18;
     reasons.push("多项内容变化明显，优先使用错峰节奏");
   }
-  if (
-    spec.scene.type === "card-enter" &&
-    (capability.recipeId === "mask-reveal" || capability.recipeId === "card-expand-reveal")
-  ) {
+  if (spec.scene.type === "card-enter" && (recipeId === "mask-reveal" || recipeId === "card-expand-reveal")) {
     score += 8;
     reasons.push("新增卡片适合通过遮罩揭示增强空间感");
   }
   if (
     spec.scene.type === "modal-enter" &&
     spec.topology.enterCount >= 3 &&
-    capability.recipeId === "anchored-popover" &&
+    recipeId === "anchored-popover" &&
     pattern.type !== "dropdown-reveal"
   ) {
     score += 16;
@@ -223,20 +143,26 @@ function scoreCapability(
   }
   if (
     spec.scene.type === "complex-state-change" &&
-    capability.recipeId !== "smooth-morph" &&
-    capability.recipeId !== "focus-guide"
+    recipeId !== "smooth-morph" &&
+    recipeId !== "focus-guide"
   ) {
     score -= 8;
     warnings.push("当前变化较复杂，单一强表现方案可能不稳定");
   }
-  if (reasons.length === 0) reasons.push(`${recipeLabel(capability.recipeId)}可作为备选探索方案`);
+  if (spec.risks.length > 0) {
+    for (const warning of manifest.avoidWhen.slice(0, 2)) {
+      const message = `不建议：${warning}`;
+      if (!warnings.includes(message)) warnings.push(message);
+    }
+  }
+  if (reasons.length === 0) reasons.push(`${recipeLabel(recipeId)}可作为备选探索方案`);
 
   return {
-    recipeId: capability.recipeId,
+    recipeId,
     score: clampScore(score),
     reasons,
     warnings,
-    adaptedParameters: adaptZeroLayerRecipeParameters(spec, capability.recipeId)
+    adaptedParameters: adaptZeroLayerRecipeParameters(spec, recipeId)
   };
 }
 
@@ -250,8 +176,8 @@ export function recommendZeroLayerRecipes(
       : spec;
   const limit = options.limit ?? 3;
   const interactionPattern = classifyZeroMotionInteractionPattern(effectiveSpec);
-  const candidates = capabilities
-    .map((capability) => scoreCapability(capability, effectiveSpec, interactionPattern))
+  const candidates = zeroLayerRecipeManifests
+    .map((manifest) => scoreManifest(manifest, effectiveSpec, interactionPattern))
     .sort((left, right) => right.score - left.score || left.recipeId.localeCompare(right.recipeId))
     .slice(0, Math.max(1, limit));
   const selectedRecipeId = candidates[0]?.recipeId;

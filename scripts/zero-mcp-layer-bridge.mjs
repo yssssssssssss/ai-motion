@@ -242,6 +242,39 @@ function colorToHex(color) {
   return "#" + part(color.r) + part(color.g) + part(color.b)
 }
 
+function rgbaOf(color) {
+  if (!color) return "rgba(0,0,0,1)"
+  const c = (v) => Math.max(0, Math.min(255, Math.round((v || 0) * 255)))
+  return "rgba(" + c(color.r) + "," + c(color.g) + "," + c(color.b) + "," + (color.a != null ? color.a : 1) + ")"
+}
+
+function gradientCss(paint) {
+  const stops = Array.isArray(paint.gradientStops) ? paint.gradientStops : []
+  if (!stops.length) return undefined
+  const parts = stops.map((stop) => rgbaOf(stop.color) + " " + Math.round((stop.position || 0) * 100) + "%")
+  const type = String(paint.type || "").toUpperCase()
+  if (type.includes("RADIAL") || type.includes("DIAMOND")) {
+    return "radial-gradient(circle, " + parts.join(", ") + ")"
+  }
+  let angle = 180
+  const t = paint.gradientTransform
+  if (Array.isArray(t) && Array.isArray(t[0]) && Array.isArray(t[1])) {
+    const rad = Math.atan2(t[0][0], -t[1][0])
+    angle = ((Math.round((rad * 180) / Math.PI) % 360) + 360) % 360
+  }
+  return "linear-gradient(" + angle + "deg, " + parts.join(", ") + ")"
+}
+
+function blendModeCss(mode) {
+  const map = {
+    MULTIPLY: "multiply", SCREEN: "screen", OVERLAY: "overlay", DARKEN: "darken", LIGHTEN: "lighten",
+    COLOR_DODGE: "color-dodge", COLOR_BURN: "color-burn", HARD_LIGHT: "hard-light", SOFT_LIGHT: "soft-light",
+    DIFFERENCE: "difference", EXCLUSION: "exclusion", HUE: "hue", SATURATION: "saturation",
+    COLOR: "color", LUMINOSITY: "luminosity"
+  }
+  return map[String(mode || "").toUpperCase()]
+}
+
 function fillsFor(node) {
   if (!("fills" in node) || node.fills === relay.mixed || !Array.isArray(node.fills)) return undefined
   return node.fills.filter((paint) => paint && paint.visible !== false).map((paint, index) => {
@@ -249,7 +282,8 @@ function fillsFor(node) {
       return { type: "solid", color: colorToHex(paint.color), ...(paint.opacity != null ? { opacity: paint.opacity } : {}) }
     }
     if (String(paint.type || "").includes("GRADIENT")) {
-      return { type: "gradient", opacity: paint.opacity ?? 1 }
+      const css = gradientCss(paint)
+      return { type: "gradient", opacity: paint.opacity ?? 1, ...(css ? { css } : {}) }
     }
     if (paint.type === "IMAGE") {
       return { type: "image", assetId: paint.imageHash ? "image-" + paint.imageHash : "image-" + node.id + "-" + index, opacity: paint.opacity ?? 1 }
@@ -297,6 +331,20 @@ function textStyleFor(node) {
   if (node.textAlignHorizontal === "CENTER") style.textAlign = "center"
   else if (node.textAlignHorizontal === "RIGHT") style.textAlign = "right"
   else style.textAlign = "left"
+  if (node.letterSpacing && node.letterSpacing !== relay.mixed && typeof node.letterSpacing.value === "number") {
+    style.letterSpacing =
+      node.letterSpacing.unit === "PERCENT" && typeof node.fontSize === "number"
+        ? (node.letterSpacing.value / 100) * node.fontSize
+        : node.letterSpacing.value
+  }
+  if (node.fontName && node.fontName !== relay.mixed && /italic/i.test(node.fontName.style || "")) {
+    style.fontStyle = "italic"
+  }
+  if (node.textDecoration === "UNDERLINE") style.textDecoration = "underline"
+  else if (node.textDecoration === "STRIKETHROUGH") style.textDecoration = "line-through"
+  if (node.textCase === "UPPER") style.textCase = "upper"
+  else if (node.textCase === "LOWER") style.textCase = "lower"
+  else if (node.textCase === "TITLE") style.textCase = "capitalize"
   return style
 }
 
@@ -331,13 +379,38 @@ function relativePosition(node) {
   return { x: (node.x || 0) - (target.x || 0), y: (node.y || 0) - (target.y || 0) }
 }
 
-function layerFor(node) {
+const RASTER_KINDS = ["VECTOR", "BOOLEAN_OPERATION", "STAR", "POLYGON", "LINE"]
+function shouldExportAsset(node) {
+  return RASTER_KINDS.indexOf(String(node.type || "").toUpperCase()) >= 0
+}
+async function exportSvgAsset(node) {
+  if (typeof node.exportAsync !== "function") return undefined
+  try {
+    const svg = await node.exportAsync({ format: "SVG_STRING" })
+    if (typeof svg === "string" && svg.length) {
+      return {
+        id: "svg-" + node.id,
+        type: "svg",
+        url: "data:image/svg+xml;utf8," + encodeURIComponent(svg),
+        nodeId: node.id,
+        ...(node.width ? { width: node.width } : {}),
+        ...(node.height ? { height: node.height } : {})
+      }
+    }
+  } catch (error) {
+    // 导出失败则回退到 DOM 重建，不阻断快照生成
+  }
+  return undefined
+}
+
+function layerFor(node, exportedAssetId) {
   const fills = fillsFor(node)
   const strokes = strokesFor(node)
   const effects = effectsFor(node)
   const textStyle = textStyleFor(node)
   const cornerRadius = cornerRadiusFor(node)
   const position = relativePosition(node)
+  const blend = blendModeCss(node.blendMode)
   const layer = {
     nodeId: node.id,
     ...(node.id !== target.id && node.parent && "id" in node.parent ? { parentId: node.parent.id } : {}),
@@ -348,6 +421,9 @@ function layerFor(node) {
     visible: node.visible !== false,
     ...("clipsContent" in node ? { clipsContent: Boolean(node.clipsContent) } : {}),
     ...(cornerRadius != null ? { cornerRadius } : {}),
+    ...(typeof node.rotation === "number" && Math.abs(node.rotation) > 0.01 ? { rotation: node.rotation } : {}),
+    ...(blend ? { blendMode: blend } : {}),
+    ...(exportedAssetId ? { assetId: exportedAssetId, renderMode: "image" } : {}),
     ...(fills && fills.length ? { fills } : {}),
     ...(strokes && strokes.length ? { strokes } : {}),
     ...(effects && effects.length ? { effects } : {}),
@@ -373,6 +449,16 @@ function collectNodes(root) {
 }
 
 const nodes = collectNodes(target)
+const assets = []
+const assetByNode = {}
+for (const node of nodes) {
+  if (!shouldExportAsset(node)) continue
+  const asset = await exportSvgAsset(node)
+  if (asset) {
+    assets.push(asset)
+    assetByNode[node.id] = asset.id
+  }
+}
 return {
   schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
   frameId: target.id,
@@ -381,8 +467,8 @@ return {
   width: target.width || 0,
   height: target.height || 0,
   screenshotUrl: "",
-  assets: [],
-  layers: nodes.map(layerFor)
+  assets: assets,
+  layers: nodes.map((node) => layerFor(node, assetByNode[node.id]))
 }
 `;
 

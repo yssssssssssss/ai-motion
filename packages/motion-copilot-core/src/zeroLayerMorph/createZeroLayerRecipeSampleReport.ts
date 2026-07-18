@@ -12,12 +12,20 @@ import {
   zeroLayerMotionRecipes,
   type ZeroLayerMotionRecipeId
 } from "./zeroLayerMotionRecipes";
+import {
+  getZeroLayerRecipeManifest,
+  validateZeroLayerRecipeManifestRegistry,
+  type ZeroLayerRecipeManifestValidation
+} from "./zeroLayerRecipeManifests";
 import { createZeroMotionOrderPlan, orderItemForStep } from "./zeroMotionOrdering";
 import { zeroLayerExpressionStrategyForStep } from "./zeroLayerExpressionStrategies";
 
 export type ZeroLayerRecipeSampleRiskCode =
   | "MATCHED_CORRIDOR_OVERFLOW"
   | "TAIL_FRAME_MISMATCH"
+  | "RECIPE_MANIFEST_INVALID"
+  | "RECIPE_MANIFEST_EXPRESSION_MISSING"
+  | "RECIPE_MANIFEST_SAFETY_MISSING"
   | "RECIPE_DIFF_TOO_SMALL"
   | "RECIPE_TOO_FADE_ONLY"
   | "CONTENT_BEFORE_CONTAINER"
@@ -155,7 +163,8 @@ function expressionOpacityAt(step: CompositionStep, progress: number): number {
   const percent = clamp(progress) * 100;
   const stops = [...strategy.stops].sort((a, b) => a.percent - b.percent);
   const opacityForStop = (stop: (typeof stops)[number]) =>
-    stop.opacity ?? lerp(numberState(step.initial, "opacity", 1), numberState(step.animate, "opacity", 1), stop.progress);
+    stop.opacity ??
+    lerp(numberState(step.initial, "opacity", 1), numberState(step.animate, "opacity", 1), stop.progress);
   const first = stops[0];
   const last = stops[stops.length - 1];
   if (!first || !last) return opacityAt({ ...step, id: "" }, progress);
@@ -281,6 +290,48 @@ function tailRisk(
   };
 }
 
+function manifestValidationRisk(issue: ZeroLayerRecipeManifestValidation): ZeroLayerRecipeSampleRisk {
+  const code =
+    issue.code === "MANIFEST_EXPRESSION_STRATEGY_UNKNOWN"
+      ? "RECIPE_MANIFEST_EXPRESSION_MISSING"
+      : issue.code === "MANIFEST_SAFETY_POLICY_INVALID"
+        ? "RECIPE_MANIFEST_SAFETY_MISSING"
+        : "RECIPE_MANIFEST_INVALID";
+  return {
+    code,
+    severity: issue.severity,
+    ...(issue.recipeId ? { recipeId: issue.recipeId } : {}),
+    message: issue.message
+  };
+}
+
+function manifestExpressionRisk(
+  recipeId: ZeroLayerMotionRecipeId,
+  signature: ZeroLayerRecipeMotionSignature,
+  source: ZeroLayerMorphSource
+): ZeroLayerRecipeSampleRisk | undefined {
+  if (source.bindingResult.bindings.length === 0) return undefined;
+  const manifest = getZeroLayerRecipeManifest(recipeId);
+  if (!manifest) {
+    return {
+      code: "RECIPE_MANIFEST_INVALID",
+      severity: "error",
+      recipeId,
+      message: `${recipeId} has no Zero native recipe manifest.`
+    };
+  }
+  const declared = new Set(manifest.expressionStrategies);
+  const sampled = new Set(signature.expressionStrategies);
+  const hasDeclaredStrategy = [...declared].some((strategyId) => sampled.has(strategyId));
+  if (hasDeclaredStrategy) return undefined;
+  return {
+    code: "RECIPE_MANIFEST_EXPRESSION_MISSING",
+    severity: "error",
+    recipeId,
+    message: `${recipeId} sampled strategies ${signature.expressionStrategies.join(", ")} do not match its manifest declarations.`
+  };
+}
+
 function sampleRecipe(
   source: ZeroLayerMorphSource,
   recipeId: ZeroLayerMotionRecipeId,
@@ -328,6 +379,8 @@ function sampleRecipe(
 
   risks.push(...orderRisks(recipeId, result.steps, orderPlan));
   const signature = recipeMotionSignature(recipeId, result.steps);
+  const expressionRisk = manifestExpressionRisk(recipeId, signature, source);
+  if (expressionRisk) risks.push(expressionRisk);
   return {
     recipeId,
     label,
@@ -344,12 +397,18 @@ function stepStart(step: CompositionStep): number {
   return step.delayMs ?? 0;
 }
 
-function minStepStart(steps: CompositionStep[], predicate: (step: CompositionStep) => boolean): number | undefined {
+function minStepStart(
+  steps: CompositionStep[],
+  predicate: (step: CompositionStep) => boolean
+): number | undefined {
   const starts = steps.filter(predicate).map(stepStart);
   return starts.length > 0 ? Math.min(...starts) : undefined;
 }
 
-function maxStepStart(steps: CompositionStep[], predicate: (step: CompositionStep) => boolean): number | undefined {
+function maxStepStart(
+  steps: CompositionStep[],
+  predicate: (step: CompositionStep) => boolean
+): number | undefined {
   const starts = steps.filter(predicate).map(stepStart);
   return starts.length > 0 ? Math.max(...starts) : undefined;
 }
@@ -390,10 +449,7 @@ function orderRisks(
     });
   }
 
-  const firstMask = minStepStart(
-    steps,
-    (step) => orderItemForStep(orderPlan, step)?.role === "mask"
-  );
+  const firstMask = minStepStart(steps, (step) => orderItemForStep(orderPlan, step)?.role === "mask");
   if (firstMask != null && contentStart != null && firstMask > contentStart) {
     risks.push({
       code: "MASK_AFTER_CONTENT",
@@ -467,9 +523,8 @@ function recipeMotionSignature(
   const expressionStrategies = [...new Set(steps.map((step) => zeroLayerExpressionStrategyForStep(step).id))];
   const durationBucket =
     steps.length > 0
-      ? Math.round(
-          (steps.reduce((sum, step) => sum + step.durationMs, 0) / Math.max(1, steps.length)) / 40
-        ) * 40
+      ? Math.round(steps.reduce((sum, step) => sum + step.durationMs, 0) / Math.max(1, steps.length) / 40) *
+        40
       : 0;
   const phaseSet = new Set(delays);
 
@@ -550,7 +605,10 @@ export function createZeroLayerRecipeSampleReport(
   const recipes = recipeIds.map((recipeId) => sampleRecipe(source, recipeId, samplePoints, spec));
   const signatures = new Set(recipes.map((recipe) => recipe.signature.signatureKey));
   const snapshotSignatures = new Set(recipes.map(recipeSnapshotSignature));
-  const risks = recipes.flatMap((recipe) => recipe.risks);
+  const risks = [
+    ...validateZeroLayerRecipeManifestRegistry().map(manifestValidationRisk),
+    ...recipes.flatMap((recipe) => recipe.risks)
+  ];
   if (signatures.size < recipes.length || snapshotSignatures.size < recipes.length) {
     risks.push({
       code: "RECIPE_DIFF_TOO_SMALL",
