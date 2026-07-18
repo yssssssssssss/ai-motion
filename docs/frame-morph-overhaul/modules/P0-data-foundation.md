@@ -14,7 +14,7 @@
 | --- | --------------------------------------------------------- | --------- |
 | 1   | 富样式字段扩展（ZeroLayerNode + ZeroLayerTextStyle）      | 🟢 完成   |
 | 2   | normalize 归一化承接新字段                                | 🟢 完成   |
-| 3   | 动效一等数据模型 MotionTrack / MotionPlan                 | ⚪ 未开始 |
+| 3   | 动效一等数据模型 MotionTrack / MotionPlan                 | 🟢 完成   |
 | 4   | compileMotionPlan 适配层（现有 recipe 输出 → MotionPlan） | ⚪ 未开始 |
 
 ---
@@ -90,7 +90,17 @@ type MotionPlan = { tracks: LayerMotionTrack[]; stageDurationMs: number };
 
 `ZeroLayerMorphSource` 增加 `motionPlan?: MotionPlan`。
 
-**状态**：⚪ 未开始（依赖 P0-功能1/2 落地后再引入，避免一次改动过大）。
+**状态**：🟢 完成（2026-07-18）。
+
+**实际落地**
+
+- `schema.ts` 新增类型：`MotionTrackKind` / `MotionTrackSource` / `MotionKeyframe` / `MotionPhysics`(spring|ease) / `MotionPersonality` / `LayerMotionTrack` / `MotionPlan`；`ZeroLayerMorphSource` 增 `motionPlan?`。全部可选/新增，向后兼容。
+- 关键帧 `MotionKeyframe.offset` 采用轨道内归一化时间 `[0,1]`，可动画属性 `x/y/width/height/scale/rotation/opacity` 均可选；段内可选 `easing`。
+- `MotionPlan.schemaVersion = "motion-copilot.motion-plan.v1"`，为持久化 restore 提供版本锚点。
+- 新增 `normalizeMotionPlan.ts`：参照 `normalizeZeroLayerSnapshot` 模式，做 schema 校验/数值钳制(offset[0,1]、timing/overshoot/stageDuration≥0、personality[0,1])/关键帧按 offset 排序/丢弃无效轨道；无效输入返回空 plan 不抛异常，保证 restore 不崩。幂等。
+- 测试 `test/normalizeMotionPlan.test.ts` 10 例(happy/空/钳制/默认回退/丢弃/物理校验/幂等)，core 全套 181/181。
+
+**如何调试/还原**：`git diff` 目标 `schema.ts` / `normalizeMotionPlan.ts` / `index.ts`；回滚删除新增类型块与 `normalizeMotionPlan.ts` 即可，`motionPlan` 字段可选删除不影响既有逻辑。
 
 ---
 

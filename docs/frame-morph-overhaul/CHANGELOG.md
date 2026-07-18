@@ -62,3 +62,23 @@ motion-copilot「帧间动效」(zeroLayerMorph) 重构。三痛点根因与方�
 **验证**：motion-copilot-core 171/171、app 87/87 全绿,ESLint 干净。
 
 **状态**：已完成(本地)。下一步进入 P0 功能3——`MotionTrack`/`MotionPlan` 数据模型。
+
+---
+
+### [2026-07-18] P0 功能3 · 动效一等数据模型 MotionTrack / MotionPlan
+
+**模块**：`packages/motion-copilot-core/src/zeroLayerMorph/`(schema + normalizeMotionPlan)
+
+**改了什么**
+
+- `schema.ts` 新增动效一等数据类型:`MotionTrackKind`/`MotionTrackSource`/`MotionKeyframe`/`MotionPhysics`(spring|ease)/`MotionPersonality`/`LayerMotionTrack`/`MotionPlan`,`ZeroLayerMorphSource` 增 `motionPlan?`(全部可选/新增,向后兼容)。
+- 新增 `normalizeMotionPlan.ts` + `MOTION_PLAN_SCHEMA_VERSION`:持久化 restore 的校验/钳制/排序归一化,无效输入返回空 plan 不抛异常,幂等。
+- 新增测试 `test/normalizeMotionPlan.test.ts`(10 例,需求驱动)。index.ts 导出。
+
+**实现了什么**：让动效从「spec 确定性推导的临时产物」升级为可持久化、可局部编辑的一等对象——P2 物理运行时与 P4 可编辑 UI 的数据地基。此步只落数据模型与归一化,尚未接入编译链(功能4)与渲染。
+
+**如何调试/还原**：`git diff` schema.ts / normalizeMotionPlan.ts / index.ts;回滚删除新增类型块与 normalizeMotionPlan.ts,`motionPlan` 字段可选删除不影响既有逻辑。
+
+**验证**：motion-copilot-core typecheck 干净、181/181(新增 10)、ESLint 干净。
+
+**状态**：已完成(本地)。下一步 P0 功能4——`compileMotionPlan` 适配层(现有 recipe 输出 → MotionPlan)。

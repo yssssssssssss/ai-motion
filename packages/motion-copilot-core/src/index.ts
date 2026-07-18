@@ -41,6 +41,7 @@ export * from "./zeroLayerMorph/deriveZeroLayerObjects";
 export * from "./zeroLayerMorph/diagnosticSchema";
 export * from "./zeroLayerMorph/exportZeroLayerCompositionHtml";
 export * from "./zeroLayerMorph/normalizeZeroLayerSnapshot";
+export * from "./zeroLayerMorph/normalizeMotionPlan";
 export * from "./zeroLayerMorph/schema";
 export * from "./zeroLayerMorph/zeroLayerRecipeRecommender";
 export * from "./zeroLayerMorph/adaptZeroLayerRecipeParameters";

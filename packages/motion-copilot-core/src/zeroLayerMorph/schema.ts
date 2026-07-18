@@ -197,6 +197,56 @@ export type ZeroLayerOptimizerReport = {
   }>;
 };
 
+export type MotionTrackKind = "morph" | "enter" | "exit" | "emphasis" | "path";
+
+export type MotionTrackSource = "llm" | "rule" | "user";
+
+/** 单个关键帧：offset 为轨道内归一化时间位置 [0,1]，其余为可动画属性（均可选）。 */
+export type MotionKeyframe = {
+  offset: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  scale?: number;
+  rotation?: number;
+  opacity?: number;
+  /** 该关键帧到下一帧之间的段内缓动，缺省时由 track.physics 决定。 */
+  easing?: [number, number, number, number];
+};
+
+export type MotionPhysics =
+  | { type: "spring"; stiffness: number; damping: number }
+  | { type: "ease"; curve: [number, number, number, number] };
+
+/** 连续性格维度，各分量取值 [0,1]，取代 subtle/balanced/strong 三档。 */
+export type MotionPersonality = {
+  energy: number;
+  bounce: number;
+  sharpness: number;
+};
+
+/** per-layer 可持久化、可局部编辑的动效一等对象。 */
+export type LayerMotionTrack = {
+  layerId: string;
+  nodeId: string;
+  kind: MotionTrackKind;
+  keyframes: MotionKeyframe[];
+  physics?: MotionPhysics;
+  path?: { points: Array<{ x: number; y: number }> };
+  timing: { delayMs: number; durationMs: number };
+  overshoot?: number;
+  personality?: MotionPersonality;
+  /** 标注来源，便于 UI 区分与「重新生成时保留用户改动」。 */
+  source: MotionTrackSource;
+};
+
+export type MotionPlan = {
+  schemaVersion: "motion-copilot.motion-plan.v1";
+  tracks: LayerMotionTrack[];
+  stageDurationMs: number;
+};
+
 export type ZeroLayerMorphSource = {
   kind: "zero-layer-morph";
   from: ZeroLayerSnapshot;
@@ -209,4 +259,5 @@ export type ZeroLayerMorphSource = {
     to: ZeroLayerObject[];
   };
   nodeOverrides?: ZeroLayerNodeOverride[];
+  motionPlan?: MotionPlan;
 };
