@@ -104,4 +104,10 @@ type MotionPlan = { tracks: LayerMotionTrack[]; stageDurationMs: number };
 
 ---
 
-_模块最后更新：2026-07-13 14:12 (+0800)_
+## 关联进展 · Recipe 清单化（2026-07-18，本地提交 `7cb79d4`）
+
+`zeroLayerRecipeManifests.ts` 给 recipe 补了结构化元数据(`intent`/`targets`/`restraint`)。它是「差异化编排」的元数据前奏,与 P0 数据地基同源,但**不属于本模块功能 3/4**——`MotionPlan` 动效一等数据模型仍未开工,下一步即从功能 3 起步。详见 [../CHANGELOG.md](../CHANGELOG.md)。
+
+---
+
+_模块最后更新：2026-07-18 (+0800)_

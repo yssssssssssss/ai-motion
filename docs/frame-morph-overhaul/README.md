@@ -44,13 +44,13 @@ Zero MCP ─▶ 结构快照(结构+富样式+切图) ─▶ 匹配/绑定(沿�
 
 ## 5. 模块地图与阶段规划
 
-| 模块              | 目标                                                    | 详细文档                                                           | 状态      |
-| ----------------- | ------------------------------------------------------- | ------------------------------------------------------------------ | --------- |
-| **P0 数据地基**   | 扩样式 schema + 动效一等数据模型 MotionPlan + 适配层    | [modules/P0-data-foundation.md](modules/P0-data-foundation.md)     | 🟡 进行中 |
-| **P1 混合渲染**   | bridge 提富样式+切图；渲染全量还原；DOM/切图混合        | [modules/P1-hybrid-rendering.md](modules/P1-hybrid-rendering.md)   | ⚪ 未开始 |
-| **P2 物理运行时** | WAAPI/运动库执行 MotionPlan，支持 spring/path/overshoot | [modules/P2-physics-runtime.md](modules/P2-physics-runtime.md)     | ⚪ 未开始 |
-| **P3 LLM 编排**   | LLM 产 per-layer 差异化 track，规则引擎降为 fallback    | [modules/P3-llm-orchestration.md](modules/P3-llm-orchestration.md) | ⚪ 未开始 |
-| **P4 可编辑 UI**  | 时间轴+缓动曲线+单层类型+personality；面板做减法        | [modules/P4-editable-ui.md](modules/P4-editable-ui.md)             | ⚪ 未开始 |
+| 模块              | 目标                                                    | 详细文档                                                           | 状态                                                                       |
+| ----------------- | ------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| **P0 数据地基**   | 扩样式 schema + 动效一等数据模型 MotionPlan + 适配层    | [modules/P0-data-foundation.md](modules/P0-data-foundation.md)     | 🟡 进行中(功能1/2 完成，recipe 清单化前奏已落地 `7cb79d4`；功能3/4 未开工) |
+| **P1 混合渲染**   | bridge 提富样式+切图；渲染全量还原；DOM/切图混合        | [modules/P1-hybrid-rendering.md](modules/P1-hybrid-rendering.md)   | ⚪ 未开始                                                                  |
+| **P2 物理运行时** | WAAPI/运动库执行 MotionPlan，支持 spring/path/overshoot | [modules/P2-physics-runtime.md](modules/P2-physics-runtime.md)     | ⚪ 未开始                                                                  |
+| **P3 LLM 编排**   | LLM 产 per-layer 差异化 track，规则引擎降为 fallback    | [modules/P3-llm-orchestration.md](modules/P3-llm-orchestration.md) | ⚪ 未开始                                                                  |
+| **P4 可编辑 UI**  | 时间轴+缓动曲线+单层类型+personality；面板做减法        | [modules/P4-editable-ui.md](modules/P4-editable-ui.md)             | ⚪ 未开始                                                                  |
 
 执行顺序：P0 → P1 →（P2 / P4 让"能调+好看"先落地）→ P3。
 状态图例：⚪未开始 · 🟡进行中 · 🟢已完成 · 🔴受阻。
@@ -69,4 +69,4 @@ Zero MCP ─▶ 结构快照(结构+富样式+切图) ─▶ 匹配/绑定(沿�
 
 ---
 
-_最后更新：2026-07-13 13:56 (+0800)_
+_最后更新：2026-07-18 (+0800)_
