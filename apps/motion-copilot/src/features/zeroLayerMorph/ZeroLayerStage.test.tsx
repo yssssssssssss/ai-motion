@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createClassicEasing,
   evaluateComposition,
@@ -29,7 +29,11 @@ function render(snapshot: ZeroLayerSnapshot, selectedNodeId?: string) {
   });
 }
 
-function renderMotion(from: ZeroLayerSnapshot, to: ZeroLayerSnapshot, bindingResult: ZeroLayerMotionBindingResult) {
+function renderMotion(
+  from: ZeroLayerSnapshot,
+  to: ZeroLayerSnapshot,
+  bindingResult: ZeroLayerMotionBindingResult
+) {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -56,6 +60,46 @@ function renderMotionWithTrack(
         bindingResult={bindingResult}
         compositionTrack={evaluateComposition(steps)}
         progress={progress}
+      />
+    );
+  });
+}
+
+function renderMotionWithPlan(
+  from: ZeroLayerSnapshot,
+  to: ZeroLayerSnapshot,
+  bindingResult: ZeroLayerMotionBindingResult,
+  progress: number,
+  isPlaying = false
+) {
+  host = document.createElement("div");
+  document.body.append(host);
+  root = createRoot(host);
+  act(() => {
+    root?.render(
+      <ZeroLayerMotionStage
+        from={from}
+        to={to}
+        bindingResult={bindingResult}
+        progress={progress}
+        isPlaying={isPlaying}
+        motionPlan={{
+          schemaVersion: "motion-copilot.motion-plan.v1",
+          stageDurationMs: 400,
+          tracks: [
+            {
+              layerId: "zero-layer-box",
+              nodeId: "box",
+              kind: "morph",
+              source: "user",
+              timing: { delayMs: 0, durationMs: 400 },
+              keyframes: [
+                { offset: 0, x: 0, y: 0, width: 40, opacity: 1 },
+                { offset: 1, x: 100, y: 0, width: 80, opacity: 0.5 }
+              ]
+            }
+          ]
+        }}
       />
     );
   });
@@ -294,6 +338,128 @@ describe("ZeroLayerStage", () => {
     const layer = document.querySelector<HTMLElement>('[data-zero-layer-id="box"]');
     expect(layer?.style.left).toBe("25px");
     expect(layer?.style.transform).toBe("");
+  });
+
+  it("prefers the persisted MotionPlan over the compatibility composition track", () => {
+    const from: ZeroLayerSnapshot = {
+      schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
+      frameId: "from",
+      nodeId: "from",
+      name: "首帧",
+      width: 180,
+      height: 40,
+      screenshotUrl: "",
+      assets: [],
+      layers: [
+        {
+          nodeId: "box",
+          name: "box",
+          kind: "rect",
+          bounds: { x: 0, y: 0, w: 40, h: 40 },
+          opacity: 1,
+          visible: true,
+          fills: [{ type: "solid", color: "#ffffff" }]
+        }
+      ]
+    };
+    const to: ZeroLayerSnapshot = {
+      ...from,
+      frameId: "to",
+      nodeId: "to",
+      name: "尾帧",
+      layers: [{ ...from.layers[0]!, bounds: { x: 100, y: 0, w: 80, h: 40 } }]
+    };
+    const bindingResult: ZeroLayerMotionBindingResult = {
+      bindings: [
+        {
+          layerId: "zero-layer-box",
+          nodeId: "box",
+          toNodeId: "box",
+          fromBounds: from.layers[0]!.bounds,
+          toBounds: to.layers[0]!.bounds,
+          confidence: 100,
+          reasons: ["same-node"]
+        }
+      ],
+      enter: [],
+      exit: [],
+      unresolved: []
+    };
+
+    renderMotionWithPlan(from, to, bindingResult, 0.5);
+
+    const layer = document.querySelector<HTMLElement>('[data-zero-layer-id="box"]');
+    expect(layer?.style.left).toBe("50px");
+    expect(layer?.style.width).toBe("60px");
+    expect(layer?.style.opacity).toBe("0.75");
+  });
+
+  it("plays persisted tracks through WAAPI and cancels the browser animation on cleanup", () => {
+    const from: ZeroLayerSnapshot = {
+      schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
+      frameId: "from",
+      nodeId: "from",
+      name: "首帧",
+      width: 180,
+      height: 40,
+      screenshotUrl: "",
+      assets: [],
+      layers: [
+        {
+          nodeId: "box",
+          name: "box",
+          kind: "rect",
+          bounds: { x: 0, y: 0, w: 40, h: 40 },
+          opacity: 1,
+          visible: true,
+          fills: [{ type: "solid", color: "#ffffff" }]
+        }
+      ]
+    };
+    const to: ZeroLayerSnapshot = {
+      ...from,
+      frameId: "to",
+      nodeId: "to",
+      name: "尾帧",
+      layers: [{ ...from.layers[0]!, bounds: { x: 100, y: 0, w: 80, h: 40 } }]
+    };
+    const bindingResult: ZeroLayerMotionBindingResult = {
+      bindings: [
+        {
+          layerId: "zero-layer-box",
+          nodeId: "box",
+          toNodeId: "box",
+          fromBounds: from.layers[0]!.bounds,
+          toBounds: to.layers[0]!.bounds,
+          confidence: 100,
+          reasons: ["same-node"]
+        }
+      ],
+      enter: [],
+      exit: [],
+      unresolved: []
+    };
+    const originalAnimate = Element.prototype.animate;
+    const cancel = vi.fn();
+    const animate = vi.fn<
+      (frames: Keyframe[], options: KeyframeAnimationOptions) => { currentTime: number; cancel: () => void }
+    >(() => ({ currentTime: 0, cancel }));
+    Object.defineProperty(Element.prototype, "animate", { configurable: true, value: animate });
+
+    try {
+      renderMotionWithPlan(from, to, bindingResult, 0, true);
+      expect(animate).toHaveBeenCalledTimes(1);
+      const frames = animate.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
+      expect(frames[0]).toMatchObject({ offset: 0, transform: "translate(0px,0px) scale(1) rotate(0deg)" });
+      expect(frames.at(-1)).toMatchObject({
+        offset: 1,
+        transform: "translate(100px,0px) scale(1) rotate(0deg)"
+      });
+    } finally {
+      act(() => root?.unmount());
+      Object.defineProperty(Element.prototype, "animate", { configurable: true, value: originalAnimate });
+    }
+    expect(cancel).toHaveBeenCalledTimes(1);
   });
 
   it("renders the exact Zero tail frame at the final progress even when a recipe uses scale", () => {

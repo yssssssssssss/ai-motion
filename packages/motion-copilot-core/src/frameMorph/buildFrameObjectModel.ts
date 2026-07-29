@@ -22,18 +22,6 @@ function boundsContains(outer: Bounds, inner: Bounds): boolean {
   );
 }
 
-function mergeBounds(items: Bounds[]): Bounds {
-  if (items.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const b of items) {
-    if (b.x < minX) minX = b.x;
-    if (b.y < minY) minY = b.y;
-    if (b.x + b.w > maxX) maxX = b.x + b.w;
-    if (b.y + b.h > maxY) maxY = b.y + b.h;
-  }
-  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-}
-
 function inferObjectName(elements: Array<{ kind: string; text?: string; name: string }>): string {
   const textEl = elements.find((e) => e.kind === "text" && e.text);
   if (textEl?.text) {
@@ -49,10 +37,7 @@ function isGenericName(name: string): boolean {
   return /^(组|矩形|圆形|文字|图片|线段)\s*\d*$/.test(name);
 }
 
-function classifyKind(
-  element: FrameElement,
-  children: FrameElement[]
-): FrameObjectKind {
+function classifyKind(element: FrameElement, children: FrameElement[]): FrameObjectKind {
   if (element.kind === "text") return "text";
   if (element.kind === "image" || (element.kind === "vector" && !children.length)) return "asset";
   if (element.kind === "group" || element.kind === "rect") {
@@ -100,7 +85,10 @@ function buildTree(elements: FrameElement[]): TreeNode[] {
 function treeNodeToObject(node: TreeNode, idCounter: { n: number }): FrameObject {
   const id = `obj-${idCounter.n++}`;
   const allDescendants = collectDescendants(node);
-  const kind = classifyKind(node.element, node.children.map((c) => c.element));
+  const kind = classifyKind(
+    node.element,
+    node.children.map((c) => c.element)
+  );
 
   const childObjects: FrameObject[] = [];
   const nodeIds: string[] = [node.element.nodeId];
@@ -183,7 +171,7 @@ function buildFromZeroVisualSnapshot(snapshot: ZeroVisualSnapshot): FrameObjectM
   const objects: FrameObject[] = [];
   const resolvedNodeIds = new Set<string>();
 
-  const sorted = [...nodes].sort((a, b) => (b.bounds.w * b.bounds.h) - (a.bounds.w * a.bounds.h));
+  const sorted = [...nodes].sort((a, b) => b.bounds.w * b.bounds.h - a.bounds.w * a.bounds.h);
   const assigned = new Set<string>();
 
   for (const node of sorted) {
@@ -201,7 +189,8 @@ function buildFromZeroVisualSnapshot(snapshot: ZeroVisualSnapshot): FrameObjectM
       for (const child of contained) {
         if (assigned.has(child.nodeId)) continue;
         const childContained = nodes.filter(
-          (n) => n.nodeId !== child.nodeId && !assigned.has(n.nodeId) && boundsContains(child.bounds, n.bounds)
+          (n) =>
+            n.nodeId !== child.nodeId && !assigned.has(n.nodeId) && boundsContains(child.bounds, n.bounds)
         );
         const childKind = classifyZeroNodeKind(child, childContained);
 
@@ -241,9 +230,7 @@ function buildFromZeroVisualSnapshot(snapshot: ZeroVisualSnapshot): FrameObjectM
     });
   }
 
-  const unresolvedNodeIds = nodes
-    .filter((n) => !resolvedNodeIds.has(n.nodeId))
-    .map((n) => n.nodeId);
+  const unresolvedNodeIds = nodes.filter((n) => !resolvedNodeIds.has(n.nodeId)).map((n) => n.nodeId);
 
   return { frameId: snapshot.frameId, objects, unresolvedNodeIds };
 }

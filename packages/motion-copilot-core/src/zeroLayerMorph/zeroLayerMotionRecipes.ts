@@ -4,6 +4,8 @@ import {
   compileZeroLayerMotionComposition,
   type ZeroLayerMotionCompositionResult
 } from "./compileZeroLayerMotionComposition";
+import { compileMotionPlanFromRecipe, deriveCompositionFromMotionPlan } from "./compileMotionPlan";
+import { layerIdForNode } from "./layerId";
 import {
   adaptZeroLayerRecipeParameters,
   applyZeroLayerRecipeAdaptedParameters,
@@ -77,17 +79,9 @@ function buildNodeIndex(source: ZeroLayerMorphSource): Map<string, ZeroLayerNode
     if (fromNode) nodes.set(binding.layerId, fromNode);
     if (!fromNode && toNode) nodes.set(binding.layerId, toNode);
   }
-  for (const node of source.bindingResult.enter) nodes.set(`zero-layer-${safeNodeId(node.nodeId)}`, node);
-  for (const node of source.bindingResult.exit) nodes.set(`zero-layer-${safeNodeId(node.nodeId)}`, node);
+  for (const node of source.bindingResult.enter) nodes.set(layerIdForNode(node), node);
+  for (const node of source.bindingResult.exit) nodes.set(layerIdForNode(node), node);
   return nodes;
-}
-
-function safeNodeId(nodeId: string): string {
-  return nodeId
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 function findMainLayerId(source: ZeroLayerMorphSource): string | undefined {
@@ -155,23 +149,21 @@ function tailFrameAnimate(step: CompositionStep): NonNullable<CompositionStep["a
 }
 
 function withTransformOrigin(step: CompositionStep, origin: string): CompositionStep {
-  const current = step as CompositionStep & { metadata?: Record<string, string> };
   return {
     ...step,
-    metadata: { ...current.metadata, zeroLayerTransformOrigin: origin }
-  } as CompositionStep;
+    metadata: { ...step.metadata, zeroLayerTransformOrigin: origin }
+  };
 }
 
 function withMotionStyle(step: CompositionStep, style: string): CompositionStep {
-  const current = step as CompositionStep & { metadata?: Record<string, string> };
   return {
     ...step,
     metadata: {
-      ...current.metadata,
+      ...step.metadata,
       zeroLayerMotionStyle: style,
       zeroLayerExpressionStrategy: zeroLayerExpressionStrategyIdForMotionStyle(style)
     }
-  } as CompositionStep;
+  };
 }
 
 function corridorMatchedStep(step: CompositionStep): CompositionStep {
@@ -979,6 +971,7 @@ function withSteps(
     visualSource: {
       ...baseSource,
       ...(source.nodeOverrides ? { nodeOverrides: source.nodeOverrides } : {}),
+      ...(source.motionPlan ? { motionPlan: source.motionPlan } : {}),
       ...(objects ? { objects } : {})
     }
   };
@@ -1005,10 +998,12 @@ export function applyZeroLayerMotionRecipe(
   const adaptedParameters =
     options.adaptedParameters ??
     (options.spec ? adaptZeroLayerRecipeParameters(options.spec, recipeId) : undefined);
-  const steps = adaptedParameters
+  const computedRecipeSteps = adaptedParameters
     ? applyZeroLayerRecipeAdaptedParameters(recipeSteps(recipeId, context), adaptedParameters, { orderPlan })
     : recipeSteps(recipeId, context);
-  const document = withSteps(base.document, steps, source);
+  const motionPlan = compileMotionPlanFromRecipe({ source, steps: computedRecipeSteps });
+  const steps = deriveCompositionFromMotionPlan(motionPlan, computedRecipeSteps);
+  const document = withSteps(base.document, steps, { ...source, motionPlan });
   return {
     document,
     steps,

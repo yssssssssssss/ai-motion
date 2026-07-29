@@ -62,6 +62,12 @@ function positiveNumber(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
+function assetAllowedOrigins(value: string | undefined, zeroMcpHttpUrl: string | undefined): string[] {
+  return [zeroMcpHttpUrl, ...(value?.split(",") ?? [])].filter((candidate): candidate is string =>
+    Boolean(candidate?.trim())
+  );
+}
+
 const host = process.env.HOST || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "5177", 10);
 const distDir = resolve(process.cwd(), "dist");
@@ -80,6 +86,11 @@ const zeroVisualTimeoutMs = positiveNumber(envValue(fileEnv, "ZERO_MCP_VISUAL_TI
 const zeroLayerCommand = envValue(fileEnv, "ZERO_MCP_LAYER_COMMAND");
 const zeroLayerArgs = envValue(fileEnv, "ZERO_MCP_LAYER_ARGS")?.split(/\s+/).filter(Boolean);
 const zeroLayerTimeoutMs = positiveNumber(envValue(fileEnv, "ZERO_MCP_LAYER_TIMEOUT_MS"));
+const zeroAssetMaxBytes = positiveNumber(envValue(fileEnv, "ZERO_ASSET_MAX_BYTES"));
+const zeroAssetAllowedOrigins = assetAllowedOrigins(
+  envValue(fileEnv, "ZERO_ASSET_ALLOWED_ORIGINS"),
+  zeroMcpHttpUrl
+);
 const zeroBridgeEnv = prefixedEnv(fileEnv, "ZERO_MCP_");
 
 if (!Number.isFinite(port) || port <= 0) {
@@ -124,6 +135,10 @@ createMotionCopilotProductionServer({
     ]),
     commandEnv: zeroBridgeEnv,
     ...(zeroLayerTimeoutMs ? { timeoutMs: zeroLayerTimeoutMs } : {})
+  },
+  zeroAssetConfig: {
+    allowedOrigins: zeroAssetAllowedOrigins,
+    ...(zeroAssetMaxBytes ? { maxResponseBytes: zeroAssetMaxBytes } : {})
   }
 }).listen(port, host, () => {
   console.log(`motion-copilot server listening on http://${host}:${port}`);

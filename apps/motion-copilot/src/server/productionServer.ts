@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { createGenerateDraftHandler } from "../dev-api/generateDraft";
 import { createGenerateConfigHandler } from "../dev-api/generateConfig";
+import { createGenerateZeroMotionPlanHandler } from "../dev-api/generateZeroMotionPlan";
 import { createZeroFrameSnapshotHandler, type ZeroFrameSnapshotOptions } from "../dev-api/zeroFrameSnapshot";
 import {
   createZeroVisualSnapshotHandler,
@@ -13,7 +14,7 @@ import {
   createZeroLayerFramePairHandler,
   type ZeroLayerFramePairOptions
 } from "../dev-api/zeroLayerFramePairs";
-import { createZeroAssetProxyHandler } from "../dev-api/zeroAssetProxy";
+import { createZeroAssetProxyHandler, type ZeroAssetProxyOptions } from "../dev-api/zeroAssetProxy";
 
 type CopilotModelConfig = Parameters<typeof createGenerateDraftHandler>[0];
 
@@ -24,6 +25,7 @@ type ProductionServerInput = {
   zeroVisualConfig?: ZeroVisualSnapshotOptions;
   zeroLayerConfig?: ZeroLayerSnapshotOptions;
   zeroLayerFramePairConfig?: ZeroLayerFramePairOptions;
+  zeroAssetConfig?: ZeroAssetProxyOptions;
 };
 
 const MIME_TYPES: Record<string, string> = {
@@ -67,11 +69,12 @@ export function createMotionCopilotProductionServer(input: ProductionServerInput
   const indexPath = join(distDir, "index.html");
   const configHandler = createGenerateConfigHandler(input.modelConfig);
   const generateHandler = createGenerateDraftHandler(input.modelConfig);
+  const generateZeroMotionPlanHandler = createGenerateZeroMotionPlanHandler(input.modelConfig);
   const zeroFrameHandler = createZeroFrameSnapshotHandler(input.zeroConfig);
   const zeroVisualHandler = createZeroVisualSnapshotHandler(input.zeroVisualConfig);
   const zeroLayerHandler = createZeroLayerSnapshotHandler(input.zeroLayerConfig);
   const zeroLayerFramePairHandler = createZeroLayerFramePairHandler(input.zeroLayerFramePairConfig);
-  const zeroAssetHandler = createZeroAssetProxyHandler();
+  const zeroAssetHandler = createZeroAssetProxyHandler(input.zeroAssetConfig);
 
   return createServer((req, res) => {
     const pathName = requestPath(req);
@@ -83,6 +86,11 @@ export function createMotionCopilotProductionServer(input: ProductionServerInput
 
     if (pathName === "/api/copilot/generate") {
       void generateHandler(req, res);
+      return;
+    }
+
+    if (pathName === "/api/copilot/zero-motion-plan") {
+      void generateZeroMotionPlanHandler(req, res);
       return;
     }
 

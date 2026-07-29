@@ -1,6 +1,7 @@
 import type { Bounds } from "../frameMorph/schema";
 import { compileZeroLayerMotionBindings } from "./compileZeroLayerMotionBindings";
 import { compileZeroLayerMotionComposition } from "./compileZeroLayerMotionComposition";
+import { layerIdFromNodeId } from "./layerId";
 import type { ZeroLayerMotionBindingResult, ZeroLayerNode, ZeroLayerSnapshot } from "./schema";
 import type {
   ZeroLayerDiagnosticMotionItem,
@@ -23,10 +24,6 @@ export type CreateZeroLayerDiagnosticReportInput = {
 
 const schemaVersion = "motion-copilot.zero-layer-diagnostic.v1";
 const lowConfidenceBindingThreshold = 64;
-
-function layerIdForNode(nodeId: string): string {
-  return `zero-layer-${nodeId.replace(/[^a-zA-Z0-9_-]+/g, "-") || "node"}`;
-}
 
 function easingName(value: unknown): string {
   if (value && typeof value === "object" && "preset" in value && typeof value.preset === "string") {
@@ -233,9 +230,7 @@ function lowConfidenceRisk(
   };
 }
 
-function lowConfidenceBindingRisks(
-  bindingResult: ZeroLayerMotionBindingResult
-): ZeroLayerDiagnosticRisk[] {
+function lowConfidenceBindingRisks(bindingResult: ZeroLayerMotionBindingResult): ZeroLayerDiagnosticRisk[] {
   return bindingResult.bindings
     .filter((binding) => binding.confidence < lowConfidenceBindingThreshold)
     .map((binding) => ({
@@ -268,7 +263,7 @@ function motionItems(
     };
   });
   const enter: ZeroLayerDiagnosticMotionItem[] = bindingResult.enter.map((node) => {
-    const layerId = layerIdForNode(node.nodeId);
+    const layerId = layerIdFromNodeId(node.nodeId);
     const step = byLayerId.get(layerId);
     return {
       type: "enter",
@@ -283,7 +278,7 @@ function motionItems(
     };
   });
   const exit: ZeroLayerDiagnosticMotionItem[] = bindingResult.exit.map((node) => {
-    const layerId = layerIdForNode(node.nodeId);
+    const layerId = layerIdFromNodeId(node.nodeId);
     const step = byLayerId.get(layerId);
     return {
       type: "exit",
@@ -338,7 +333,8 @@ export function deriveZeroLayerDiagnosticGate(
   const errorCount = report.risks.filter((risk) => risk.severity === "error").length;
   const warningCount = report.risks.filter((risk) => risk.severity === "warning").length;
   const totalLayers = Math.max(1, report.read.fromLayerCount + report.read.toLayerCount);
-  const unresolvedRatio = report.matching.unresolved / Math.max(1, report.matching.matched + report.matching.unresolved);
+  const unresolvedRatio =
+    report.matching.unresolved / Math.max(1, report.matching.matched + report.matching.unresolved);
   const layerDeltaRatio = Math.abs(report.read.fromLayerCount - report.read.toLayerCount) / totalLayers;
   const vectorNodeIds = riskNodeIds(report.risks, "VECTOR_APPROXIMATION");
   const lowConfidenceNodeIds = riskNodeIds(report.risks, "MATCH_LOW_CONFIDENCE");

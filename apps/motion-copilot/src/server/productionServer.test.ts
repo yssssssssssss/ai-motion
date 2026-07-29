@@ -415,10 +415,13 @@ process.stdout.write(JSON.stringify(payload));`
     const address = assetServer.address();
     if (!address || typeof address === "string") throw new Error("no asset port");
 
-    const server = createMotionCopilotProductionServer({ distDir: await createDist() });
+    const sourceUrl = `http://127.0.0.1:${address.port}/card.svg`;
+    const server = createMotionCopilotProductionServer({
+      distDir: await createDist(),
+      zeroAssetConfig: { allowedOrigins: [sourceUrl] }
+    });
     try {
       const baseUrl = await listen(server);
-      const sourceUrl = `http://127.0.0.1:${address.port}/card.svg`;
       const response = await fetch(`${baseUrl}/api/zero/asset?url=${encodeURIComponent(sourceUrl)}`);
 
       expect(response.status).toBe(200);

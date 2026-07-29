@@ -315,6 +315,13 @@ export function durationRangeForSize(size: MotionSize): { min: number; max: numb
 
 export type CompositionTiming = "sequential" | "parallel";
 
+/** 附加在 step 上的可选渲染元数据，供 zero-layer 导出/表达策略消费。 */
+export type CompositionStepMetadata = {
+  zeroLayerTransformOrigin?: string;
+  zeroLayerExpressionStrategy?: string;
+  zeroLayerMotionStyle?: string;
+};
+
 export type CompositionStep = {
   id: string;
   /** 引用的 preset ID */
@@ -343,6 +350,8 @@ export type CompositionStep = {
   easing?: EasingSpec;
   /** 片段窗口外是否保持起止状态，用于帧间过渡这类布局 morph */
   fillMode?: "none" | "forwards" | "both";
+  /** 可选渲染元数据（如 zero-layer transform-origin / 表达策略） */
+  metadata?: CompositionStepMetadata;
 };
 
 export type CompositionIssue = {

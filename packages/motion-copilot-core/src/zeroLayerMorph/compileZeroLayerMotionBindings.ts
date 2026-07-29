@@ -1,3 +1,4 @@
+import { layerIdFromNodeId } from "./layerId";
 import type {
   ZeroLayerMotionBinding,
   ZeroLayerMotionBindingResult,
@@ -6,14 +7,6 @@ import type {
 } from "./schema";
 
 const MIN_CONFIDENCE = 56;
-
-function safeId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]+/g, "-");
-}
-
-function layerIdFor(nodeId: string): string {
-  return `zero-layer-${safeId(nodeId) || "node"}`;
-}
 
 function normalized(value: string | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -88,7 +81,7 @@ export function compileZeroLayerMotionBindings(
 
   if (fromRoot && toRoot) {
     bindings.push({
-      layerId: layerIdFor(fromRoot.nodeId),
+      layerId: layerIdFromNodeId(fromRoot.nodeId),
       nodeId: fromRoot.nodeId,
       toNodeId: toRoot.nodeId,
       fromBounds: fromRoot.bounds,
@@ -119,7 +112,7 @@ export function compileZeroLayerMotionBindings(
 
     toCandidates.delete(best.layer.nodeId);
     bindings.push({
-      layerId: layerIdFor(fromLayer.nodeId),
+      layerId: layerIdFromNodeId(fromLayer.nodeId),
       nodeId: fromLayer.nodeId,
       toNodeId: best.layer.nodeId,
       fromBounds: fromLayer.bounds,

@@ -17,10 +17,9 @@ function presetKeyframeName(step: CompositionStep, index: number): string {
 }
 
 function stepEasing(step: CompositionStep): string {
-  let patch: ReturnType<ReturnType<typeof getAppMotionPreset>["apply"]> = {};
   try {
     const preset = getAppMotionPreset(step.presetId as AppMotionPresetId);
-    patch = preset.apply({
+    const patch = preset.apply({
       elements: [{ id: "p", name: "P", role: "modal", size: "medium", initial: {}, animate: {} }],
       layers: [],
       timeline: {
@@ -37,11 +36,11 @@ function stepEasing(step: CompositionStep): string {
       guidelineSuggestions: [],
       version: "0.1"
     });
+    const easing: EasingSpec = step.easing ?? patch.timeline?.easing ?? createClassicEasing("decelerate");
+    return easingCss(easing);
   } catch {
-    patch = {};
+    return easingCss(step.easing ?? createClassicEasing("decelerate"));
   }
-  const easing: EasingSpec = step.easing ?? patch.timeline?.easing ?? createClassicEasing("decelerate");
-  return easingCss(easing);
 }
 
 function stepKeyframes(step: CompositionStep, index: number): string {
@@ -64,13 +63,13 @@ function stepKeyframes(step: CompositionStep, index: number): string {
     guidelineSuggestions: [],
     version: "0.1" as const
   };
-  let patch: ReturnType<ReturnType<typeof getAppMotionPreset>["apply"]> = {};
-  try {
-    const preset = getAppMotionPreset(step.presetId as AppMotionPresetId);
-    patch = preset.apply(dummyDoc);
-  } catch {
-    patch = {};
-  }
+  const patch: ReturnType<ReturnType<typeof getAppMotionPreset>["apply"]> = (() => {
+    try {
+      return getAppMotionPreset(step.presetId as AppMotionPresetId).apply(dummyDoc);
+    } catch {
+      return {};
+    }
+  })();
   const initial = { ...(patch.element?.initial ?? {}), ...(step.initial ?? {}) };
   const animate = { ...(patch.element?.animate ?? {}), ...(step.animate ?? {}) };
   const name = presetKeyframeName(step, index);

@@ -191,4 +191,49 @@ describe("normalizeMotionPlan", () => {
     const twice: MotionPlan = normalizeMotionPlan(once);
     expect(twice).toEqual(once);
   });
+
+  it("completes endpoint keyframes, de-duplicates each layer, and keeps a user track", () => {
+    const plan = normalizeMotionPlan({
+      stageDurationMs: 20,
+      tracks: [
+        {
+          layerId: "card",
+          nodeId: "1:1",
+          kind: "morph",
+          source: "rule",
+          timing: { delayMs: 30, durationMs: 100 },
+          keyframes: [{ offset: 0.4, opacity: 0.5 }]
+        },
+        {
+          layerId: "card",
+          nodeId: "1:1",
+          kind: "morph",
+          source: "user",
+          timing: { delayMs: 40, durationMs: 120 },
+          keyframes: [
+            { offset: 0, x: 12 },
+            { offset: 1, x: 0 }
+          ]
+        }
+      ]
+    });
+
+    expect(plan.tracks).toHaveLength(1);
+    expect(plan.tracks[0]?.source).toBe("user");
+    expect(plan.stageDurationMs).toBe(160);
+
+    const endpointPlan = normalizeMotionPlan({
+      tracks: [
+        {
+          layerId: "label",
+          nodeId: "1:2",
+          kind: "enter",
+          source: "rule",
+          timing: { delayMs: 0, durationMs: 100 },
+          keyframes: [{ offset: 0.4, opacity: 0.5 }]
+        }
+      ]
+    });
+    expect(endpointPlan.tracks[0]?.keyframes.map((frame) => frame.offset)).toEqual([0, 0.4, 1]);
+  });
 });

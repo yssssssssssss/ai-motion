@@ -97,7 +97,6 @@ export function exportFrameMorphCompositionHtml(document: MotionDocument, track:
   const { steps } = track;
   if (steps.length === 0) return "<!-- 帧间组合为空 -->";
 
-  const layerMap = new Map(document.layers.map((l) => [l.id, l]));
   const windows = computeCompositionStepWindows(steps);
 
   const keyframes = steps.map((step, i) => buildKeyframe(step, i)).join("\n");

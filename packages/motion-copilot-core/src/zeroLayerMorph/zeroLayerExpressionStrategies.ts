@@ -488,11 +488,7 @@ export function zeroLayerExpressionStrategyIdForMotionStyle(
 }
 
 export function zeroLayerExpressionStrategyForStep(step: CompositionStep): ZeroLayerExpressionStrategy {
-  const metadata = (
-    step as CompositionStep & {
-      metadata?: { zeroLayerExpressionStrategy?: string; zeroLayerMotionStyle?: string };
-    }
-  ).metadata;
+  const metadata = step.metadata;
   const id =
     metadata?.zeroLayerExpressionStrategy ??
     zeroLayerExpressionStrategyIdForMotionStyle(metadata?.zeroLayerMotionStyle);

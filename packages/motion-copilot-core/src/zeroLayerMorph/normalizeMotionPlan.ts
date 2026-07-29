@@ -95,10 +95,26 @@ function normalizeKeyframe(value: unknown): MotionKeyframe | undefined {
 
 function normalizeKeyframes(value: unknown): MotionKeyframe[] {
   if (!Array.isArray(value)) return [];
-  return value
+  const frames = value
     .map(normalizeKeyframe)
     .filter((frame): frame is MotionKeyframe => frame != null)
     .sort((a, b) => a.offset - b.offset);
+  if (frames.length === 0) return [];
+
+  const uniqueFrames: MotionKeyframe[] = [];
+  for (const frame of frames) {
+    const previous = uniqueFrames.at(-1);
+    if (previous?.offset === frame.offset) {
+      Object.assign(previous, frame);
+    } else {
+      uniqueFrames.push(frame);
+    }
+  }
+  const first = uniqueFrames[0]!;
+  const last = uniqueFrames.at(-1)!;
+  if (first.offset > 0) uniqueFrames.unshift({ ...first, offset: 0 });
+  if (last.offset < 1) uniqueFrames.push({ ...last, offset: 1 });
+  return uniqueFrames;
 }
 
 function normalizeTrack(value: unknown): LayerMotionTrack | undefined {
@@ -119,6 +135,7 @@ function normalizeTrack(value: unknown): LayerMotionTrack | undefined {
     timing: { delayMs: nonNegative(timing.delayMs), durationMs: nonNegative(timing.durationMs) },
     source
   };
+  if (track.keyframes.length === 0) return undefined;
   const physics = normalizePhysics(value.physics);
   if (physics) track.physics = physics;
   const path = normalizePath(value.path);
@@ -137,12 +154,24 @@ function normalizeTrack(value: unknown): LayerMotionTrack | undefined {
  */
 export function normalizeMotionPlan(value: unknown): MotionPlan {
   const source = isRecord(value) ? value : {};
-  const tracks = Array.isArray(source.tracks)
+  const parsedTracks = Array.isArray(source.tracks)
     ? source.tracks.map(normalizeTrack).filter((track): track is LayerMotionTrack => track != null)
     : [];
+  const trackByLayerId = new Map<string, LayerMotionTrack>();
+  for (const track of parsedTracks) {
+    const existing = trackByLayerId.get(track.layerId);
+    if (!existing || (track.source === "user" && existing.source !== "user")) {
+      trackByLayerId.set(track.layerId, track);
+    }
+  }
+  const tracks = [...trackByLayerId.values()];
+  const latestTrackEnd = tracks.reduce(
+    (latest, track) => Math.max(latest, track.timing.delayMs + track.timing.durationMs),
+    0
+  );
   return {
     schemaVersion: MOTION_PLAN_SCHEMA_VERSION,
     tracks,
-    stageDurationMs: nonNegative(source.stageDurationMs)
+    stageDurationMs: Math.max(nonNegative(source.stageDurationMs), latestTrackEnd)
   };
 }

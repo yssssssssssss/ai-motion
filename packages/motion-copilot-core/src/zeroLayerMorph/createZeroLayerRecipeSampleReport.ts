@@ -1,5 +1,6 @@
 import type { Bounds } from "../frameMorph/schema";
 import type { CompositionStep, MotionState } from "../schema/document";
+import { layerIdForNode } from "./layerId";
 import {
   adaptZeroLayerRecipeParameters,
   type ZeroLayerRecipeAdaptedParameters
@@ -200,28 +201,16 @@ function baseBoundsForStep(
   const binding = bindingByLayerId(bindingResult).get(step.layerId);
   if (binding) return { bounds: binding.fromBounds, nodeId: binding.nodeId, toNodeId: binding.toNodeId };
 
-  const enterNode = bindingResult.enter.find(
-    (node) => `zero-layer-${safeNodeId(node.nodeId)}` === step.layerId
-  );
+  const enterNode = bindingResult.enter.find((node) => layerIdForNode(node) === step.layerId);
   if (enterNode) return { bounds: enterNode.bounds, nodeId: enterNode.nodeId };
 
-  const exitNode = bindingResult.exit.find(
-    (node) => `zero-layer-${safeNodeId(node.nodeId)}` === step.layerId
-  );
+  const exitNode = bindingResult.exit.find((node) => layerIdForNode(node) === step.layerId);
   if (exitNode) return { bounds: exitNode.bounds, nodeId: exitNode.nodeId };
 
   const sourceNode =
-    source.from.layers.find((node) => `zero-layer-${safeNodeId(node.nodeId)}` === step.layerId) ??
-    source.to.layers.find((node) => `zero-layer-${safeNodeId(node.nodeId)}` === step.layerId);
+    source.from.layers.find((node) => layerIdForNode(node) === step.layerId) ??
+    source.to.layers.find((node) => layerIdForNode(node) === step.layerId);
   return sourceNode ? { bounds: sourceNode.bounds, nodeId: sourceNode.nodeId } : undefined;
-}
-
-function safeNodeId(nodeId: string): string {
-  return nodeId
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 function localProgress(step: CompositionStep, timeMs: number): number {

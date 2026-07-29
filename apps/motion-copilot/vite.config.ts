@@ -40,6 +40,12 @@ function argsWithFramePairDiscovery(args: string[] | undefined, fallback: string
   return [...output, "--discover-frame-pairs"];
 }
 
+function assetAllowedOrigins(value: string | undefined, zeroMcpHttpUrl: string | undefined): string[] {
+  return [zeroMcpHttpUrl, ...(value?.split(",") ?? [])].filter((candidate): candidate is string =>
+    Boolean(candidate?.trim())
+  );
+}
+
 function parseEnvFile(url: URL): Record<string, string> {
   const file = fileURLToPath(url);
   if (!existsSync(file)) return {};
@@ -72,6 +78,7 @@ function copilotGenerateApiPlugin(env: Record<string, string>): Plugin {
   const zeroTimeoutMs = Number(envValue(env, "ZERO_MCP_SNAPSHOT_TIMEOUT_MS"));
   const zeroVisualTimeoutMs = Number(envValue(env, "ZERO_MCP_VISUAL_TIMEOUT_MS"));
   const zeroLayerTimeoutMs = Number(envValue(env, "ZERO_MCP_LAYER_TIMEOUT_MS"));
+  const zeroAssetMaxBytes = Number(envValue(env, "ZERO_ASSET_MAX_BYTES"));
   const defaultZeroSnapshotScript = fileURLToPath(
     new URL("../../scripts/zero-frame-snapshot-fixture.mjs", import.meta.url)
   );
@@ -137,6 +144,12 @@ function copilotGenerateApiPlugin(env: Record<string, string>): Plugin {
       ? { timeoutMs: zeroLayerTimeoutMs }
       : {})
   };
+  const zeroAssetConfig = {
+    allowedOrigins: assetAllowedOrigins(envValue(env, "ZERO_ASSET_ALLOWED_ORIGINS"), zeroMcpHttpUrl),
+    ...(Number.isFinite(zeroAssetMaxBytes) && zeroAssetMaxBytes > 0
+      ? { maxResponseBytes: zeroAssetMaxBytes }
+      : {})
+  };
 
   return {
     name: "motion-copilot-generate-api",
@@ -152,6 +165,12 @@ function copilotGenerateApiPlugin(env: Record<string, string>): Plugin {
           typeof import("./src/dev-api/generateDraft")
         >("/src/dev-api/generateDraft.ts");
         await createGenerateDraftHandler(modelConfig)(req, res);
+      });
+      server.middlewares.use("/api/copilot/zero-motion-plan", async (req, res) => {
+        const { createGenerateZeroMotionPlanHandler } = await server.ssrLoadModule<
+          typeof import("./src/dev-api/generateZeroMotionPlan")
+        >("/src/dev-api/generateZeroMotionPlan.ts");
+        await createGenerateZeroMotionPlanHandler(modelConfig)(req, res);
       });
       server.middlewares.use("/api/zero/frame-snapshot", async (req, res) => {
         const { createZeroFrameSnapshotHandler } = await server.ssrLoadModule<
@@ -181,7 +200,7 @@ function copilotGenerateApiPlugin(env: Record<string, string>): Plugin {
         const { createZeroAssetProxyHandler } = await server.ssrLoadModule<
           typeof import("./src/dev-api/zeroAssetProxy")
         >("/src/dev-api/zeroAssetProxy.ts");
-        await createZeroAssetProxyHandler()(req, res);
+        await createZeroAssetProxyHandler(zeroAssetConfig)(req, res);
       });
     }
   };

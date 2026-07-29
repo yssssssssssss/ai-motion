@@ -1,4 +1,5 @@
 import type { CompositionStep } from "../schema/document";
+import { layerIdForNode } from "./layerId";
 import type { ZeroLayerMorphSource, ZeroLayerNode } from "./schema";
 import {
   classifyZeroLayerRoles,
@@ -59,18 +60,6 @@ const roleGroup: Record<ZeroLayerSemanticRole, ZeroMotionOrderGroup> = {
   unknown: "decorative"
 };
 
-function safeNodeId(nodeId: string): string {
-  return nodeId
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function layerIdFor(nodeId: string): string {
-  return `zero-layer-${safeNodeId(nodeId) || "node"}`;
-}
-
 function byNodeId(nodes: ZeroLayerNode[]): Map<string, ZeroLayerNode> {
   return new Map(nodes.map((node) => [node.nodeId, node]));
 }
@@ -99,7 +88,8 @@ function roleFor(
 }
 
 function groupForStepType(step: CompositionStep, role: ZeroLayerSemanticRole): ZeroMotionOrderGroup {
-  if (step.id.startsWith("zero-layer-exit")) return role === "surface" || role === "background" ? "structure" : "exit-content";
+  if (step.id.startsWith("zero-layer-exit"))
+    return role === "surface" || role === "background" ? "structure" : "exit-content";
   if (step.id.startsWith("zero-layer-enter")) return roleGroup[role];
   return roleGroup[role] === "enter-content" ? "structure" : roleGroup[role];
 }
@@ -118,9 +108,11 @@ export function createZeroMotionOrderPlan(
   const toRoles = byRoleNodeId(roleResult.to);
   const fromNodes = byNodeId(source.from.layers);
   const toNodes = byNodeId(source.to.layers);
-  const bindingByLayerId = new Map(source.bindingResult.bindings.map((binding) => [binding.layerId, binding]));
-  const enterByLayerId = new Map(source.bindingResult.enter.map((node) => [layerIdFor(node.nodeId), node]));
-  const exitByLayerId = new Map(source.bindingResult.exit.map((node) => [layerIdFor(node.nodeId), node]));
+  const bindingByLayerId = new Map(
+    source.bindingResult.bindings.map((binding) => [binding.layerId, binding])
+  );
+  const enterByLayerId = new Map(source.bindingResult.enter.map((node) => [layerIdForNode(node), node]));
+  const exitByLayerId = new Map(source.bindingResult.exit.map((node) => [layerIdForNode(node), node]));
   const nodesForOrdering = new Map<string, ZeroLayerNode>();
   const rawItems = steps
     .map((step) => {
@@ -137,11 +129,17 @@ export function createZeroMotionOrderPlan(
       const semanticRole = role?.role ?? "unknown";
       const group = groupForStepType(step, semanticRole);
       const node = toNode ?? fromNode;
-      nodesForOrdering.set(step.layerId, node ?? ({ nodeId: step.layerId, name: step.layerId, bounds: { x: 0, y: 0, w: 0, h: 0 } } as ZeroLayerNode));
+      nodesForOrdering.set(
+        step.layerId,
+        node ??
+          ({ nodeId: step.layerId, name: step.layerId, bounds: { x: 0, y: 0, w: 0, h: 0 } } as ZeroLayerNode)
+      );
       return {
         layerId: step.layerId,
         nodeId: fromNode?.nodeId ?? toNode?.nodeId ?? step.layerId,
-        ...(toNode?.nodeId && fromNode?.nodeId && toNode.nodeId !== fromNode.nodeId ? { toNodeId: toNode.nodeId } : {}),
+        ...(toNode?.nodeId && fromNode?.nodeId && toNode.nodeId !== fromNode.nodeId
+          ? { toNodeId: toNode.nodeId }
+          : {}),
         name: nodeName(node, step.layerName ?? step.layerId),
         group,
         role: semanticRole,

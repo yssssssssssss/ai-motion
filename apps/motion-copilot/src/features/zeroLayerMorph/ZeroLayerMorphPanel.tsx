@@ -35,6 +35,7 @@ import {
 } from "../../services/zeroLayerClient";
 import { fetchZeroLayerFramePairDiscovery } from "../../services/zeroLayerFramePairClient";
 import { ZeroLayerStage } from "./ZeroLayerStage";
+import { MotionPlanEditor } from "./MotionPlanEditor";
 
 type ZeroLayerMorphPanelProps = {
   savedSource?: ZeroLayerMorphSource;
@@ -737,6 +738,9 @@ export function ZeroLayerMorphPanel({
               )}
             </div>
           </details>
+        ) : null}
+        {savedSource ? (
+          <MotionPlanEditor source={savedSource} selectedNodeId={selectedNodeId} onChange={onUpdateSource} />
         ) : null}
         {diagnosticReport ? (
           <details className="zero-layer-diagnostic-panel" aria-label="Zero 图层 harness 诊断">

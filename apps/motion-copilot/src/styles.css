@@ -2680,6 +2680,88 @@ button:disabled {
   gap: 12px;
 }
 
+.motion-plan-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(31, 122, 99, 0.2);
+  background: #f7fbf9;
+}
+
+.motion-plan-editor-header,
+.motion-plan-keyframes-header,
+.motion-plan-keyframe-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 72px;
+  gap: 8px;
+  align-items: center;
+}
+
+.motion-plan-editor-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.motion-plan-editor-header strong,
+.motion-plan-editor-header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.motion-plan-editor-header > span {
+  padding: 3px 6px;
+  color: #176d57;
+  border: 1px solid rgba(31, 122, 99, 0.25);
+  font-size: var(--text-xs);
+}
+
+.motion-plan-keyframes {
+  display: grid;
+  gap: 6px;
+}
+
+.motion-plan-generate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.motion-plan-generation-message {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.motion-plan-keyframes-header {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.motion-plan-keyframes-header strong {
+  font-weight: 500;
+  text-align: center;
+}
+
+.motion-plan-keyframe-row > span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.motion-plan-keyframe-row input {
+  min-width: 0;
+}
+
+.motion-plan-personality {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.motion-plan-personality input {
+  width: 100%;
+}
+
 .zero-layer-source-panel {
   display: grid;
   gap: 4px;

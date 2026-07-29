@@ -1560,6 +1560,9 @@ describe("Motion Copilot app", () => {
     expect(document.querySelector(".zero-layer-main-stage")).toBeTruthy();
     expect(document.querySelector('[data-zero-layer-id="28:34"]')).toBeTruthy();
     expect(document.querySelector(".zero-visual-main-stage")).toBeFalsy();
+    expect(document.querySelector('[aria-label="单轨动效编辑器"]')).toBeTruthy();
+    expect(document.querySelector<HTMLInputElement>('[aria-label="动效延迟 ms"]')).toBeTruthy();
+    expect(app.textContent).toContain("AI 编排");
     await waitFor(() => expect(savedWorkspace().document.visualSource?.kind).toBe("zero-layer-morph"));
     const diagnosticPanel = document.querySelector<HTMLDetailsElement>(
       'details[aria-label="Zero 图层 harness 诊断"]'

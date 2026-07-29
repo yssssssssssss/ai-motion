@@ -272,29 +272,27 @@ function withTransformOrigin(
   transformOrigin: ZeroLayerRecipeAdaptedParameters["transformOrigin"],
   expressionStrategyId?: ZeroLayerExpressionStrategyId
 ): CompositionStep {
-  const current = step as CompositionStep & { metadata?: Record<string, string> };
   return {
     ...step,
     metadata: {
-      ...current.metadata,
-      zeroLayerTransformOrigin: current.metadata?.zeroLayerTransformOrigin ?? transformOrigin,
+      ...step.metadata,
+      zeroLayerTransformOrigin: step.metadata?.zeroLayerTransformOrigin ?? transformOrigin,
       ...(expressionStrategyId ? { zeroLayerExpressionStrategy: expressionStrategyId } : {})
     }
-  } as CompositionStep;
+  };
 }
 
 function withExpressionStrategy(
   step: CompositionStep,
   expressionStrategyId: ZeroLayerExpressionStrategyId
 ): CompositionStep {
-  const current = step as CompositionStep & { metadata?: Record<string, string> };
   return {
     ...step,
     metadata: {
-      ...current.metadata,
-      zeroLayerExpressionStrategy: current.metadata?.zeroLayerExpressionStrategy ?? expressionStrategyId
+      ...step.metadata,
+      zeroLayerExpressionStrategy: step.metadata?.zeroLayerExpressionStrategy ?? expressionStrategyId
     }
-  } as CompositionStep;
+  };
 }
 
 export function applyZeroLayerRecipeAdaptedParameters(

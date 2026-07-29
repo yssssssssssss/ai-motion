@@ -87,7 +87,7 @@ export function responseEndpointCandidates(apiBaseUrl?: string): string[] {
   return [...new Set(candidates)].map((candidate) => `${candidate}/responses`);
 }
 
-function outputText(payload: unknown): string | null {
+export function outputText(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const response = payload as { output_text?: unknown; output?: unknown };
   if (typeof response.output_text === "string") return response.output_text;

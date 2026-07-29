@@ -7,8 +7,11 @@ import {
 } from "../schema/document";
 import { deriveZeroLayerObjects } from "./deriveZeroLayerObjects";
 import { deriveZeroLayerDiagnosticGate } from "./createZeroLayerDiagnosticReport";
+import { compileMotionPlanFromRecipe, deriveCompositionFromMotionPlan } from "./compileMotionPlan";
+import { layerIdForNode } from "./layerId";
 import type { ZeroLayerDiagnosticReport } from "./diagnosticSchema";
 import type {
+  ZeroLayerMorphSource,
   ZeroLayerMotionBinding,
   ZeroLayerMotionBindingResult,
   ZeroLayerNode,
@@ -41,17 +44,13 @@ function safeId(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-function layerIdFor(nodeId: string): string {
-  return `zero-layer-${safeId(nodeId) || "node"}`;
-}
-
 function nodeLabel(node: ZeroLayerNode): string {
   return `${node.text?.trim() || node.name} · ${node.nodeId}`;
 }
 
 function proxyLayerForNode(node: ZeroLayerNode, opacity: number, zIndex: number): MotionLayer {
   return {
-    id: layerIdFor(node.nodeId),
+    id: layerIdForNode(node),
     name: nodeLabel(node),
     kind: node.kind === "text" ? "text" : node.kind === "image" ? "image" : "shape",
     editable: true,
@@ -145,7 +144,7 @@ function enterStep(node: ZeroLayerNode, durationMs: number, index: number): Comp
     presetId,
     label: "Zero 图层进入",
     target: "selected-layer",
-    layerId: layerIdFor(node.nodeId),
+    layerId: layerIdForNode(node),
     layerName: nodeLabel(node),
     timing: index === 0 ? "sequential" : "parallel",
     delayMs: 60,
@@ -164,7 +163,7 @@ function exitStep(node: ZeroLayerNode, durationMs: number, index: number): Compo
     presetId,
     label: "Zero 图层退出",
     target: "selected-layer",
-    layerId: layerIdFor(node.nodeId),
+    layerId: layerIdForNode(node),
     layerName: nodeLabel(node),
     timing: index === 0 ? "sequential" : "parallel",
     delayMs: 0,
@@ -281,7 +280,21 @@ export function compileZeroLayerMotionComposition(
     steps.push(enterStep(node, durationMs, steps.length));
   }
 
-  const composition = evaluateComposition(steps);
+  const source: ZeroLayerMorphSource = {
+    kind: "zero-layer-morph",
+    from: input.from,
+    to: input.to,
+    bindingResult,
+    ...(input.diagnosticReport ? { diagnosticReport: input.diagnosticReport } : {}),
+    ...(optimized.optimizerReport ? { optimizerReport: optimized.optimizerReport } : {}),
+    objects: {
+      from: deriveZeroLayerObjects(input.from),
+      to: deriveZeroLayerObjects(input.to)
+    }
+  };
+  const motionPlan = compileMotionPlanFromRecipe({ source, steps });
+  const compatibleSteps = deriveCompositionFromMotionPlan(motionPlan, steps);
+  const composition = evaluateComposition(compatibleSteps);
   const document: MotionDocument = {
     version: "0.1",
     stage: {
@@ -303,7 +316,7 @@ export function compileZeroLayerMotionComposition(
       }
     ],
     layers,
-    ...(steps[0]?.layerId ? { selectedLayerId: steps[0].layerId } : {}),
+    ...(compatibleSteps[0]?.layerId ? { selectedLayerId: compatibleSteps[0].layerId } : {}),
     appliedPresets: [],
     presetResolutions: [],
     timeline: {
@@ -316,24 +329,13 @@ export function compileZeroLayerMotionComposition(
     },
     guidelineSuggestions: [],
     composition,
-    visualSource: {
-      kind: "zero-layer-morph",
-      from: input.from,
-      to: input.to,
-      bindingResult,
-      ...(input.diagnosticReport ? { diagnosticReport: input.diagnosticReport } : {}),
-      ...(optimized.optimizerReport ? { optimizerReport: optimized.optimizerReport } : {}),
-      objects: {
-        from: deriveZeroLayerObjects(input.from),
-        to: deriveZeroLayerObjects(input.to)
-      }
-    }
+    visualSource: { ...source, motionPlan }
   };
 
   return {
     document,
-    steps,
+    steps: compatibleSteps,
     bindingResult,
-    summary: `Zero 图层首尾帧动效：${steps.length} 个图层片段，${composition.totalDurationMs || durationMs}ms`
+    summary: `Zero 图层首尾帧动效：${compatibleSteps.length} 个图层片段，${composition.totalDurationMs || durationMs}ms`
   };
 }

@@ -1,14 +1,20 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
+  compileMotionPlanKeyframes,
   computeCompositionStepWindows,
   easedProgress,
+  layerIdFromNodeId,
+  sampleMotionPlan,
   type CompositionStep,
   type CompositionTrack,
+  type MotionPlan,
+  type SampledMotionPlanTrack,
   ZeroLayerAsset,
   ZeroLayerMotionBindingResult,
   ZeroLayerNode,
   ZeroLayerNodeOverride,
-  ZeroLayerSnapshot
+  ZeroLayerSnapshot,
+  zeroLayerPaintStyle
 } from "@motion-copilot/core";
 
 type RenderFrame = "from" | "to";
@@ -21,6 +27,7 @@ type LayerRenderItem = {
   transform?: string | undefined;
   transformOrigin?: string | undefined;
   opacityMultiplier?: number | undefined;
+  motionLayerId?: string | undefined;
 };
 
 type ZeroLayerStageProps = {
@@ -38,6 +45,8 @@ type ZeroLayerMotionStageProps = {
   to: ZeroLayerSnapshot;
   bindingResult: ZeroLayerMotionBindingResult;
   progress: number;
+  motionPlan?: MotionPlan | undefined;
+  isPlaying?: boolean | undefined;
   compositionTrack?: CompositionTrack | undefined;
   stageWidth?: number | undefined;
   stageHeight?: number | undefined;
@@ -52,18 +61,6 @@ function clamp(value: number): number {
 
 function lerp(from: number, to: number, progress: number): number {
   return from + (to - from) * progress;
-}
-
-function solidColor(color: string, opacity: number | undefined): string {
-  if (opacity == null || opacity >= 1) return color;
-  if (opacity <= 0) return "transparent";
-  const match = /^#([0-9a-f]{6})$/i.exec(color);
-  if (!match) return color;
-  const hex = match[1]!;
-  const red = Number.parseInt(hex.slice(0, 2), 16);
-  const green = Number.parseInt(hex.slice(2, 4), 16);
-  const blue = Number.parseInt(hex.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
 }
 
 function assetMap(snapshot: ZeroLayerSnapshot): Map<string, ZeroLayerAsset> {
@@ -100,51 +97,13 @@ function resolveNode(
   };
 }
 
-function fillStyle(node: ZeroLayerNode, assets: Map<string, ZeroLayerAsset>): CSSProperties {
-  const fill = node.fills?.[0];
-  if (!fill) return {};
-  if (node.kind === "text" && fill.type === "solid") {
-    return { color: solidColor(fill.color, fill.opacity) };
-  }
-  if (fill.type === "solid") return { background: solidColor(fill.color, fill.opacity) };
-  if (fill.type === "gradient" && fill.css) return { background: fill.css };
-  if (fill.type === "image" && fill.assetId) {
-    const asset = assets.get(fill.assetId);
-    if (asset) return { background: `url("${asset.url}") center / cover no-repeat` };
-  }
-  return {};
-}
-
-function strokeStyle(node: ZeroLayerNode): CSSProperties {
-  const stroke = node.strokes?.[0];
-  if (!stroke) return {};
-  return {
-    borderColor: solidColor(stroke.color, stroke.opacity),
-    borderStyle: "solid",
-    borderWidth: stroke.width ?? 1
-  };
-}
-
-function effectStyle(node: ZeroLayerNode): CSSProperties {
-  const style: CSSProperties = {};
-  for (const effect of node.effects ?? []) {
-    const css = effect.css?.trim();
-    if (!css) continue;
-    if (css.startsWith("box-shadow:")) {
-      style.boxShadow = css.slice("box-shadow:".length).trim();
-    } else if (css.startsWith("filter:")) {
-      style.filter = css.slice("filter:".length).trim();
-    }
-  }
-  return style;
-}
-
-function layerStyle(
-  item: LayerRenderItem,
-  assets: Map<string, ZeroLayerAsset>
-): CSSProperties {
+function layerStyle(item: LayerRenderItem, assets: Map<string, ZeroLayerAsset>): CSSProperties {
   const node = item.node;
   const opacity = node.opacity * (item.opacityMultiplier ?? 1);
+  const paint = zeroLayerPaintStyle(node, assets);
+  const transform = [item.transform, paint.rotation ? `rotate(${paint.rotation}deg)` : ""]
+    .filter(Boolean)
+    .join(" ");
   return {
     position: "absolute",
     left: node.bounds.x,
@@ -153,7 +112,7 @@ function layerStyle(
     height: node.bounds.h,
     zIndex: item.zIndex,
     opacity,
-    transform: item.transform,
+    transform: transform || undefined,
     transformOrigin: item.transformOrigin,
     overflow: node.clipsContent ? "hidden" : undefined,
     borderRadius: node.kind === "ellipse" ? "50%" : node.cornerRadius,
@@ -167,9 +126,23 @@ function layerStyle(
     fontSize: node.textStyle?.fontSize,
     fontWeight: node.textStyle?.fontWeight,
     lineHeight: node.textStyle?.lineHeight ? `${node.textStyle.lineHeight}px` : undefined,
-    ...fillStyle(node, assets),
-    ...strokeStyle(node),
-    ...effectStyle(node)
+    letterSpacing: node.textStyle?.letterSpacing,
+    fontStyle: node.textStyle?.fontStyle,
+    textDecoration: node.textStyle?.textDecoration,
+    textTransform:
+      node.textStyle?.textCase === "upper"
+        ? "uppercase"
+        : node.textStyle?.textCase === "lower"
+          ? "lowercase"
+          : node.textStyle?.textCase === "capitalize"
+            ? "capitalize"
+            : undefined,
+    background: paint.background,
+    color: paint.color,
+    border: paint.border,
+    boxShadow: paint.boxShadow,
+    filter: paint.filter,
+    mixBlendMode: paint.blendMode as CSSProperties["mixBlendMode"]
   };
 }
 
@@ -177,7 +150,8 @@ function renderLayer(
   item: LayerRenderItem,
   assets: Map<string, ZeroLayerAsset>,
   selectedNodeId: string | undefined,
-  onNodeSelect: ((nodeId: string) => void) | undefined
+  onNodeSelect: ((nodeId: string) => void) | undefined,
+  onMotionLayerElement?: ((layerId: string, element: HTMLButtonElement | null) => void) | undefined
 ): ReactNode {
   const node = item.node;
   if (!node.visible) return null;
@@ -189,16 +163,44 @@ function renderLayer(
       className={`zero-layer-node${selected ? " is-selected" : ""}`}
       data-zero-layer-id={node.nodeId}
       data-zero-layer-kind={node.kind}
+      data-zero-base-rotation={node.rotation ?? 0}
+      {...(item.motionLayerId ? { "data-motion-layer-id": item.motionLayerId } : {})}
       style={layerStyle(item, assets)}
+      ref={item.motionLayerId ? (element) => onMotionLayerElement?.(item.motionLayerId!, element) : undefined}
       onClick={(event) => {
         event.stopPropagation();
         onNodeSelect?.(node.nodeId);
       }}
       key={item.key}
     >
-      {asset ? <img src={asset.url} alt="" /> : node.text ? <span>{node.text}</span> : null}
+      {asset && (node.renderMode === "image" || node.kind === "image") ? (
+        <img src={asset.url} alt="" />
+      ) : node.text ? (
+        <span>{node.text}</span>
+      ) : null}
     </button>
   );
+}
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(media.matches);
+    onChange();
+    media.addEventListener?.("change", onChange);
+    return () => media.removeEventListener?.("change", onChange);
+  }, []);
+  return reduced;
+}
+
+function waapiTransform(frame: SampledMotionPlanTrack["state"], baseRotation: number): string {
+  return `translate(${frame.x ?? 0}px,${frame.y ?? 0}px) scale(${frame.scale ?? 1}) rotate(${(frame.rotation ?? 0) + baseRotation}deg)`;
 }
 
 function stageStyle(width: number, height: number): CSSProperties {
@@ -259,8 +261,14 @@ function interpolatedNode(from: ZeroLayerNode, to: ZeroLayerNode, progress: numb
   if (source.text != null) node.text = source.text;
   if (source.fills) node.fills = source.fills;
   if (source.strokes) node.strokes = source.strokes;
+  if (source.effects) node.effects = source.effects;
   if (source.textStyle) node.textStyle = source.textStyle;
   if (source.assetId) node.assetId = source.assetId;
+  if (source.renderMode) node.renderMode = source.renderMode;
+  if (source.blendMode) node.blendMode = source.blendMode;
+  if (from.rotation != null || to.rotation != null) {
+    node.rotation = lerp(from.rotation ?? 0, to.rotation ?? from.rotation ?? 0, progress);
+  }
   return node;
 }
 
@@ -276,14 +284,6 @@ function stepNumber(
 function stepTransformOrigin(step: CompositionStep | undefined): string | undefined {
   return (step as (CompositionStep & { metadata?: { zeroLayerTransformOrigin?: string } }) | undefined)
     ?.metadata?.zeroLayerTransformOrigin;
-}
-
-function layerIdForNodeId(nodeId: string): string {
-  return `zero-layer-${nodeId
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")}`;
 }
 
 function motionTransform(step: CompositionStep, progress: number): string | undefined {
@@ -325,6 +325,30 @@ function nodeWithStepMotion(
   };
 }
 
+function motionTransformFromState(state: SampledMotionPlanTrack["state"]): string | undefined {
+  const scale = state.scale ?? 1;
+  const rotation = state.rotation ?? 0;
+  if (scale === 1 && rotation === 0) return undefined;
+  return `scale(${scale}) rotate(${rotation}deg)`;
+}
+
+function nodeWithMotionPlan(
+  base: ZeroLayerNode,
+  state: SampledMotionPlanTrack["state"],
+  opacityBase: number
+): ZeroLayerNode {
+  return {
+    ...base,
+    bounds: {
+      x: base.bounds.x + (state.x ?? 0),
+      y: base.bounds.y + (state.y ?? 0),
+      w: state.width ?? base.bounds.w,
+      h: state.height ?? base.bounds.h
+    },
+    opacity: opacityBase * (state.opacity ?? 1)
+  };
+}
+
 function stepProgress(
   compositionTrack: CompositionTrack | undefined,
   layerId: string,
@@ -360,6 +384,8 @@ export function ZeroLayerMotionStage({
   to,
   bindingResult,
   progress,
+  motionPlan,
+  isPlaying = false,
   compositionTrack,
   stageWidth,
   stageHeight,
@@ -367,8 +393,51 @@ export function ZeroLayerMotionStage({
   overrides,
   onNodeSelect
 }: ZeroLayerMotionStageProps) {
-  const p = clamp(progress);
-  if (p <= 0) {
+  const motionLayerElements = useRef(new Map<string, HTMLButtonElement>());
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const p = prefersReducedMotion && isPlaying ? 1 : clamp(progress);
+  const playbackStartProgress = useRef(p);
+  if (!isPlaying) playbackStartProgress.current = p;
+
+  useEffect(() => {
+    if (
+      !isPlaying ||
+      prefersReducedMotion ||
+      !motionPlan ||
+      typeof Element.prototype.animate !== "function"
+    ) {
+      return undefined;
+    }
+    const initialTimeMs = playbackStartProgress.current * motionPlan.stageDurationMs;
+    const animations = compileMotionPlanKeyframes(motionPlan).flatMap((track) => {
+      const element = motionLayerElements.current.get(track.layerId);
+      if (!element) return [];
+      const baseRotation = Number(element.dataset.zeroBaseRotation ?? "0");
+      const frames = track.keyframes.map((frame) => ({
+        offset: frame.offset,
+        transform: waapiTransform(frame, baseRotation),
+        ...(frame.width != null ? { width: `${frame.width}px` } : {}),
+        ...(frame.height != null ? { height: `${frame.height}px` } : {}),
+        ...(frame.opacity != null ? { opacity: frame.opacity } : {})
+      }));
+      const animation = element.animate(frames, {
+        duration: track.timing.durationMs,
+        delay: 0,
+        easing: "linear",
+        fill: "both"
+      });
+      animation.currentTime = initialTimeMs - track.timing.delayMs;
+      return [animation];
+    });
+    return () => animations.forEach((animation) => animation.cancel());
+  }, [isPlaying, motionPlan, prefersReducedMotion]);
+
+  const onMotionLayerElement = (layerId: string, element: HTMLButtonElement | null) => {
+    if (element) motionLayerElements.current.set(layerId, element);
+    else motionLayerElements.current.delete(layerId);
+  };
+
+  if (p <= 0 && !isPlaying) {
     return (
       <ZeroLayerStage
         snapshot={from}
@@ -396,6 +465,11 @@ export function ZeroLayerMotionStage({
   }
   const fromAssets = assetMap(from);
   const toAssets = assetMap(to);
+  const sampledPlanByLayer = new Map(
+    motionPlan
+      ? sampleMotionPlan(motionPlan, p * motionPlan.stageDurationMs).map((track) => [track.layerId, track])
+      : []
+  );
   const boundFrom = new Set(bindingResult.bindings.map((binding) => binding.nodeId));
   const boundTo = new Set(bindingResult.bindings.map((binding) => binding.toNodeId));
   const exitIds = new Set(bindingResult.exit.map((node) => node.nodeId));
@@ -410,23 +484,26 @@ export function ZeroLayerMotionStage({
     if (!fromNode || !toNode) continue;
     const resolvedFrom = resolveNode(fromNode, overrides, "from");
     const resolvedTo = resolveNode(toNode, overrides, "to");
+    const sampledPlan = sampledPlanByLayer.get(binding.layerId);
     const activeStep = stepProgress(compositionTrack, binding.layerId, p);
     const nodeProgress = activeStep?.progress ?? p;
-    const node = activeStep
-      ? nodeWithStepMotion(
-          resolvedFrom,
-          activeStep.step,
-          nodeProgress,
-          resolvedFrom.opacity
-        )
-      : interpolatedNode(resolvedFrom, resolvedTo, nodeProgress);
+    const node = sampledPlan
+      ? nodeWithMotionPlan(resolvedFrom, sampledPlan.state, resolvedFrom.opacity)
+      : activeStep
+        ? nodeWithStepMotion(resolvedFrom, activeStep.step, nodeProgress, resolvedFrom.opacity)
+        : interpolatedNode(resolvedFrom, resolvedTo, nodeProgress);
     items.push({
       item: {
         key: `match-${binding.nodeId}-${binding.toNodeId}`,
         node,
         frame: "from",
         zIndex: toOrder.get(binding.toNodeId) ?? fromOrder.get(binding.nodeId) ?? 0,
-        transform: activeStep ? motionTransform(activeStep.step, nodeProgress) : undefined,
+        ...(sampledPlan ? { motionLayerId: sampledPlan.layerId } : {}),
+        transform: sampledPlan
+          ? motionTransformFromState(sampledPlan.state)
+          : activeStep
+            ? motionTransform(activeStep.step, nodeProgress)
+            : undefined,
         transformOrigin: stepTransformOrigin(activeStep?.step)
       },
       assets: activeStep ? fromAssets : p < 0.5 ? fromAssets : toAssets
@@ -437,19 +514,28 @@ export function ZeroLayerMotionStage({
     if (!node.visible || boundFrom.has(node.nodeId) || node.nodeId === from.nodeId) continue;
     const isExit = exitIds.has(node.nodeId);
     const resolved = resolveNode(node, overrides, "from");
-    const activeStep = isExit ? stepProgress(compositionTrack, layerIdForNodeId(node.nodeId), p) : undefined;
-    const renderedNode = activeStep
-      ? nodeWithStepMotion(resolved, activeStep.step, activeStep.progress, resolved.opacity)
-      : resolved;
+    const layerId = layerIdFromNodeId(node.nodeId);
+    const sampledPlan = isExit ? sampledPlanByLayer.get(layerId) : undefined;
+    const activeStep = isExit ? stepProgress(compositionTrack, layerId, p) : undefined;
+    const renderedNode = sampledPlan
+      ? nodeWithMotionPlan(resolved, sampledPlan.state, resolved.opacity)
+      : activeStep
+        ? nodeWithStepMotion(resolved, activeStep.step, activeStep.progress, resolved.opacity)
+        : resolved;
     items.push({
       item: {
         key: `from-${node.nodeId}`,
         node: renderedNode,
         frame: "from",
         zIndex: (fromOrder.get(node.nodeId) ?? 0) - 1,
-        transform: activeStep ? motionTransform(activeStep.step, activeStep.progress) : undefined,
+        ...(sampledPlan ? { motionLayerId: sampledPlan.layerId } : {}),
+        transform: sampledPlan
+          ? motionTransformFromState(sampledPlan.state)
+          : activeStep
+            ? motionTransform(activeStep.step, activeStep.progress)
+            : undefined,
         transformOrigin: stepTransformOrigin(activeStep?.step),
-        opacityMultiplier: activeStep ? 1 : isExit ? 1 - p : p < 1 ? 1 : 0
+        opacityMultiplier: sampledPlan || activeStep ? 1 : isExit ? 1 - p : p < 1 ? 1 : 0
       },
       assets: fromAssets
     });
@@ -459,19 +545,28 @@ export function ZeroLayerMotionStage({
     if (!node.visible || boundTo.has(node.nodeId) || node.nodeId === to.nodeId) continue;
     const isEnter = enterIds.has(node.nodeId);
     const resolved = resolveNode(node, overrides, "to");
-    const activeStep = isEnter ? stepProgress(compositionTrack, layerIdForNodeId(node.nodeId), p) : undefined;
-    const renderedNode = activeStep
-      ? nodeWithStepMotion(resolved, activeStep.step, activeStep.progress, resolved.opacity)
-      : resolved;
+    const layerId = layerIdFromNodeId(node.nodeId);
+    const sampledPlan = isEnter ? sampledPlanByLayer.get(layerId) : undefined;
+    const activeStep = isEnter ? stepProgress(compositionTrack, layerId, p) : undefined;
+    const renderedNode = sampledPlan
+      ? nodeWithMotionPlan(resolved, sampledPlan.state, resolved.opacity)
+      : activeStep
+        ? nodeWithStepMotion(resolved, activeStep.step, activeStep.progress, resolved.opacity)
+        : resolved;
     items.push({
       item: {
         key: `to-${node.nodeId}`,
         node: renderedNode,
         frame: "to",
         zIndex: toOrder.get(node.nodeId) ?? 0,
-        transform: activeStep ? motionTransform(activeStep.step, activeStep.progress) : undefined,
+        ...(sampledPlan ? { motionLayerId: sampledPlan.layerId } : {}),
+        transform: sampledPlan
+          ? motionTransformFromState(sampledPlan.state)
+          : activeStep
+            ? motionTransform(activeStep.step, activeStep.progress)
+            : undefined,
         transformOrigin: stepTransformOrigin(activeStep?.step),
-        opacityMultiplier: activeStep ? 1 : isEnter ? p : p > 0 ? 1 : 0
+        opacityMultiplier: sampledPlan || activeStep ? 1 : isEnter ? p : p > 0 ? 1 : 0
       },
       assets: toAssets
     });
@@ -487,7 +582,9 @@ export function ZeroLayerMotionStage({
     >
       {items
         .sort((left, right) => left.item.zIndex - right.item.zIndex)
-        .map(({ item, assets }) => renderLayer(item, assets, selectedNodeId, onNodeSelect))}
+        .map(({ item, assets }) =>
+          renderLayer(item, assets, selectedNodeId, onNodeSelect, onMotionLayerElement)
+        )}
     </div>
   );
 }

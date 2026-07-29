@@ -11,6 +11,7 @@ import {
   createSpringEasing,
   createVisualTimelineCss,
   createVisualTimelineCssForTrack,
+  deriveCompositionFromMotionPlan,
   easedProgress,
   evaluateComposition,
   evaluateGuidelines,
@@ -20,8 +21,10 @@ import {
   exportHtmlCss,
   exportStandaloneHtml,
   layerById,
+  layerIdFromNodeId,
   primaryElement,
   selectedLayer,
+  updateMotionPlanTrackFromCompositionSteps,
   type AppMotionPresetTarget,
   type AppMotionPresetDefinition,
   type AppMotionPresetId,
@@ -39,7 +42,6 @@ import {
   type MotionDocumentPatch,
   type MotionLayer,
   type MotionLayerKind,
-  type MotionSize,
   type MotionState,
   type SuggestionStatus,
   type ZeroLayerMotionBindingResult,
@@ -53,6 +55,7 @@ import {
 } from "@motion-copilot/core";
 import { generateDraftViaService } from "./services/generateDraftClient";
 import { FrameMorphPanel } from "./features/frameMorph/FrameMorphPanel";
+import { MotionPlanEditor } from "./features/zeroLayerMorph/MotionPlanEditor";
 import { VisualStage } from "./features/visualStage/VisualStage";
 import { ZeroLayerMorphPanel } from "./features/zeroLayerMorph/ZeroLayerMorphPanel";
 import { ZeroLayerMotionStage } from "./features/zeroLayerMorph/ZeroLayerStage";
@@ -61,11 +64,6 @@ const defaultPrompt = "做一个中型弹窗，弹性一点出现";
 const loopIntervalMs = 500;
 const workspaceStorageKey = "motion-copilot-workspace";
 const projectSchemaVersion = "0.2";
-const sizes: Array<{ value: MotionSize; label: string }> = [
-  { value: "small", label: "小" },
-  { value: "medium", label: "中" },
-  { value: "large", label: "大" }
-];
 const easingOptions: Array<{ value: ClassicEasingPreset | "spring"; label: string }> = [
   { value: "decelerate", label: "减速" },
   { value: "accelerate", label: "加速" },
@@ -351,18 +349,6 @@ function isZeroLayerLayerId(layerId: string | undefined): boolean {
   return Boolean(layerId?.startsWith("zero-layer-"));
 }
 
-function zeroLayerSafeId(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function zeroLayerLayerIdForNode(nodeId: string): string {
-  return `zero-layer-${zeroLayerSafeId(nodeId) || "node"}`;
-}
-
 type ZeroLayerOverrideTarget = Pick<ZeroLayerNodeOverride, "frame" | "nodeId">;
 
 function finiteNumber(value: unknown): value is number {
@@ -373,7 +359,7 @@ function zeroLayerLayerIdForSelection(source: ZeroLayerMorphSource, nodeId: stri
   const binding = source.bindingResult.bindings.find(
     (item) => item.nodeId === nodeId || item.toNodeId === nodeId
   );
-  return binding?.layerId ?? zeroLayerLayerIdForNode(nodeId);
+  return binding?.layerId ?? layerIdFromNodeId(nodeId);
 }
 
 function zeroLayerNodeIdForLayerId(
@@ -383,9 +369,9 @@ function zeroLayerNodeIdForLayerId(
   if (!source || !layerId) return undefined;
   const binding = source.bindingResult.bindings.find((item) => item.layerId === layerId);
   if (binding) return binding.nodeId;
-  const fromNode = source.from.layers.find((node) => zeroLayerLayerIdForNode(node.nodeId) === layerId);
+  const fromNode = source.from.layers.find((node) => layerIdFromNodeId(node.nodeId) === layerId);
   if (fromNode) return fromNode.nodeId;
-  return source.to.layers.find((node) => zeroLayerLayerIdForNode(node.nodeId) === layerId)?.nodeId;
+  return source.to.layers.find((node) => layerIdFromNodeId(node.nodeId) === layerId)?.nodeId;
 }
 
 function zeroLayerOverrideTargetsForLayerId(
@@ -400,9 +386,9 @@ function zeroLayerOverrideTargetsForLayerId(
       { frame: "to", nodeId: binding.toNodeId }
     ];
   }
-  const fromNode = source.from.layers.find((node) => zeroLayerLayerIdForNode(node.nodeId) === layerId);
+  const fromNode = source.from.layers.find((node) => layerIdFromNodeId(node.nodeId) === layerId);
   if (fromNode) return [{ frame: "from", nodeId: fromNode.nodeId }];
-  const toNode = source.to.layers.find((node) => zeroLayerLayerIdForNode(node.nodeId) === layerId);
+  const toNode = source.to.layers.find((node) => layerIdFromNodeId(node.nodeId) === layerId);
   return toNode ? [{ frame: "to", nodeId: toNode.nodeId }] : [];
 }
 
@@ -863,29 +849,6 @@ function compositionStepState(
   return sampleState(motion.initial, motion.animate, eased);
 }
 
-function activeCompositionStep(
-  track: CompositionTrack,
-  playhead: number,
-  target: AppMotionPresetTarget,
-  layerId?: string
-): { step: CompositionStep; progress: number } | undefined {
-  if (track.totalDurationMs <= 0) return undefined;
-  const currentMs = clampProgress(playhead) * track.totalDurationMs;
-  const windows = computeCompositionStepWindows(track.steps);
-  let active: { step: CompositionStep; progress: number } | undefined;
-
-  for (const window of windows) {
-    if (currentMs < window.start || currentMs > window.end) continue;
-    const step = track.steps.find((item) => item.id === window.stepId);
-    if (!step || step.target !== target) continue;
-    if (target === "selected-layer" && step.layerId !== layerId) continue;
-    const duration = Math.max(1, step.durationMs);
-    active = { step, progress: (currentMs - window.start) / duration };
-  }
-
-  return active;
-}
-
 function activeCompositionStepIds(track: CompositionTrack, playhead: number): Set<string> {
   const activeIds = new Set<string>();
   if (track.totalDurationMs <= 0) return activeIds;
@@ -1162,7 +1125,7 @@ function CanvasPreview({
   function selectZeroLayerNode(nodeId: string) {
     const layerId = zeroLayerSource
       ? zeroLayerLayerIdForSelection(zeroLayerSource, nodeId)
-      : zeroLayerLayerIdForNode(nodeId);
+      : layerIdFromNodeId(nodeId);
     if (document.layers.some((layer) => layer.id === layerId)) onSelect(layerId);
   }
 
@@ -1578,6 +1541,8 @@ function CanvasPreview({
                 to={zeroLayerToSnapshot}
                 bindingResult={zeroLayerBindingResult}
                 progress={visualProgress}
+                motionPlan={zeroLayerSource.motionPlan}
+                isPlaying={isPlaying}
                 compositionTrack={compositionTrack}
                 stageWidth={zeroLayerStageWidth}
                 stageHeight={zeroLayerStageHeight}
@@ -2377,9 +2342,7 @@ function CompositionPanel({
         role={options.ghost ? undefined : "button"}
         tabIndex={options.ghost ? undefined : 0}
         title={
-          options.ghost
-            ? undefined
-            : `${step.label} · ${stepWindow?.start ?? 0}ms · ${step.durationMs}ms`
+          options.ghost ? undefined : `${step.label} · ${stepWindow?.start ?? 0}ms · ${step.durationMs}ms`
         }
         data-step-id={step.id}
         onClick={options.ghost ? undefined : (event) => onStepClick(event, step.id)}
@@ -2461,7 +2424,11 @@ function CompositionPanel({
                 } as React.CSSProperties
               }
             >
-              <CompositionTimeline steps={steps} totalMs={track.totalDurationMs} activeStepIds={activeStepIds} />
+              <CompositionTimeline
+                steps={steps}
+                totalMs={track.totalDurationMs}
+                activeStepIds={activeStepIds}
+              />
               {lanes.map((lane) => {
                 const isCollapsed = collapsedLaneKeys.has(lane.key);
                 return (
@@ -2860,7 +2827,8 @@ function Inspector({
               <span>{frameMotionModeLabel}</span>
             </div>
             <p className="empty-state">
-              这里的核心是管理两帧之间的动效，不是修改 Zero 稿件本身。Zero 原生图层是主链路；高保真只作为视觉对照；低保真只用于调试和 fallback。
+              这里的核心是管理两帧之间的动效，不是修改 Zero 稿件本身。Zero
+              原生图层是主链路；高保真只作为视觉对照；低保真只用于调试和 fallback。
             </p>
             <div className="frame-motion-mode-tabs" role="tablist" aria-label="帧间动效模式">
               <button
@@ -2886,18 +2854,27 @@ function Inspector({
               </button>
             </div>
             {frameWorkspaceMode === "zeroNative" ? (
-              <ZeroLayerMorphPanel
-                onApplyComposition={onApplyZeroLayerMotionComposition}
-                onUpdateSource={onUpdateZeroLayerSource}
-                selectedNodeId={selectedZeroLayerNodeId}
-                onSelectNode={(nodeId) => {
-                  if (document.visualSource?.kind !== "zero-layer-morph") return;
-                  onPatch({ selectedLayerId: zeroLayerLayerIdForSelection(document.visualSource, nodeId) });
-                }}
-                {...(document.visualSource?.kind === "zero-layer-morph"
-                  ? { savedSource: document.visualSource }
-                  : {})}
-              />
+              <>
+                <ZeroLayerMorphPanel
+                  onApplyComposition={onApplyZeroLayerMotionComposition}
+                  onUpdateSource={onUpdateZeroLayerSource}
+                  selectedNodeId={selectedZeroLayerNodeId}
+                  onSelectNode={(nodeId) => {
+                    if (document.visualSource?.kind !== "zero-layer-morph") return;
+                    onPatch({ selectedLayerId: zeroLayerLayerIdForSelection(document.visualSource, nodeId) });
+                  }}
+                  {...(document.visualSource?.kind === "zero-layer-morph"
+                    ? { savedSource: document.visualSource }
+                    : {})}
+                />
+                {document.visualSource?.kind === "zero-layer-morph" ? (
+                  <MotionPlanEditor
+                    source={document.visualSource}
+                    selectedNodeId={selectedZeroLayerNodeId}
+                    onChange={onUpdateZeroLayerSource}
+                  />
+                ) : null}
+              </>
             ) : (
               <FrameMorphPanel
                 mode={frameWorkspaceMode === "visual" ? "visual" : "legacy"}
@@ -2960,196 +2937,201 @@ function Inspector({
                   <span>属性面板只保留动效片段参数</span>
                 </div>
                 <p className="empty-state">
-                  当前视觉源来自 Zero 首尾帧。请在「帧间动效」中读取图层、查看配对、修改 Zero 原生图层；这里不再提供普通稿件样式编辑，避免修改代理图层后与真实渲染不一致。
+                  当前视觉源来自 Zero 首尾帧。请在「帧间动效」中读取图层、查看配对、修改 Zero
+                  原生图层；这里不再提供普通稿件样式编辑，避免修改代理图层后与真实渲染不一致。
                 </p>
               </section>
             ) : null}
 
             {!isFrameMotionDocument ? (
-            <>
-            <section className="panel-section">
-              <p className="eyebrow">画布与素材</p>
-              <label className="field">
-                <span>画布尺寸</span>
-                <select
-                  aria-label="画布尺寸"
-                  value={selectedStagePreset}
-                  onChange={(event) => {
-                    const option = stagePresetOptions.find((item) => item.value === event.target.value);
-                    if (option) onPatch({ stage: option.stage });
-                  }}
-                >
-                  <option value="custom">自定义尺寸</option>
-                  {stagePresetOptions.map((option) => (
-                    <option value={option.value} key={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="field-row">
-                <label className="field">
-                  <span>宽度</span>
-                  <input
-                    type="number"
-                    value={document.stage.width}
-                    onChange={(event) =>
-                      onPatch({ stage: { mode: "custom", width: Number(event.target.value) } })
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>高度</span>
-                  <input
-                    type="number"
-                    value={document.stage.height}
-                    onChange={(event) =>
-                      onPatch({ stage: { mode: "custom", height: Number(event.target.value) } })
-                    }
-                  />
-                </label>
-              </div>
-              <label className="field">
-                <span>背景色</span>
-                <input
-                  type="color"
-                  value={document.stage.background}
-                  onChange={(event) => onPatch({ stage: { background: event.target.value } })}
-                />
-              </label>
-              <label className="field">
-                <span>安全区参考线</span>
-                <select
-                  aria-label="安全区参考线"
-                  value={document.stage.showSafeArea ? "show" : "hide"}
-                  onChange={(event) => onPatch({ stage: { showSafeArea: event.target.value === "show" } })}
-                >
-                  <option value="hide">隐藏</option>
-                  <option value="show">显示</option>
-                </select>
-              </label>
-              <div className="asset-actions">
-                <label className="small-action file-action">
-                  <input
-                    aria-label="上传背景图"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    onChange={(event) => void uploadBackground(event.target.files?.[0])}
-                  />
-                  <span>上传背景图</span>
-                </label>
-                <button
-                  type="button"
-                  className="small-action"
-                  onClick={() => onPatch({ stage: { backgroundImage: "", backgroundAlt: "" } })}
-                >
-                  清除背景图
-                </button>
-              </div>
-              <div className="field-row">
-                <label className="field">
-                  <span>背景适配</span>
-                  <select
-                    value={document.stage.backgroundFit ?? "cover"}
-                    onChange={(event) =>
-                      onPatch({ stage: { backgroundFit: event.target.value as ImageFit } })
-                    }
-                  >
-                    {fitOptions.map((option) => (
-                      <option value={option.value} key={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>背景焦点</span>
-                  <select
-                    value={document.stage.backgroundPosition ?? "center"}
-                    onChange={(event) =>
-                      onPatch({ stage: { backgroundPosition: event.target.value as ImagePosition } })
-                    }
-                  >
-                    {positionOptions.map((option) => (
-                      <option value={option.value} key={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </section>
-
-            <section className="panel-section">
-              <p className="eyebrow">动效参数</p>
-              <div className="field-row">
-                <label className="field">
-                  <span>时长 ms</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={document.timeline.durationMs}
-                    onChange={(event) => onPatch({ timeline: { durationMs: Number(event.target.value) } })}
-                  />
-                </label>
-                <label className="field">
-                  <span>延迟 ms</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={document.timeline.delayMs}
-                    onChange={(event) => onPatch({ timeline: { delayMs: Number(event.target.value) } })}
-                  />
-                </label>
-              </div>
-              <div className="easing-field-row">
-                <label className="field">
-                  <span>缓动</span>
-                  <select
-                    value={easingValue(document.timeline.easing)}
-                    onChange={(event) =>
-                      onPatch({
-                        timeline: {
-                          easing: easingFromValue(event.target.value as ClassicEasingPreset | "spring")
+              <>
+                <section className="panel-section">
+                  <p className="eyebrow">画布与素材</p>
+                  <label className="field">
+                    <span>画布尺寸</span>
+                    <select
+                      aria-label="画布尺寸"
+                      value={selectedStagePreset}
+                      onChange={(event) => {
+                        const option = stagePresetOptions.find((item) => item.value === event.target.value);
+                        if (option) onPatch({ stage: option.stage });
+                      }}
+                    >
+                      <option value="custom">自定义尺寸</option>
+                      {stagePresetOptions.map((option) => (
+                        <option value={option.value} key={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="field-row">
+                    <label className="field">
+                      <span>宽度</span>
+                      <input
+                        type="number"
+                        value={document.stage.width}
+                        onChange={(event) =>
+                          onPatch({ stage: { mode: "custom", width: Number(event.target.value) } })
                         }
-                      })
-                    }
-                  >
-                    {easingOptions.map((option) => (
-                      <option value={option.value} key={option.value}>
-                        {option.label}
-                      </option>
+                      />
+                    </label>
+                    <label className="field">
+                      <span>高度</span>
+                      <input
+                        type="number"
+                        value={document.stage.height}
+                        onChange={(event) =>
+                          onPatch({ stage: { mode: "custom", height: Number(event.target.value) } })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <label className="field">
+                    <span>背景色</span>
+                    <input
+                      type="color"
+                      value={document.stage.background}
+                      onChange={(event) => onPatch({ stage: { background: event.target.value } })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>安全区参考线</span>
+                    <select
+                      aria-label="安全区参考线"
+                      value={document.stage.showSafeArea ? "show" : "hide"}
+                      onChange={(event) =>
+                        onPatch({ stage: { showSafeArea: event.target.value === "show" } })
+                      }
+                    >
+                      <option value="hide">隐藏</option>
+                      <option value="show">显示</option>
+                    </select>
+                  </label>
+                  <div className="asset-actions">
+                    <label className="small-action file-action">
+                      <input
+                        aria-label="上传背景图"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        onChange={(event) => void uploadBackground(event.target.files?.[0])}
+                      />
+                      <span>上传背景图</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="small-action"
+                      onClick={() => onPatch({ stage: { backgroundImage: "", backgroundAlt: "" } })}
+                    >
+                      清除背景图
+                    </button>
+                  </div>
+                  <div className="field-row">
+                    <label className="field">
+                      <span>背景适配</span>
+                      <select
+                        value={document.stage.backgroundFit ?? "cover"}
+                        onChange={(event) =>
+                          onPatch({ stage: { backgroundFit: event.target.value as ImageFit } })
+                        }
+                      >
+                        {fitOptions.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>背景焦点</span>
+                      <select
+                        value={document.stage.backgroundPosition ?? "center"}
+                        onChange={(event) =>
+                          onPatch({ stage: { backgroundPosition: event.target.value as ImagePosition } })
+                        }
+                      >
+                        {positionOptions.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </section>
+
+                <section className="panel-section">
+                  <p className="eyebrow">动效参数</p>
+                  <div className="field-row">
+                    <label className="field">
+                      <span>时长 ms</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={document.timeline.durationMs}
+                        onChange={(event) =>
+                          onPatch({ timeline: { durationMs: Number(event.target.value) } })
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span>延迟 ms</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={document.timeline.delayMs}
+                        onChange={(event) => onPatch({ timeline: { delayMs: Number(event.target.value) } })}
+                      />
+                    </label>
+                  </div>
+                  <div className="easing-field-row">
+                    <label className="field">
+                      <span>缓动</span>
+                      <select
+                        value={easingValue(document.timeline.easing)}
+                        onChange={(event) =>
+                          onPatch({
+                            timeline: {
+                              easing: easingFromValue(event.target.value as ClassicEasingPreset | "spring")
+                            }
+                          })
+                        }
+                      >
+                        {easingOptions.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <EasingCurvePreview easing={easingValue(document.timeline.easing)} />
+                  </div>
+                  <div className="state-grid">
+                    <span />
+                    <strong>起始</strong>
+                    <strong>结束</strong>
+                    {(["y", "scale", "opacity", "blur"] as const).map((field) => (
+                      <Fragment key={field}>
+                        <span key={`${field}-label`}>{field}</span>
+                        <input
+                          key={`${field}-initial`}
+                          type="number"
+                          step={field === "scale" || field === "opacity" ? "0.01" : "1"}
+                          value={element.initial[field] ?? (field === "scale" || field === "opacity" ? 1 : 0)}
+                          onChange={(event) => patchInitial(field, Number(event.target.value))}
+                        />
+                        <input
+                          key={`${field}-animate`}
+                          type="number"
+                          step={field === "scale" || field === "opacity" ? "0.01" : "1"}
+                          value={element.animate[field] ?? (field === "scale" || field === "opacity" ? 1 : 0)}
+                          onChange={(event) => patchAnimate(field, Number(event.target.value))}
+                        />
+                      </Fragment>
                     ))}
-                  </select>
-                </label>
-                <EasingCurvePreview easing={easingValue(document.timeline.easing)} />
-              </div>
-              <div className="state-grid">
-                <span />
-                <strong>起始</strong>
-                <strong>结束</strong>
-                {(["y", "scale", "opacity", "blur"] as const).map((field) => (
-                  <Fragment key={field}>
-                    <span key={`${field}-label`}>{field}</span>
-                    <input
-                      key={`${field}-initial`}
-                      type="number"
-                      step={field === "scale" || field === "opacity" ? "0.01" : "1"}
-                      value={element.initial[field] ?? (field === "scale" || field === "opacity" ? 1 : 0)}
-                      onChange={(event) => patchInitial(field, Number(event.target.value))}
-                    />
-                    <input
-                      key={`${field}-animate`}
-                      type="number"
-                      step={field === "scale" || field === "opacity" ? "0.01" : "1"}
-                      value={element.animate[field] ?? (field === "scale" || field === "opacity" ? 1 : 0)}
-                      onChange={(event) => patchAnimate(field, Number(event.target.value))}
-                    />
-                  </Fragment>
-                ))}
-              </div>
-            </section>
-            </>
+                  </div>
+                </section>
+              </>
             ) : null}
 
             <section className="panel-section">
@@ -3285,465 +3267,479 @@ function Inspector({
             </section>
 
             {!isFrameMotionDocument ? (
-            <>
-            <section className="panel-section">
-              <p className="eyebrow">已应用动效</p>
-              {(document.appliedPresets ?? []).length === 0 ? (
-                <p className="empty-state">还没有应用 App 规范动效。</p>
-              ) : null}
-              {(document.appliedPresets ?? []).map((preset) => {
-                const definition = appMotionPresetById.get(preset.id as AppMotionPresetId);
-                return (
-                  <div
-                    className="preset-stack-row"
-                    key={`${preset.target ?? "target"}-${preset.layerId ?? "target"}-${preset.slot}-${preset.id}`}
-                  >
-                    <div className="preset-stack-header">
-                      <strong>{preset.label}</strong>
-                      <span>{appliedPresetTargetLabel(preset)}</span>
-                    </div>
-                    {definition ? (
-                      <div className="preset-guideline-detail">
-                        <p className="guideline-summary">{definition.summary}</p>
-                        <dl className="guideline-meta">
-                          <dt>规范定义</dt>
-                          <dd>{definition.guideline}</dd>
-                          <dt>适用场景</dt>
-                          <dd>{appMotionSceneLabels[definition.scene]}</dd>
-                          <dt>槽位</dt>
-                          <dd>{definition.slot}</dd>
-                        </dl>
+              <>
+                <section className="panel-section">
+                  <p className="eyebrow">已应用动效</p>
+                  {(document.appliedPresets ?? []).length === 0 ? (
+                    <p className="empty-state">还没有应用 App 规范动效。</p>
+                  ) : null}
+                  {(document.appliedPresets ?? []).map((preset) => {
+                    const definition = appMotionPresetById.get(preset.id as AppMotionPresetId);
+                    return (
+                      <div
+                        className="preset-stack-row"
+                        key={`${preset.target ?? "target"}-${preset.layerId ?? "target"}-${preset.slot}-${preset.id}`}
+                      >
+                        <div className="preset-stack-header">
+                          <strong>{preset.label}</strong>
+                          <span>{appliedPresetTargetLabel(preset)}</span>
+                        </div>
+                        {definition ? (
+                          <div className="preset-guideline-detail">
+                            <p className="guideline-summary">{definition.summary}</p>
+                            <dl className="guideline-meta">
+                              <dt>规范定义</dt>
+                              <dd>{definition.guideline}</dd>
+                              <dt>适用场景</dt>
+                              <dd>{appMotionSceneLabels[definition.scene]}</dd>
+                              <dt>槽位</dt>
+                              <dd>{definition.slot}</dd>
+                            </dl>
+                          </div>
+                        ) : null}
                       </div>
+                    );
+                  })}
+                </section>
+
+                <section className="panel-section">
+                  <p className="eyebrow">规范修正</p>
+                  {(document.presetResolutions ?? []).length === 0 ? (
+                    <p className="empty-state">当前组合没有触发自动修正。</p>
+                  ) : null}
+                  {(document.presetResolutions ?? []).map((resolution) => (
+                    <article className="preset-resolution" key={`${resolution.id}-${resolution.presetId}`}>
+                      <div className="suggestion-title">
+                        <strong>{resolution.title}</strong>
+                        <span>{resolution.action}</span>
+                      </div>
+                      <p>{resolution.reason}</p>
+                    </article>
+                  ))}
+                </section>
+
+                {layer ? (
+                  <section className="panel-section">
+                    <p className="eyebrow">内容与动效</p>
+                    <div className="selected-layer-readout">
+                      <strong>{layer.name}</strong>
+                      <span>{layer.kind}</span>
+                    </div>
+                    <label className="check-field">
+                      <input
+                        type="checkbox"
+                        checked={!layer.hidden}
+                        onChange={(event) => patchLayer({ id: layer.id, hidden: !event.target.checked })}
+                      />
+                      <span>显示图层</span>
+                    </label>
+                    {layer.content?.text !== undefined ? (
+                      <label className="field">
+                        <span>文案</span>
+                        <textarea
+                          className="compact-textarea"
+                          value={layer.content.text}
+                          onChange={(event) =>
+                            patchLayer({ id: layer.id, content: { text: event.target.value } })
+                          }
+                        />
+                      </label>
                     ) : null}
-                  </div>
-                );
-              })}
-            </section>
-
-            <section className="panel-section">
-              <p className="eyebrow">规范修正</p>
-              {(document.presetResolutions ?? []).length === 0 ? (
-                <p className="empty-state">当前组合没有触发自动修正。</p>
-              ) : null}
-              {(document.presetResolutions ?? []).map((resolution) => (
-                <article className="preset-resolution" key={`${resolution.id}-${resolution.presetId}`}>
-                  <div className="suggestion-title">
-                    <strong>{resolution.title}</strong>
-                    <span>{resolution.action}</span>
-                  </div>
-                  <p>{resolution.reason}</p>
-                </article>
-              ))}
-            </section>
-
-            {layer ? (
-              <section className="panel-section">
-                <p className="eyebrow">内容与动效</p>
-                <div className="selected-layer-readout">
-                  <strong>{layer.name}</strong>
-                  <span>{layer.kind}</span>
-                </div>
-                <label className="check-field">
-                  <input
-                    type="checkbox"
-                    checked={!layer.hidden}
-                    onChange={(event) => patchLayer({ id: layer.id, hidden: !event.target.checked })}
-                  />
-                  <span>显示图层</span>
-                </label>
-                {layer.content?.text !== undefined ? (
-                  <label className="field">
-                    <span>文案</span>
-                    <textarea
-                      className="compact-textarea"
-                      value={layer.content.text}
-                      onChange={(event) =>
-                        patchLayer({ id: layer.id, content: { text: event.target.value } })
-                      }
-                    />
-                  </label>
-                ) : null}
-                {layer.layout ? (
-                  <>
-                    <div className="field-row">
-                      <label className="field">
-                        <span>X</span>
-                        <input
-                          type="number"
-                          value={layer.layout.x}
-                          onChange={(event) => patchLayerLayout({ x: Number(event.target.value) })}
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Y</span>
-                        <input
-                          type="number"
-                          value={layer.layout.y}
-                          onChange={(event) => patchLayerLayout({ y: Number(event.target.value) })}
-                        />
-                      </label>
-                    </div>
-                    <div className="field-row">
-                      <label className="field">
-                        <span>宽</span>
-                        <input
-                          type="number"
-                          value={layer.layout.width}
-                          onChange={(event) => patchLayerLayout({ width: Number(event.target.value) })}
-                        />
-                      </label>
-                      <label className="field">
-                        <span>高</span>
-                        <input
-                          type="number"
-                          value={layer.layout.height}
-                          onChange={(event) => patchLayerLayout({ height: Number(event.target.value) })}
-                        />
-                      </label>
-                    </div>
-                    <div className="field-row">
-                      <label className="field">
-                        <span>透明度</span>
-                        <input
-                          aria-label="图层透明度"
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value={layer.style?.opacity ?? 1}
-                          onChange={(event) =>
-                            patchLayer({ id: layer.id, style: { opacity: Number(event.target.value) } })
-                          }
-                        />
-                      </label>
-                      <label className="field">
-                        <span>圆角</span>
-                        <input
-                          aria-label="图层圆角"
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={layer.style?.radius ?? 0}
-                          onChange={(event) =>
-                            patchLayer({ id: layer.id, style: { radius: Number(event.target.value) } })
-                          }
-                        />
-                      </label>
-                    </div>
-                    <div className="field-row">
-                      <label className="field">
-                        <span>前景色</span>
-                        <input
-                          type="color"
-                          value={layer.style?.color ?? "#1f2328"}
-                          onChange={(event) =>
-                            patchLayer({ id: layer.id, style: { color: event.target.value } })
-                          }
-                        />
-                      </label>
-                      <label className="field">
-                        <span>背景色</span>
-                        <input
-                          type="color"
-                          value={layer.style?.background ?? "#ffffff"}
-                          onChange={(event) =>
-                            patchLayer({ id: layer.id, style: { background: event.target.value } })
-                          }
-                        />
-                      </label>
-                    </div>
-                    {layer.kind === "text" ? (
+                    {layer.layout ? (
                       <>
                         <div className="field-row">
                           <label className="field">
-                            <span>字号</span>
+                            <span>X</span>
                             <input
-                              aria-label="文本字号"
                               type="number"
-                              min="8"
-                              max="96"
-                              step="1"
-                              value={layer.style?.fontSize ?? 13}
+                              value={layer.layout.x}
+                              onChange={(event) => patchLayerLayout({ x: Number(event.target.value) })}
+                            />
+                          </label>
+                          <label className="field">
+                            <span>Y</span>
+                            <input
+                              type="number"
+                              value={layer.layout.y}
+                              onChange={(event) => patchLayerLayout({ y: Number(event.target.value) })}
+                            />
+                          </label>
+                        </div>
+                        <div className="field-row">
+                          <label className="field">
+                            <span>宽</span>
+                            <input
+                              type="number"
+                              value={layer.layout.width}
+                              onChange={(event) => patchLayerLayout({ width: Number(event.target.value) })}
+                            />
+                          </label>
+                          <label className="field">
+                            <span>高</span>
+                            <input
+                              type="number"
+                              value={layer.layout.height}
+                              onChange={(event) => patchLayerLayout({ height: Number(event.target.value) })}
+                            />
+                          </label>
+                        </div>
+                        <div className="field-row">
+                          <label className="field">
+                            <span>透明度</span>
+                            <input
+                              aria-label="图层透明度"
+                              type="number"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={layer.style?.opacity ?? 1}
                               onChange={(event) =>
-                                patchLayer({ id: layer.id, style: { fontSize: Number(event.target.value) } })
+                                patchLayer({ id: layer.id, style: { opacity: Number(event.target.value) } })
                               }
                             />
                           </label>
                           <label className="field">
-                            <span>字重</span>
+                            <span>圆角</span>
+                            <input
+                              aria-label="图层圆角"
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={layer.style?.radius ?? 0}
+                              onChange={(event) =>
+                                patchLayer({ id: layer.id, style: { radius: Number(event.target.value) } })
+                              }
+                            />
+                          </label>
+                        </div>
+                        <div className="field-row">
+                          <label className="field">
+                            <span>前景色</span>
+                            <input
+                              type="color"
+                              value={layer.style?.color ?? "#1f2328"}
+                              onChange={(event) =>
+                                patchLayer({ id: layer.id, style: { color: event.target.value } })
+                              }
+                            />
+                          </label>
+                          <label className="field">
+                            <span>背景色</span>
+                            <input
+                              type="color"
+                              value={layer.style?.background ?? "#ffffff"}
+                              onChange={(event) =>
+                                patchLayer({ id: layer.id, style: { background: event.target.value } })
+                              }
+                            />
+                          </label>
+                        </div>
+                        {layer.kind === "text" ? (
+                          <>
+                            <div className="field-row">
+                              <label className="field">
+                                <span>字号</span>
+                                <input
+                                  aria-label="文本字号"
+                                  type="number"
+                                  min="8"
+                                  max="96"
+                                  step="1"
+                                  value={layer.style?.fontSize ?? 13}
+                                  onChange={(event) =>
+                                    patchLayer({
+                                      id: layer.id,
+                                      style: { fontSize: Number(event.target.value) }
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="field">
+                                <span>字重</span>
+                                <select
+                                  aria-label="文本字重"
+                                  value={String(layer.style?.fontWeight ?? 500)}
+                                  onChange={(event) =>
+                                    patchLayer({
+                                      id: layer.id,
+                                      style: { fontWeight: Number(event.target.value) }
+                                    })
+                                  }
+                                >
+                                  <option value="400">常规</option>
+                                  <option value="500">中等</option>
+                                  <option value="700">加粗</option>
+                                  <option value="800">强调</option>
+                                </select>
+                              </label>
+                            </div>
+                            <div className="field-row">
+                              <label className="field">
+                                <span>行高</span>
+                                <input
+                                  aria-label="文本行高"
+                                  type="number"
+                                  min="0.8"
+                                  max="3"
+                                  step="0.1"
+                                  value={layer.style?.lineHeight ?? 1}
+                                  onChange={(event) =>
+                                    patchLayer({
+                                      id: layer.id,
+                                      style: { lineHeight: Number(event.target.value) }
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label className="field">
+                                <span>对齐</span>
+                                <select
+                                  aria-label="文本对齐"
+                                  value={layer.style?.textAlign ?? "center"}
+                                  onChange={(event) =>
+                                    patchLayer({
+                                      id: layer.id,
+                                      style: { textAlign: event.target.value as "left" | "center" | "right" }
+                                    })
+                                  }
+                                >
+                                  <option value="left">左对齐</option>
+                                  <option value="center">居中</option>
+                                  <option value="right">右对齐</option>
+                                </select>
+                              </label>
+                            </div>
+                          </>
+                        ) : null}
+                        {layer.kind === "image" ? (
+                          <div className="field-row">
+                            <label className="field">
+                              <span>图片适配</span>
+                              <select
+                                aria-label="图片适配"
+                                value={layer.style?.fit ?? "cover"}
+                                onChange={(event) =>
+                                  patchLayer({ id: layer.id, style: { fit: event.target.value as ImageFit } })
+                                }
+                              >
+                                {fitOptions.map((option) => (
+                                  <option value={option.value} key={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="field">
+                              <span>图片焦点</span>
+                              <select
+                                aria-label="图片焦点"
+                                value={layer.style?.position ?? "center"}
+                                onChange={(event) =>
+                                  patchLayer({
+                                    id: layer.id,
+                                    style: { position: event.target.value as ImagePosition }
+                                  })
+                                }
+                              >
+                                {positionOptions.map((option) => (
+                                  <option value={option.value} key={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                        ) : null}
+                        <label className="field">
+                          <span>图层动效</span>
+                          <select
+                            value={layer.motion?.preset ?? "none"}
+                            onChange={(event) =>
+                              patchLayer({
+                                id: layer.id,
+                                motion: { preset: event.target.value as LayerMotionPreset }
+                              })
+                            }
+                          >
+                            {motionOptions.map((option) => (
+                              <option value={option.value} key={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </>
+                    ) : null}
+                    {layer.kind === "image" ? (
+                      <div className="asset-actions">
+                        <label className="small-action file-action">
+                          <input
+                            aria-label="上传图层图片"
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            onChange={(event) => void uploadLayerImage(event.target.files?.[0])}
+                          />
+                          <span>上传图片</span>
+                        </label>
+                        <button
+                          type="button"
+                          className="small-action"
+                          onClick={() => patchLayer({ id: layer.id, content: { src: "" } })}
+                        >
+                          清除图片
+                        </button>
+                      </div>
+                    ) : null}
+                    {layer.layout ? (
+                      <div className="field-row">
+                        <label className="field">
+                          <span>图层时长</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={layer.motion?.durationMs ?? 220}
+                            onChange={(event) =>
+                              patchLayer({ id: layer.id, motion: { durationMs: Number(event.target.value) } })
+                            }
+                          />
+                        </label>
+                        <label className="field">
+                          <span>图层延迟</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={layer.motion?.delayMs ?? 0}
+                            onChange={(event) =>
+                              patchLayer({ id: layer.id, motion: { delayMs: Number(event.target.value) } })
+                            }
+                          />
+                        </label>
+                      </div>
+                    ) : null}
+                    {layer.layout ? (
+                      <>
+                        <div className="field-row">
+                          <label className="field">
+                            <span>入场方向</span>
                             <select
-                              aria-label="文本字重"
-                              value={String(layer.style?.fontWeight ?? 500)}
+                              value={layer.motion?.direction ?? ""}
                               onChange={(event) =>
                                 patchLayer({
                                   id: layer.id,
-                                  style: { fontWeight: Number(event.target.value) }
+                                  motion: {
+                                    direction: (event.target.value ||
+                                      undefined) as MotionLayer["motion"] extends { direction?: infer D }
+                                      ? D
+                                      : never
+                                  }
                                 })
                               }
                             >
-                              <option value="400">常规</option>
-                              <option value="500">中等</option>
-                              <option value="700">加粗</option>
-                              <option value="800">强调</option>
+                              <option value="">默认</option>
+                              <option value="up">上</option>
+                              <option value="down">下</option>
+                              <option value="left">左</option>
+                              <option value="right">右</option>
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span>位移距离</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="2"
+                              value={layer.motion?.distance ?? 18}
+                              onChange={(event) =>
+                                patchLayer({ id: layer.id, motion: { distance: Number(event.target.value) } })
+                              }
+                            />
+                          </label>
+                        </div>
+                        <div className="field-row">
+                          <label className="field">
+                            <span>缩放起始</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="2"
+                              step="0.01"
+                              value={layer.motion?.scaleFrom ?? 1}
+                              onChange={(event) =>
+                                patchLayer({
+                                  id: layer.id,
+                                  motion: { scaleFrom: Number(event.target.value) }
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="field">
+                            <span>缓动</span>
+                            <select
+                              value={
+                                layer.motion?.easing
+                                  ? layer.motion.easing.type === "spring"
+                                    ? "spring"
+                                    : layer.motion.easing.preset
+                                  : "decelerate"
+                              }
+                              onChange={(event) =>
+                                patchLayer({
+                                  id: layer.id,
+                                  motion: {
+                                    easing: easingFromValue(
+                                      event.target.value as ClassicEasingPreset | "spring"
+                                    )
+                                  }
+                                })
+                              }
+                            >
+                              {easingOptions.map((option) => (
+                                <option value={option.value} key={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
                             </select>
                           </label>
                         </div>
                         <div className="field-row">
                           <label className="field">
-                            <span>行高</span>
+                            <span>透明度起始</span>
                             <input
-                              aria-label="文本行高"
                               type="number"
-                              min="0.8"
-                              max="3"
-                              step="0.1"
-                              value={layer.style?.lineHeight ?? 1}
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={layer.motion?.opacityFrom ?? 0}
                               onChange={(event) =>
                                 patchLayer({
                                   id: layer.id,
-                                  style: { lineHeight: Number(event.target.value) }
+                                  motion: { opacityFrom: Number(event.target.value) }
                                 })
                               }
                             />
                           </label>
                           <label className="field">
-                            <span>对齐</span>
-                            <select
-                              aria-label="文本对齐"
-                              value={layer.style?.textAlign ?? "center"}
+                            <span>透明度结束</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={layer.motion?.opacityTo ?? 1}
                               onChange={(event) =>
                                 patchLayer({
                                   id: layer.id,
-                                  style: { textAlign: event.target.value as "left" | "center" | "right" }
+                                  motion: { opacityTo: Number(event.target.value) }
                                 })
                               }
-                            >
-                              <option value="left">左对齐</option>
-                              <option value="center">居中</option>
-                              <option value="right">右对齐</option>
-                            </select>
+                            />
                           </label>
                         </div>
                       </>
                     ) : null}
-                    {layer.kind === "image" ? (
-                      <div className="field-row">
-                        <label className="field">
-                          <span>图片适配</span>
-                          <select
-                            aria-label="图片适配"
-                            value={layer.style?.fit ?? "cover"}
-                            onChange={(event) =>
-                              patchLayer({ id: layer.id, style: { fit: event.target.value as ImageFit } })
-                            }
-                          >
-                            {fitOptions.map((option) => (
-                              <option value={option.value} key={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="field">
-                          <span>图片焦点</span>
-                          <select
-                            aria-label="图片焦点"
-                            value={layer.style?.position ?? "center"}
-                            onChange={(event) =>
-                              patchLayer({
-                                id: layer.id,
-                                style: { position: event.target.value as ImagePosition }
-                              })
-                            }
-                          >
-                            {positionOptions.map((option) => (
-                              <option value={option.value} key={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                    ) : null}
-                    <label className="field">
-                      <span>图层动效</span>
-                      <select
-                        value={layer.motion?.preset ?? "none"}
-                        onChange={(event) =>
-                          patchLayer({
-                            id: layer.id,
-                            motion: { preset: event.target.value as LayerMotionPreset }
-                          })
-                        }
-                      >
-                        {motionOptions.map((option) => (
-                          <option value={option.value} key={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </>
+                  </section>
                 ) : null}
-                {layer.kind === "image" ? (
-                  <div className="asset-actions">
-                    <label className="small-action file-action">
-                      <input
-                        aria-label="上传图层图片"
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp,image/gif"
-                        onChange={(event) => void uploadLayerImage(event.target.files?.[0])}
-                      />
-                      <span>上传图片</span>
-                    </label>
-                    <button
-                      type="button"
-                      className="small-action"
-                      onClick={() => patchLayer({ id: layer.id, content: { src: "" } })}
-                    >
-                      清除图片
-                    </button>
-                  </div>
-                ) : null}
-                {layer.layout ? (
-                  <div className="field-row">
-                    <label className="field">
-                      <span>图层时长</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={layer.motion?.durationMs ?? 220}
-                        onChange={(event) =>
-                          patchLayer({ id: layer.id, motion: { durationMs: Number(event.target.value) } })
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span>图层延迟</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={layer.motion?.delayMs ?? 0}
-                        onChange={(event) =>
-                          patchLayer({ id: layer.id, motion: { delayMs: Number(event.target.value) } })
-                        }
-                      />
-                    </label>
-                  </div>
-                ) : null}
-                {layer.layout ? (
-                  <>
-                    <div className="field-row">
-                      <label className="field">
-                        <span>入场方向</span>
-                        <select
-                          value={layer.motion?.direction ?? ""}
-                          onChange={(event) =>
-                            patchLayer({
-                              id: layer.id,
-                              motion: {
-                                direction: (event.target.value ||
-                                  undefined) as MotionLayer["motion"] extends { direction?: infer D }
-                                  ? D
-                                  : never
-                              }
-                            })
-                          }
-                        >
-                          <option value="">默认</option>
-                          <option value="up">上</option>
-                          <option value="down">下</option>
-                          <option value="left">左</option>
-                          <option value="right">右</option>
-                        </select>
-                      </label>
-                      <label className="field">
-                        <span>位移距离</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="2"
-                          value={layer.motion?.distance ?? 18}
-                          onChange={(event) =>
-                            patchLayer({ id: layer.id, motion: { distance: Number(event.target.value) } })
-                          }
-                        />
-                      </label>
-                    </div>
-                    <div className="field-row">
-                      <label className="field">
-                        <span>缩放起始</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="2"
-                          step="0.01"
-                          value={layer.motion?.scaleFrom ?? 1}
-                          onChange={(event) =>
-                            patchLayer({ id: layer.id, motion: { scaleFrom: Number(event.target.value) } })
-                          }
-                        />
-                      </label>
-                      <label className="field">
-                        <span>缓动</span>
-                        <select
-                          value={
-                            layer.motion?.easing
-                              ? layer.motion.easing.type === "spring"
-                                ? "spring"
-                                : layer.motion.easing.preset
-                              : "decelerate"
-                          }
-                          onChange={(event) =>
-                            patchLayer({
-                              id: layer.id,
-                              motion: {
-                                easing: easingFromValue(event.target.value as ClassicEasingPreset | "spring")
-                              }
-                            })
-                          }
-                        >
-                          {easingOptions.map((option) => (
-                            <option value={option.value} key={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <div className="field-row">
-                      <label className="field">
-                        <span>透明度起始</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value={layer.motion?.opacityFrom ?? 0}
-                          onChange={(event) =>
-                            patchLayer({ id: layer.id, motion: { opacityFrom: Number(event.target.value) } })
-                          }
-                        />
-                      </label>
-                      <label className="field">
-                        <span>透明度结束</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value={layer.motion?.opacityTo ?? 1}
-                          onChange={(event) =>
-                            patchLayer({ id: layer.id, motion: { opacityTo: Number(event.target.value) } })
-                          }
-                        />
-                      </label>
-                    </div>
-                  </>
-                ) : null}
-              </section>
-            ) : null}
-            </>
+              </>
             ) : null}
           </>
         ) : (
@@ -4269,15 +4265,34 @@ export function App() {
   }
 
   function updateZeroLayerSource(source: ZeroLayerMorphSource) {
+    const nextSteps = source.motionPlan
+      ? deriveCompositionFromMotionPlan(source.motionPlan, compositionSteps)
+      : compositionSteps;
+    setCompositionSteps(nextSteps);
     setMotionDocument((current) => {
       if (current.visualSource?.kind !== "zero-layer-morph") return current;
       return {
         ...current,
         visualSource: source,
-        composition: compositionTrack
+        composition: evaluateComposition(nextSteps)
       };
     });
     setHasStarted(true);
+  }
+
+  function persistZeroLayerMotionPlan(steps: CompositionStep[], layerId: string): void {
+    setMotionDocument((current) => {
+      if (current.visualSource?.kind !== "zero-layer-morph") return current;
+      const source = current.visualSource;
+      return {
+        ...current,
+        composition: evaluateComposition(steps),
+        visualSource: {
+          ...source,
+          motionPlan: updateMotionPlanTrackFromCompositionSteps(source, steps, layerId)
+        }
+      };
+    });
   }
 
   function removeCompositionStep(stepId: string) {
@@ -4296,32 +4311,39 @@ export function App() {
   }
 
   function toggleStepTiming(stepId: string) {
-    setCompositionSteps((current) =>
-      current.map((s) =>
-        s.id === stepId ? { ...s, timing: s.timing === "sequential" ? "parallel" : "sequential" } : s
-      )
+    const next: CompositionStep[] = compositionSteps.map((step) =>
+      step.id === stepId
+        ? { ...step, timing: step.timing === "sequential" ? "parallel" : "sequential" }
+        : step
     );
+    setCompositionSteps(next);
+    const editedStep = next.find((step) => step.id === stepId);
+    if (editedStep?.layerId) persistZeroLayerMotionPlan(next, editedStep.layerId);
   }
 
   function updateCompositionStep(stepId: string, patch: CompositionStepPatch) {
-    setCompositionSteps((current) =>
-      current.map((step, index) => {
-        if (step.id !== stepId) return step;
-        return {
-          ...step,
-          ...(typeof patch.delayMs === "number" ? { delayMs: Math.max(0, patch.delayMs) } : {}),
-          ...(typeof patch.durationMs === "number" ? { durationMs: Math.max(1, patch.durationMs) } : {}),
-          ...(patch.timing && index > 0 ? { timing: patch.timing } : {}),
-          ...(patch.initial ? { initial: { ...(step.initial ?? {}), ...patch.initial } } : {}),
-          ...(patch.animate ? { animate: { ...(step.animate ?? {}), ...patch.animate } } : {}),
-          ...(patch.easing ? { easing: patch.easing } : {})
-        };
-      })
-    );
+    const next = compositionSteps.map((step, index) => {
+      if (step.id !== stepId) return step;
+      return {
+        ...step,
+        ...(typeof patch.delayMs === "number" ? { delayMs: Math.max(0, patch.delayMs) } : {}),
+        ...(typeof patch.durationMs === "number" ? { durationMs: Math.max(1, patch.durationMs) } : {}),
+        ...(patch.timing && index > 0 ? { timing: patch.timing } : {}),
+        ...(patch.initial ? { initial: { ...(step.initial ?? {}), ...patch.initial } } : {}),
+        ...(patch.animate ? { animate: { ...(step.animate ?? {}), ...patch.animate } } : {}),
+        ...(patch.easing ? { easing: patch.easing } : {})
+      };
+    });
+    setCompositionSteps(next);
+    const editedStep = next.find((step) => step.id === stepId);
+    if (editedStep?.layerId) persistZeroLayerMotionPlan(next, editedStep.layerId);
   }
 
   function updateCompositionStepStart(stepId: string, startMs: number) {
-    setCompositionSteps((current) => updateStepStart(current, stepId, startMs));
+    const next = updateStepStart(compositionSteps, stepId, startMs);
+    setCompositionSteps(next);
+    const editedStep = next.find((step) => step.id === stepId);
+    if (editedStep?.layerId) persistZeroLayerMotionPlan(next, editedStep.layerId);
   }
 
   function resetCompositionStepMotion(stepId: string) {
