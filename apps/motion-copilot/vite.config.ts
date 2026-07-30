@@ -2,49 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-
-function envValue(env: Record<string, string>, name: string): string | undefined {
-  return process.env[name] || env[name] || undefined;
-}
-
-function prefixedEnv(env: Record<string, string>, prefix: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  const names = new Set([...Object.keys(env), ...Object.keys(process.env)]);
-  for (const name of names) {
-    if (!name.startsWith(prefix)) continue;
-    const value = envValue(env, name);
-    if (value) result[name] = value;
-  }
-  return result;
-}
-
-function argsWithNodeId(args: string[] | undefined, fallback: string[]): string[] {
-  if (!args || args.length === 0) return fallback;
-  return args.some((arg) => arg.includes("{nodeId}")) ? args : [...args, "--node-id", "{nodeId}"];
-}
-
-function argsWithFramePairDiscovery(args: string[] | undefined, fallback: string[]): string[] {
-  if (!args || args.length === 0) return fallback;
-  if (args.includes("--discover-frame-pairs")) return args;
-  const output: string[] = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (!arg) continue;
-    if (arg === "--node-id") {
-      index += 1;
-      continue;
-    }
-    if (arg.includes("{nodeId}")) continue;
-    output.push(arg);
-  }
-  return [...output, "--discover-frame-pairs"];
-}
-
-function assetAllowedOrigins(value: string | undefined, zeroMcpHttpUrl: string | undefined): string[] {
-  return [zeroMcpHttpUrl, ...(value?.split(",") ?? [])].filter((candidate): candidate is string =>
-    Boolean(candidate?.trim())
-  );
-}
+import { buildCopilotServerConfig } from "./src/server/serverConfig";
 
 function parseEnvFile(url: URL): Record<string, string> {
   const file = fileURLToPath(url);
@@ -74,82 +32,15 @@ function loadCopilotEnv(mode: string): Record<string, string> {
 }
 
 function copilotGenerateApiPlugin(env: Record<string, string>): Plugin {
-  const timeoutMs = Number(envValue(env, "OPENAI_GENERATION_TIMEOUT_MS"));
-  const zeroTimeoutMs = Number(envValue(env, "ZERO_MCP_SNAPSHOT_TIMEOUT_MS"));
-  const zeroVisualTimeoutMs = Number(envValue(env, "ZERO_MCP_VISUAL_TIMEOUT_MS"));
-  const zeroLayerTimeoutMs = Number(envValue(env, "ZERO_MCP_LAYER_TIMEOUT_MS"));
-  const zeroAssetMaxBytes = Number(envValue(env, "ZERO_ASSET_MAX_BYTES"));
-  const defaultZeroSnapshotScript = fileURLToPath(
-    new URL("../../scripts/zero-frame-snapshot-fixture.mjs", import.meta.url)
-  );
-  const defaultZeroVisualScript = fileURLToPath(
-    new URL("../../scripts/zero-visual-snapshot-fixture.mjs", import.meta.url)
-  );
-  const defaultZeroLayerScript = fileURLToPath(
-    new URL("../../scripts/zero-layer-snapshot-fixture.mjs", import.meta.url)
-  );
-  const defaultZeroMcpLayerBridge = fileURLToPath(
-    new URL("../../scripts/zero-mcp-layer-bridge.mjs", import.meta.url)
-  );
-  const zeroBridgeEnv = prefixedEnv(env, "ZERO_MCP_");
-  const zeroMcpHttpUrl = envValue(env, "ZERO_MCP_HTTP_URL");
-  const modelConfig = {
-    apiKey: envValue(env, "OPENAI_API_KEY"),
-    apiBaseUrl: envValue(env, "OPENAI_BASE_URL"),
-    model: envValue(env, "OPENAI_GENERATION_MODEL") ?? "gpt-5.5",
-    ...(Number.isFinite(timeoutMs) && timeoutMs > 0 ? { modelTimeoutMs: timeoutMs } : {})
-  };
-  const zeroConfig = {
-    snapshotCommand: envValue(env, "ZERO_MCP_SNAPSHOT_COMMAND") ?? process.execPath,
-    snapshotArgs: argsWithNodeId(envValue(env, "ZERO_MCP_SNAPSHOT_ARGS")?.split(/\s+/).filter(Boolean), [
-      defaultZeroSnapshotScript,
-      "--node-id",
-      "{nodeId}"
-    ]),
-    commandEnv: zeroBridgeEnv,
-    ...(Number.isFinite(zeroTimeoutMs) && zeroTimeoutMs > 0 ? { timeoutMs: zeroTimeoutMs } : {})
-  };
-  const zeroVisualConfig = {
-    visualCommand: envValue(env, "ZERO_MCP_VISUAL_COMMAND") ?? process.execPath,
-    visualArgs: argsWithNodeId(envValue(env, "ZERO_MCP_VISUAL_ARGS")?.split(/\s+/).filter(Boolean), [
-      defaultZeroVisualScript,
-      "--node-id",
-      "{nodeId}"
-    ]),
-    commandEnv: zeroBridgeEnv,
-    ...(Number.isFinite(zeroVisualTimeoutMs) && zeroVisualTimeoutMs > 0
-      ? { timeoutMs: zeroVisualTimeoutMs }
-      : {})
-  };
-  const zeroLayerConfig = {
-    layerCommand: envValue(env, "ZERO_MCP_LAYER_COMMAND") ?? process.execPath,
-    layerArgs: argsWithNodeId(envValue(env, "ZERO_MCP_LAYER_ARGS")?.split(/\s+/).filter(Boolean), [
-      zeroMcpHttpUrl ? defaultZeroMcpLayerBridge : defaultZeroLayerScript,
-      "--node-id",
-      "{nodeId}"
-    ]),
-    commandEnv: zeroBridgeEnv,
-    ...(Number.isFinite(zeroLayerTimeoutMs) && zeroLayerTimeoutMs > 0
-      ? { timeoutMs: zeroLayerTimeoutMs }
-      : {})
-  };
-  const zeroLayerFramePairConfig = {
-    discoveryCommand: envValue(env, "ZERO_MCP_LAYER_COMMAND") ?? process.execPath,
-    discoveryArgs: argsWithFramePairDiscovery(
-      envValue(env, "ZERO_MCP_LAYER_ARGS")?.split(/\s+/).filter(Boolean),
-      [defaultZeroMcpLayerBridge, "--discover-frame-pairs"]
-    ),
-    commandEnv: zeroBridgeEnv,
-    ...(Number.isFinite(zeroLayerTimeoutMs) && zeroLayerTimeoutMs > 0
-      ? { timeoutMs: zeroLayerTimeoutMs }
-      : {})
-  };
-  const zeroAssetConfig = {
-    allowedOrigins: assetAllowedOrigins(envValue(env, "ZERO_ASSET_ALLOWED_ORIGINS"), zeroMcpHttpUrl),
-    ...(Number.isFinite(zeroAssetMaxBytes) && zeroAssetMaxBytes > 0
-      ? { maxResponseBytes: zeroAssetMaxBytes }
-      : {})
-  };
+  const scriptsDir = fileURLToPath(new URL("../../scripts", import.meta.url));
+  const {
+    modelConfig,
+    zeroConfig,
+    zeroVisualConfig,
+    zeroLayerConfig,
+    zeroLayerFramePairConfig,
+    zeroAssetConfig
+  } = buildCopilotServerConfig(env, { scriptsDir });
 
   return {
     name: "motion-copilot-generate-api",
