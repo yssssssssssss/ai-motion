@@ -1,5 +1,6 @@
 // Loaded only by the MotionLens Vite dev/preview server.
 // The browser app never receives OPENAI_API_KEY.
+import type { ServerResponse } from "node:http";
 import {
   createBlueprintFromVision,
   type DesignElement,
@@ -17,12 +18,6 @@ type MotionLensRequest = {
   on(event: "end", listener: () => void): void;
   on(event: "error", listener: (error: Error) => void): void;
   destroy(): void;
-};
-
-type MotionLensResponse = {
-  statusCode: number;
-  setHeader(name: string, value: string): void;
-  end(body: string): void;
 };
 
 type AnalyzeMotionLensInput = {
@@ -77,9 +72,11 @@ function readBody(req: MotionLensRequest, maxBytes: number): Promise<string> {
   });
 }
 
-function writeJson(res: MotionLensResponse, statusCode: number, value: unknown): void {
-  res.statusCode = statusCode;
-  res.setHeader("Content-Type", "application/json");
+function writeJson(res: ServerResponse, statusCode: number, value: unknown): void {
+  if (!res.headersSent) {
+    res.statusCode = statusCode;
+    res.setHeader("Content-Type", "application/json");
+  }
   res.end(JSON.stringify(value));
 }
 
@@ -552,24 +549,34 @@ export async function analyzeMotionLensDraft(
 export function createMotionLensAnalyzeHandler(options: AnalyzeMotionLensOptions = {}) {
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
 
-  return async function motionLensAnalyzeHandler(
-    req: MotionLensRequest,
-    res: MotionLensResponse
-  ): Promise<void> {
+  return async function motionLensAnalyzeHandler(req: MotionLensRequest, res: ServerResponse): Promise<void> {
     if (req.method !== "POST") {
       writeJson(res, 405, { error: "Method not allowed" });
       return;
     }
 
+    let keepAlive: ReturnType<typeof setInterval> | undefined;
+    const stopKeepAlive = () => clearInterval(keepAlive);
+    res.once("close", stopKeepAlive);
+
     try {
       const raw = await readBody(req, maxBodyBytes);
       const parsed = JSON.parse(raw || "{}") as AnalyzeMotionLensInput;
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("X-Accel-Buffering", "no");
+      // JSON permits leading whitespace. Keep the gateway active while the model runs.
+      keepAlive = setInterval(() => res.write(" "), 15_000);
+      keepAlive.unref();
       const result = await analyzeMotionLensDraft(parsed, options);
       writeJson(res, 200, result);
     } catch (error) {
       writeJson(res, 400, {
         error: error instanceof Error ? error.message : "AI 分析失败。"
       });
+    } finally {
+      stopKeepAlive();
+      res.off("close", stopKeepAlive);
     }
   };
 }

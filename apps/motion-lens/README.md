@@ -51,3 +51,33 @@ Exports use this envelope:
 ```
 
 The importer also accepts legacy payloads containing `{ "blueprint": ... }`.
+
+## JoyApp Deployment
+
+From the repository root, prepare a standalone release:
+
+```bash
+node scripts/prepare-motion-lens-joyapp.mjs
+```
+
+The command builds Motion Lens and prints a temporary `projectDir` for `imagination_deploy`.
+The release contains the client assets and a Node 22 server with no runtime npm dependencies.
+A CommonJS launcher accommodates the platform's injected SSO guard; the business bundle remains ESM.
+
+Deploy with `appCode: "ai-motion-lens"`, `mode: "local"`, `withGuard: true`, and
+`startCmd: "node server/index.js"`. Updates reuse this appCode and omit `domainPrefix`.
+The business server reads `PORT`; the guard owns 8080 and assigns the business port.
+Slow analysis responses send JSON whitespace every 15 seconds to keep the platform gateway active;
+clients still consume a single complete JSON response.
+
+Pass `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_GENERATION_MODEL` through `deployEnv`.
+The source configuration remains `apps/web/.env.local`; do not copy that file into the release.
+MCP deployment authentication is separate: a valid web login credential can be configured through
+`JOYCODE_PTKEY` and `JOYCODE_LOGIN_TYPE` in the MCP environment without installing the JoyCode IDE.
+
+Application: https://ai-motion-lens.joyapp.jd.com
+
+Portal: https://w10zglzij6rw.joyapp.jd.com/app/ai-motion-lens/
+
+First-time domain routing may take time to become reachable after `DeploySuccess`.
+Verify the actual page and API before treating the deployment as complete.
