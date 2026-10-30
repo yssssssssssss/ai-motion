@@ -1,6 +1,7 @@
 import { createReadStream, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
+import { createBriefParseHandler } from "../dev-api/briefParser";
 import { createControlledGenerationHandler } from "../dev-api/controlledGenerationRoute";
 import {
   createReferenceGuidedGenerationHandler,
@@ -11,6 +12,7 @@ import { createVideoAnalyzeHandler, type CreateVideoAnalyzeHandlerInput } from "
 type ProductionServerInput = {
   distDir: string;
   analyze?: CreateVideoAnalyzeHandlerInput["analyze"];
+  brief?: Parameters<typeof createBriefParseHandler>[0];
   generation?: CreateReferenceGuidedGenerationHandlerInput;
 };
 
@@ -70,12 +72,18 @@ function distFile(distDir: string, pathName: string): string | undefined {
 export function createProductionServer(input: ProductionServerInput) {
   const distDir = resolve(input.distDir);
   const indexPath = join(distDir, "index.html");
+  const briefParseHandler = createBriefParseHandler(input.brief ?? input.generation);
   const videoAnalyzeHandler = createVideoAnalyzeHandler(input.analyze ? { analyze: input.analyze } : {});
   const controlledGenerationHandler = createControlledGenerationHandler();
   const referenceGuidedGenerationHandler = createReferenceGuidedGenerationHandler(input.generation);
 
   return createServer((req, res) => {
     const pathName = requestPath(req);
+
+    if (pathName === "/api/brief/parse") {
+      handleApiRequest(briefParseHandler, req, res);
+      return;
+    }
 
     if (pathName === "/api/video/analyze") {
       handleApiRequest(videoAnalyzeHandler, req, res);

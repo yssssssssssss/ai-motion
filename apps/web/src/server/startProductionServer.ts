@@ -11,6 +11,11 @@ if (!Number.isFinite(port) || port <= 0) {
 
 createProductionServer({
   distDir,
+  brief: {
+    apiKey: process.env.OPENAI_API_KEY,
+    apiBaseUrl: process.env.OPENAI_BASE_URL,
+    model: process.env.OPENAI_BRIEF_MODEL || process.env.OPENAI_GENERATION_MODEL
+  },
   generation: {
     apiKey: process.env.OPENAI_API_KEY,
     apiBaseUrl: process.env.OPENAI_BASE_URL,

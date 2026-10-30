@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createFallbackBriefIntent } from "@motion-tool/core";
 import { createProductionServer } from "./productionServer";
 
 const tempDirs: string[] = [];
@@ -28,6 +29,59 @@ afterEach(async () => {
 });
 
 describe("productionServer", () => {
+  it("uses the brief-specific model configuration independently of generation", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(
+      async () =>
+        new Response(JSON.stringify({ output_text: JSON.stringify(createFallbackBriefIntent("按钮")) }))
+    );
+    const server = createProductionServer({
+      distDir: await createDist(),
+      generation: { model: "generation-model" },
+      brief: { apiKey: "test-key", model: "brief-model", fetchImpl }
+    });
+    try {
+      const baseUrl = await listen(server);
+      const response = await fetch(`${baseUrl}/api/brief/parse`, {
+        method: "POST",
+        body: JSON.stringify({ brief: "按钮" })
+      });
+      expect(response.status).toBe(200);
+      expect((await response.json()).mode).toBe("llm");
+      expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)).model).toBe("brief-model");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("serves brief parsing through the production API", async () => {
+    const server = createProductionServer({ distDir: await createDist() });
+    try {
+      const baseUrl = await listen(server);
+      const response = await fetch(`${baseUrl}/api/brief/parse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief: "WorkEasy hover button" })
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        mode: "fallback",
+        intent: { componentKinds: ["button"], sources: ["workeasy"] }
+      });
+      expect((await fetch(`${baseUrl}/api/brief/parse`)).status).toBe(405);
+      expect((await fetch(`${baseUrl}/api/brief/parse`, { method: "POST", body: "{" })).status).toBe(400);
+      expect(
+        (
+          await fetch(`${baseUrl}/api/brief/parse`, {
+            method: "POST",
+            body: JSON.stringify({ brief: "a".repeat(70_000) })
+          })
+        ).status
+      ).toBe(413);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("serves the built app and handles video analysis API requests", async () => {
     const server = createProductionServer({
       distDir: await createDist(),
@@ -121,7 +175,9 @@ describe("productionServer", () => {
     };
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ output_text: JSON.stringify(modelSemanticIntentV2) })))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ output_text: JSON.stringify(modelSemanticIntentV2) }))
+      )
       .mockResolvedValueOnce(new Response(JSON.stringify({ output_text: JSON.stringify(modelDraft) })));
     const server = createProductionServer({
       distDir: await createDist(),
@@ -158,14 +214,18 @@ describe("productionServer", () => {
                 origin: "builtin",
                 kind: "builtin-component",
                 entry: "source/index.html",
-                files: [{ path: "source/index.html", kind: "html", content: "<main data-motion-root></main>" }]
+                files: [
+                  { path: "source/index.html", kind: "html", content: "<main data-motion-root></main>" }
+                ]
               }
             }
           ]
         })
       });
       const body = await apiResponse.json();
-      const css = body.component.source.files.find((file: { path: string }) => file.path === "source/style.css").content;
+      const css = body.component.source.files.find(
+        (file: { path: string }) => file.path === "source/style.css"
+      ).content;
 
       expect(apiResponse.status).toBe(200);
       expect(fetchImpl).toHaveBeenCalledTimes(2);

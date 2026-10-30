@@ -1,5 +1,5 @@
-// 仅在 vite dev server 中通过 ssrLoadModule 加载并执行（见 vite.config.ts 的 briefParserApiPlugin）。
-// 生产构建（vite build）不会包含本文件，因此前端 services/briefParserClient 必须有降级逻辑。
+// Shared by the development and production servers; credentials stay server-side.
+import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   createFallbackBriefIntent,
   isParsedBriefIntent,
@@ -12,7 +12,7 @@ type ParseBriefInput = {
   apiKey?: string | undefined;
   apiBaseUrl?: string | undefined;
   model?: string | undefined;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: typeof fetch | undefined;
 };
 
 const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
@@ -143,7 +143,8 @@ export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<Brie
           Authorization: `Bearer ${input.apiKey}`,
           "Content-Type": "application/json"
         },
-        body: requestBody
+        body: requestBody,
+        signal: AbortSignal.timeout(15_000)
       });
 
       if (!response.ok) {
@@ -169,4 +170,33 @@ export async function parseBriefWithOpenAI(input: ParseBriefInput): Promise<Brie
   }
 
   return fallback(brief, failureMessage);
+}
+
+export function createBriefParseHandler(config: Omit<ParseBriefInput, "brief"> = {}) {
+  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    res.setHeader("Content-Type", "application/json");
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.end(JSON.stringify({ error: "Method not allowed" }));
+      return;
+    }
+    try {
+      let body = "";
+      req.setEncoding("utf8");
+      for await (const chunk of req) {
+        body += chunk;
+        if (Buffer.byteLength(body, "utf8") > 64 * 1024) {
+          res.statusCode = 413;
+          res.end(JSON.stringify({ error: "Brief request is too large" }));
+          return;
+        }
+      }
+      const parsed = JSON.parse(body || "{}") as { brief?: unknown };
+      const brief = typeof parsed.brief === "string" ? parsed.brief : "";
+      res.end(JSON.stringify(await parseBriefWithOpenAI({ ...config, brief })));
+    } catch (error) {
+      res.statusCode = error instanceof SyntaxError ? 400 : 500;
+      res.end(JSON.stringify({ error: "Failed to parse brief." }));
+    }
+  };
 }

@@ -62,7 +62,7 @@ describe("App bundle boundaries", () => {
   });
 
   it("opens generated components as unsaved drafts before writing to the library", () => {
-    const readyHandler = appSource.match(/function handleGeneratedComponentReady[\s\S]*?\n  }/)?.[0] ?? "";
+    const readyHandler = appSource.match(/function handleGeneratedComponentReady[\s\S]*?\n {2}}/)?.[0] ?? "";
 
     expect(appSource).toContain("handleGeneratedComponentReady");
     expect(appSource).toContain("generatedDraftComponent");
@@ -93,7 +93,9 @@ describe("App bundle boundaries", () => {
     expect(appSource).toMatch(
       /function applyCurrentRecipeToTarget[\s\S]*handleGeneratedComponentReady\(generated\)/
     );
-    expect(appSource).toMatch(/recipeTargetComponents=\{components\.filter\([\s\S]*isNonAtomicMotionComponent/);
+    expect(appSource).toMatch(
+      /recipeTargetComponents=\{components\.filter\([\s\S]*isNonAtomicMotionComponent/
+    );
   });
 
   it("renders a generated page-transition draft in the editor modal contract", () => {

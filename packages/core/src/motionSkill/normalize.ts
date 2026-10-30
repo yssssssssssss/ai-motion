@@ -146,10 +146,6 @@ function keyframeBody(value: string): string {
   return (separator >= 0 ? normalized.slice(separator + 1) : normalized).trim();
 }
 
-function parseNumberSequence(value: string, property: AtomicMotionProperty): number[] {
-  return parseNumberFrames(value, property).map((frame) => (typeof frame === "number" ? frame : frame.value));
-}
-
 function parseNumberFrames(value: string, property: AtomicMotionProperty): ScalarKeyframe[] {
   const frames = value
     .split("->")
