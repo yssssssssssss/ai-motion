@@ -14,6 +14,8 @@ Three independent product lines share `packages/core` and `packages/components-b
 
 When changing functionality, identify which line you're in first — they have different mental models, different APIs, and different test suites. Cross-line work is rare and should be questioned.
 
+For independent Orca worktrees, follow `docs/worktree-development.md` and the target application's `AGENTS.md`. Verify the application package and JoyApp appCode before packaging or deploying.
+
 ## Commands
 
 Root-level (run from monorepo root):
@@ -66,6 +68,7 @@ Motion-skill / asset pipelines (only touch when working on those areas):
 ## Architecture conventions that span multiple files
 
 **Vite + SSR build, dev plugin = production server.** Every app uses the same pattern:
+
 - `vite.config.ts` registers a `configureServer` plugin that exposes `/api/...` middlewares by `ssrLoadModule`-ing handlers in `src/dev-api/`.
 - `package.json` build = `vite build && vite build --ssr src/server/startProductionServer.ts --outDir dist-server`.
 - `src/server/productionServer.ts` exports a `createXxxProductionServer({distDir, modelConfig})` factory; `startProductionServer.ts` wires env and listens.

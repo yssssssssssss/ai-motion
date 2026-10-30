@@ -14,6 +14,8 @@ Three independent product lines share `packages/core` and `packages/components-b
 
 When changing functionality, identify which line you're in first — they have different mental models, different APIs, and different test suites. Cross-line work is rare and should be questioned.
 
+For independent Orca worktrees, follow `docs/worktree-development.md` and the target application's `AGENTS.md`. Verify the application package and JoyApp appCode before packaging or deploying.
+
 ## Commands
 
 Root-level (run from monorepo root):
