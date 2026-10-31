@@ -1,0 +1,219 @@
+packages/motion-copilot-core/test/frameMorph.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 392-394,752-755,765-769,889-897,1382-1388,1560-1563,1572-1574,1629-1634,1658-1669,1679-1690,1869-1873,1954-1959,2125-2127,2194-2196,2220-2222
+packages/core/test/referenceGuidedGeneration.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 33-37,66-68,77-79,88-90,99-101,110-112,120-122,181-183,198-199,201-202,235-236,307-308,310-311,331-334,374-375,528-533,613-616,618-620,666-672
+packages/motion-copilot-core/src/zeroLayerMorph/zeroMotionInteractionPattern.ts
+  s_18ce89beabec40::t_46575bb39a742e 32-34,43-46,83-85
+apps/web/src/features/editor/MotionRecipePanel.test.tsx
+  s_18ce89beabec40::t_46575bb39a742e 13-20,28-35,72-79,88-94,132,155-157
+docs/motion-recipe-system-todolist.md
+  s_18ce89beabec40::t_46575bb39a742e 276-280
+packages/core/src/generation/semanticIntent.ts
+  s_18ce89beabec40::t_46575bb39a742e 74-76,88-89,92,105-109,166-168
+packages/core/test/applyPatch.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 142-146,150-152
+packages/motion-copilot-core/src/composition/exportCompositionJson.ts
+  s_18ce89beabec40::t_46575bb39a742e 112-114
+packages/motion-copilot-core/test/document.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 140-142,170-172,175-179,182-184,191-193,284-286
+apps/web/src/styles/home.css
+  s_18ce89beabec40::t_46575bb39a742e 288-301,1108,1373,1511,1538,1565,1606-1612,1636,1651,1702,1760,1778,1793,1867,1902,1934,1966
+apps/web/src/features/editor/LayerReplacementPanel.tsx
+  s_18ce89beabec40::t_46575bb39a742e 70-72,299,349-354,399
+apps/web/test/componentFeedStyles.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 35,47-49,70-75,93-95,104-106
+packages/core/src/orchestrator/briefIntent.ts
+  s_18ce89beabec40::t_46575bb39a742e 23-32,79-80,83
+packages/core/test/motionSkillInventory.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 88-90
+packages/motion-copilot-core/src/intent/compileIntent.ts
+  s_18ce89beabec40::t_46575bb39a742e 46-50,58-62,69-73,79-88
+packages/core/src/library/designSpecs.ts
+  s_18ce89beabec40::t_46575bb39a742e 79-82
+packages/motion-copilot-core/src/frameMorph/compileFrameMorphComposition.ts
+  s_18ce89beabec40::t_46575bb39a742e 115-118
+packages/core/src/orchestrator/searchProfile.ts
+  s_18ce89beabec40::t_46575bb39a742e 123-124,127-130
+apps/motion-copilot/src/dev-api/zeroVisualSnapshot.ts
+  s_18ce89beabec40::t_46575bb39a742e 25-29
+apps/web/src/features/editor/PlusControlPanel.test.tsx
+  s_18ce89beabec40::t_46575bb39a742e 26-31
+packages/core/src/motionSkill/tabbarAssets.ts
+  s_18ce89beabec40::t_46575bb39a742e 2-3
+packages/core/test/motionSkillNormalize.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 91-93
+docs/superpowers/plans/2026-06-30-motion-copilot-high-fidelity-editing.md
+  s_18ce89beabec40::t_46575bb39a742e 52,58,151,158,171,271-273,294,299,311,345,376,382,487-489,498-500,513-515,527-529,543-545,573-577,634,639,699,721,727,797,808,813,838,845,852,860,867,875
+packages/components-builtin/src/jdPopupFeedbackFast.test.js
+  s_18ce89beabec40::t_46575bb39a742e 25-27
+packages/core/src/orchestrator/recommend.ts
+  s_18ce89beabec40::t_46575bb39a742e 86-89,276-287
+packages/motion-copilot-core/src/zeroLayerMorph/zeroMotionRepairAdvisor.ts
+  s_18ce89beabec40::t_46575bb39a742e 51-52,96-97
+packages/core/test/motionSkillParamWiring.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 3-9
+packages/components-builtin/src/nonAtomicCodeComponents.test.js
+  s_18ce89beabec40::t_46575bb39a742e 17
+apps/web/src/features/editor/LayerReplacementPanel.test.tsx
+  s_18ce89beabec40::t_46575bb39a742e 133-137,161-165,329-331,340-342,352-357,368-373
+docs/superpowers/specs/2026-05-24-audit-preview-editor-retrieval.md
+  s_18ce89beabec40::t_46575bb39a742e 18-24,34-39,75-80
+apps/web/src/services/generationCandidates.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 34-36,47-49,120,147,173
+scripts/zero-mcp-visual-bridge.mjs
+  s_18ce89beabec40::t_46575bb39a742e 63-65,80-82,186-188
+packages/core/src/motionSkill/mockComponent.ts
+  s_18ce89beabec40::t_46575bb39a742e 1292-1295
+packages/components-builtin/jd-popup-feedback-fast/motion.manifest.json
+  s_18ce89beabec40::t_46575bb39a742e 11,164,280,285,290,295,300
+apps/web/src/dev-api/referenceGuidedGenerationRoute.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 99-101,110-112,121-123,132-134,143-145,153-155,358-360,376-378,389-391,409-411,437-442,487-489
+packages/motion-copilot-core/test/generateCompositionDraftLLM.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 36-44,51-53,59-63,69-73,87-95,116-122,161-174,195-197,201-203
+apps/motion-copilot/src/features/frameMorph/FrameMorphPanel.tsx
+  s_18ce89beabec40::t_46575bb39a742e 67-70,350-353,360-365,406-409,429-431,446-449,540-541,550-553,559-564,618-623,965-966,968-972,975-1006,1011-1031,1033-1159,1162-1167,1169,1171-1217,1219-1253,1255-1294,1297-1307,1310-1311,1313,1316-1321,1325-1326,1328-1332,1334-1362,1364-1368,1372-1380,1382-1388,1390-1412,1415-1419,1421-1424,1426,1430,1436-1437,1439,1444,1448,1450-1505,1507-1534,1536-1537,1540-1557,1559-1608,1613-1667,1671-1697,1701-1702,1704,1706,1711-1713,1716-1718,1720,1724-1769,1772-1788,1790-1889
+apps/web/src/services/controlledGenerationClient.ts
+  s_18ce89beabec40::t_46575bb39a742e 15-17
+fixtures/frames/README.md
+  s_18ce89beabec40::t_46575bb39a742e 18-28,42
+apps/web/src/features/brief/BriefPanel.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 132
+scripts/zero-layer-snapshot-fixture.mjs
+  s_18ce89beabec40::t_46575bb39a742e 29-34
+helloagents/plan/202606291649_frame_morph_restoration/task.md
+  s_18ce89beabec40::t_46575bb39a742e 9-12,17,25,34,43,51,58,65,71,76,82,93
+packages/core/src/generation/controlledPatch.ts
+  s_18ce89beabec40::t_46575bb39a742e 3-7,87-90,112-114,139-140
+packages/motion-copilot-core/src/frameMorph/createZeroVisualSnapshotFromMcp.ts
+  s_18ce89beabec40::t_46575bb39a742e 70-71,234-241,247,297-299,334-336,341-345,347-352,354-357,387-390,418,548-550,629-630,638-647,684
+apps/motion-copilot/src/services/zeroVisualClient.ts
+  s_18ce89beabec40::t_46575bb39a742e 3-8
+docs/superpowers/plans/2026-05-27-plus-pro-motion-controls.md
+  s_18ce89beabec40::t_46575bb39a742e 35,61-63,71-73,102-104,150,244-246,280-295,424,457-462,495,721,731-737,850
+packages/core/test/generationSandbox.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 160-162
+packages/core/test/manifest.schema.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 73-75
+apps/web/src/services/generationCandidates.ts
+  s_18ce89beabec40::t_46575bb39a742e 81-84
+docs/superpowers/plans/2026-06-02-controlled-generation-source-hydration.md
+  s_18ce89beabec40::t_46575bb39a742e 32,73-75,86-88,170,238,256-258,321,352,390
+packages/motion-copilot-core/src/frameMorph/createRestorationReport.ts
+  s_18ce89beabec40::t_46575bb39a742e 21-24,33-34,47-50,63-65,75-77,99-102,106-109,119-120,230,287-288
+apps/web/src/features/editor/MotionRecipePanel.tsx
+  s_18ce89beabec40::t_46575bb39a742e 50-51,54-56,59-60,117-119
+packages/core/test/motionRecipe.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 51-55,66-69,84-86,158-160,221-228,237-244,251-258,280-284,293-295,357-361,368-372,396-403,413-417
+packages/components-builtin/src/jdPopupFeedbackEased.test.js
+  s_18ce89beabec40::t_46575bb39a742e 25-27
+packages/motion-copilot-core/src/frameMorph/schema.ts
+  s_18ce89beabec40::t_46575bb39a742e 280-287
+docs/2026-07-02-zero-native-recipe-differentiation-plan.md
+  s_18ce89beabec40::t_46575bb39a742e 194-200
+apps/motion-copilot/src/services/generateDraftClient.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 19-21,27-35,53-55,69-71
+packages/motion-copilot-core/src/guideline/evaluateGuidelines.ts
+  s_18ce89beabec40::t_46575bb39a742e 19-20,71-75,84-92,119-122,148-150,164-169
+apps/web/src/dev-api/referenceGuidedGenerationRoute.ts
+  s_18ce89beabec40::t_46575bb39a742e 68-78,119-130,460-462,465-468,519-523
+apps/web/src/dev-api/controlledGenerationRoute.ts
+  s_18ce89beabec40::t_46575bb39a742e 59-62,76-77
+packages/motion-copilot-core/src/composition/evaluateComposition.ts
+  s_18ce89beabec40::t_46575bb39a742e 102-105
+packages/motion-copilot-core/src/frameMorph/createZeroVisualNodeOverrideCss.ts
+  s_18ce89beabec40::t_46575bb39a742e 38-40,51-53,65
+packages/components-builtin/jd-product-transition-video/motion.manifest.json
+  s_18ce89beabec40::t_46575bb39a742e 11,227,245,263,281,298,303,308,313
+docs/superpowers/plans/2026-06-10-motion-copilot-independent-system.md
+  s_18ce89beabec40::t_46575bb39a742e 59-63
+apps/web/src/features/editor/previewHtml.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 291-294
+docs/2026-07-01-zero-native-motion-productization-plan.md
+  s_18ce89beabec40::t_46575bb39a742e 281
+docs/component-retrieval-ppt/index.html
+  s_18ce89beabec40::t_46575bb39a742e 1,3-15,18-30,33-52,55-67,70-1276,1281-2007,2009-2460,2462-2515,2517-2578,2580-2620,2622-2668,2670-2713,2715-2792,2794-3021,3023,3026,3028-3029,3035,3037,3095-3099,3101-3197,3199-3216,3218-3383,3385-3387,3389,3393-3420,3422-3441,3443-3477,3479-3505,3507,3509-3522,3524-3555,3557-3583,3585-3637,3639-3670,3672-3698,3700,3702-3737,3739-3768,3770-3801,3803-3820,3822-3852,3854,3856-3895,3897-3919,3921-3959,3961-3970,3972,3974-3999,4002-4013,4015-4038,4040-4070,4072-4208,4210-4295,4297-4300,4302-4307,4309,4311-4314,4316-4322,4324-4331,4333-4334,4336-4338,4340-4341,4346-4463
+packages/components-builtin/src/jdFrontBackEntryTransition.test.js
+  s_18ce89beabec40::t_46575bb39a742e 24-26
+packages/core/src/motionSkill/cli.ts
+  s_18ce89beabec40::t_46575bb39a742e 41-44,86-90
+packages/motion-copilot-core/src/intent/generateCompositionDraftLLM.ts
+  s_18ce89beabec40::t_46575bb39a742e 63-64,119-122
+apps/web/src/features/editor/AtomicMotionInspectorPanel.test.tsx
+  s_18ce89beabec40::t_46575bb39a742e 328-333
+apps/motion-copilot/src/dev-api/generateDraft.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 33-45
+packages/motion-copilot-core/src/preset/appMotionPresets.ts
+  s_18ce89beabec40::t_46575bb39a742e 119-121,131-133,135-137,150-152,190-210,250-258,269-272,284-287,299-302,314-324,335-344,355-364,375-386,397-406,426-437,449-454,466-471,483-488,499-509,521-526,537-546,558-563,575-580,592-597,609-614,635-637
+packages/motion-copilot-core/src/zeroLayerMorph/zeroMotionSpec.ts
+  s_18ce89beabec40::t_46575bb39a742e 87-89,122-125,178-179
+docs/superpowers/plans/2026-06-07-motion-skill-compiler.md
+  s_18ce89beabec40::t_46575bb39a742e 82,307,472-474,538,618-620,747,837-844,945,1045,1168,1196,1225-1230,1369
+packages/motion-copilot-core/src/composition/exportVisualCompositionHtml.ts
+  s_18ce89beabec40::t_46575bb39a742e 42-46
+apps/web/src/features/editor/AtomicMotionInspectorPanel.tsx
+  s_18ce89beabec40::t_46575bb39a742e 522-524,556
+packages/components-builtin/src/jdHorizontalSwitch.test.js
+  s_18ce89beabec40::t_46575bb39a742e 28-31
+apps/web/src/services/atomicMotionGeneration.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 340-344
+apps/web/src/services/referenceGuidedGenerationClient.ts
+  s_18ce89beabec40::t_46575bb39a742e 1,5-7
+docs/superpowers/specs/2026-06-10-motion-copilot-independent-system-design.md
+  s_18ce89beabec40::t_46575bb39a742e 346
+packages/components-builtin/jd-front-back-entry-transition/motion.manifest.json
+  s_18ce89beabec40::t_46575bb39a742e 11,82,155,160,165,170
+packages/core/src/generation/semanticIntentV2.ts
+  s_18ce89beabec40::t_46575bb39a742e 52,126-129,231,342-346
+packages/core/src/motionSkill/swipeActionAssets.ts
+  s_18ce89beabec40::t_46575bb39a742e 4-7
+apps/motion-copilot/src/services/generateDraftClient.ts
+  s_18ce89beabec40::t_46575bb39a742e 67-72,87-91,105-107,127-131
+apps/motion-copilot/src/services/zeroLayerClient.ts
+  s_18ce89beabec40::t_46575bb39a742e 3-8
+helloagents/plan/202606291649_frame_morph_restoration/why.md
+  s_18ce89beabec40::t_46575bb39a742e 4,17,23,35,39,47,67,72,74,79,84,86,92,97,99,105,110,112,118
+packages/core/test/controlledPatch.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 188-193,223-225
+packages/motion-copilot-core/src/frameMorph/compileVisualMotionComposition.ts
+  s_18ce89beabec40::t_46575bb39a742e 53-57,161-166
+packages/motion-copilot-core/test/composition.test.ts
+  s_18ce89beabec40::t_46575bb39a742e 48-56,65-73,103-110,117,122,203-214,270-275
+packages/motion-copilot-core/src/composition/validateCompositionJsonExport.ts
+  s_18ce89beabec40::t_46575bb39a742e 21-25,29-33,39-43,47-51,97-98
+helloagents/plan/202606291649_frame_morph_restoration/how.md
+  s_18ce89beabec40::t_46575bb39a742e 6,13,42,50,58,68,70,80,82,129,136,160,215-218,223,229
+packages/core/src/orchestrator/colorAnalysis.ts
+  s_18ce89beabec40::t_46575bb39a742e 14-17,47-68,109-128,142-152,177-180,199
+apps/motion-copilot/src/dev-api/zeroLayerSnapshot.ts
+  s_18ce89beabec40::t_46575bb39a742e 21-25,129-131,142-145
+docs/superpowers/plans/2026-06-02-controlled-semantic-generation.md
+  s_18ce89beabec40::t_46575bb39a742e 47,185-188,223,375,504-509,532-536,581-582,611,667-669,694-696,748,809,880-883,894-895,901-903,976,1207,1218,1227,1233
+packages/motion-copilot-core/src/zeroLayerMorph/zeroLayerRoleClassifier.ts
+  s_18ce89beabec40::t_46575bb39a742e 75-80,142-147,158-163,173-176,196
+packages/motion-copilot-core/src/zeroLayerMorph/zeroMotionSceneClassifier.ts
+  s_18ce89beabec40::t_46575bb39a742e 44-51,83,94
+packages/components-builtin/jd-dynamic-island-siri-demo/motion.manifest.json
+  s_18ce89beabec40::t_46575bb39a742e 17-22,66-71,109-114,177-184
+packages/components-builtin/jd-popup-feedback-eased/motion.manifest.json
+  s_18ce89beabec40::t_46575bb39a742e 11,206,301,306,311,316,321
+packages/motion-copilot-core/src/intent/generateCompositionDraft.ts
+  s_18ce89beabec40::t_46575bb39a742e 2-8,71-76,110-118,121-129,132-140,143-151,161-169,172-180,190-198,201-209,217-225,232-240
+apps/web/src/services/componentScope.ts
+  s_18ce89beabec40::t_46575bb39a742e 6-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "6814b1ebf0d0132c59a7eadbdd072069630fa334",
+  "prompts": {},
+  "sessions": {
+    "s_18ce89beabec40": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99d0448e-d733-4470-8706-22971889d437",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "heyunshen <heyunshen@SZMAC-F7F7KPQ2.lan>"
+    }
+  }
+}
