@@ -120,8 +120,8 @@ function generateEmbedPackage() {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"]
   });
-  const match = output.match(/"outDir":\s*"([^"]+)"/);
-  if (!match?.[1]) throw new Error("Unable to read embed package outDir from verify output.");
+  const match = output.match(/"fixturePackageDir":\s*"([^"]+)"/);
+  if (!match?.[1]) throw new Error("Unable to read embed fixturePackageDir from verify output.");
   return match[1];
 }
 
@@ -137,6 +137,7 @@ async function createNutuiDemo(embedPackageDir) {
       {
         name: "ai-motion-nutui-embed-e2e",
         private: true,
+        packageManager: "pnpm@9.12.1",
         type: "module",
         scripts: { dev: "vite --host 127.0.0.1" },
         dependencies: {
@@ -190,7 +191,7 @@ function App() {
         <Button
           type="primary"
           data-testid="select-two"
-          onClick={() => setParams({ selectedIndex: 2, bottomTabbarLabel3: "购物车" })}
+          onClick={() => setParams({ selectedIndex: 2, tabLabel3: "购物车" })}
         >
           切到购物车
         </Button>
@@ -288,7 +289,7 @@ async function verifyInChrome(url) {
       const deadline = Date.now() + 10000;
       function tick() {
         const iframe = document.querySelector('iframe.motion-widget-frame');
-        if (iframe && iframe.contentDocument?.readyState === 'complete') return resolve(true);
+        if (iframe?.contentDocument?.querySelectorAll('.bottom-tabbar-item').length === 5 && parseInt(iframe.style.width, 10) > 1) return resolve(true);
         if (Date.now() > deadline) return reject(new Error('iframe not ready'));
         setTimeout(tick, 50);
       }
@@ -308,7 +309,7 @@ async function verifyInChrome(url) {
         iframeHeight: iframe.style.height,
         activeIndex: Array.from(doc.querySelectorAll('.bottom-tabbar-item')).indexOf(active),
         itemCount: doc.querySelectorAll('.bottom-tabbar-item').length,
-        label3: doc.querySelector('[data-motion=bottomTabbarLabel3]')?.textContent
+        label3: doc.querySelector('[data-motion=tabLabel3]')?.textContent
       };
     })()`
     );
@@ -321,8 +322,7 @@ async function verifyInChrome(url) {
       const active = doc.querySelector('.bottom-tabbar-item.is-active, .bottom-tabbar-item.is-activating');
       resolve({
         activeIndex: Array.from(doc.querySelectorAll('.bottom-tabbar-item')).indexOf(active),
-        label3: doc.querySelector('[data-motion=bottomTabbarLabel3]')?.textContent,
-        moving: Boolean(doc.querySelector('.bottom-tabbar-active-bg.is-moving')),
+        label3: doc.querySelector('[data-motion=tabLabel3]')?.textContent,
         iframeWidth: iframe.style.width,
         iframeHeight: iframe.style.height
       });
@@ -340,12 +340,12 @@ async function verifyInChrome(url) {
     const passed =
       before.nutuiButtonCount >= 3 &&
       before.iframeSrc.endsWith("/motion-widget/dist/iframe.html") &&
-      width > 1000 &&
-      height > 2000 &&
+      width === 400 &&
+      height === 220 &&
+      before.itemCount === 5 &&
       before.activeIndex === 0 &&
       after.activeIndex === 2 &&
       after.label3 === "购物车" &&
-      after.moving === true &&
       destroy.iframeCount === 0;
     return { passed, chrome: version.Browser, before, after, destroy };
   } finally {

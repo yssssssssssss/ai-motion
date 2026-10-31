@@ -1,4 +1,5 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,7 +17,8 @@ async function createDist() {
 }
 
 async function listen(server: ReturnType<typeof createProductionServer>) {
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
     server.listen(0, "127.0.0.1", resolve);
   });
   const address = server.address();
@@ -29,6 +31,31 @@ afterEach(async () => {
 });
 
 describe("productionServer", () => {
+  it("returns 400 from the request listener for malformed encoding", async () => {
+    const server = createProductionServer({ distDir: await createDist() });
+    const response = { statusCode: 0, setHeader: vi.fn(), end: vi.fn() };
+    expect(() =>
+      server.emit("request", { url: "/%" } as IncomingMessage, response as unknown as ServerResponse)
+    ).not.toThrow();
+    expect(response.statusCode).toBe(400);
+    expect(response.end).toHaveBeenCalled();
+  });
+
+  it.each(["/%", "/%FF"])("rejects malformed path %s and keeps serving", async (path) => {
+    const server = createProductionServer({ distDir: await createDist() });
+    try {
+      const baseUrl = await listen(server);
+      const response = await fetch(baseUrl + path, { signal: AbortSignal.timeout(500) });
+      expect(response.status).toBe(400);
+      const home = await fetch(baseUrl + "/");
+      expect(home.status).toBe(200);
+      expect(await home.text()).toContain('id="root"');
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("uses the brief-specific model configuration independently of generation", async () => {
     const fetchImpl = vi.fn<typeof fetch>(
       async () =>

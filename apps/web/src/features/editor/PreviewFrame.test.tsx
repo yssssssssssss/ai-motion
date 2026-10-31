@@ -123,7 +123,11 @@ describe("PreviewFrame", () => {
             }
           ]
         }}
-        patch={{ id: "patch", sourceManifestId: "image-layer", values: { heroImage: "data:image/png;base64,A", opacity: 1 } }}
+        patch={{
+          id: "patch",
+          sourceManifestId: "image-layer",
+          values: { heroImage: "data:image/png;base64,A", opacity: 1 }
+        }}
         playbackState="playing"
       />
     );
@@ -146,7 +150,11 @@ describe("PreviewFrame", () => {
             }
           ]
         }}
-        patch={{ id: "patch", sourceManifestId: "image-layer", values: { heroImage: "data:image/png;base64,A", opacity: 0.4 } }}
+        patch={{
+          id: "patch",
+          sourceManifestId: "image-layer",
+          values: { heroImage: "data:image/png;base64,A", opacity: 0.4 }
+        }}
         playbackState="playing"
       />
     );
@@ -205,31 +213,18 @@ describe("PreviewFrame", () => {
     expect(updated).not.toContain("data-preview-image-signature");
   });
 
-  it("keeps builtin srcDoc previews on a non-null origin", () => {
+  it.each(["builtin", "generated", "imported"] as const)("sandboxes %s according to its trust", (origin) => {
     const html = renderToStaticMarkup(
       <PreviewFrame
-        source={imageSource}
+        source={{ ...imageSource, origin }}
         manifest={imageManifest}
         patch={{ id: "patch", sourceManifestId: "image-layer", values: {} }}
         playbackState="playing"
       />
     );
-
-    expect(html).toContain('sandbox="allow-scripts allow-same-origin"');
-  });
-
-  it("keeps imported srcDoc previews origin-isolated", () => {
-    const html = renderToStaticMarkup(
-      <PreviewFrame
-        source={{ ...imageSource, origin: "imported" }}
-        manifest={imageManifest}
-        patch={{ id: "patch", sourceManifestId: "image-layer", values: {} }}
-        playbackState="playing"
-      />
+    expect(html).toContain(
+      origin === "builtin" ? 'sandbox="allow-scripts allow-same-origin"' : 'sandbox="allow-scripts"'
     );
-
-    expect(html).toContain('sandbox="allow-scripts"');
-    expect(html).not.toContain('sandbox="allow-scripts allow-same-origin"');
   });
 
   it("posts to srcDoc previews with wildcard target origin", () => {

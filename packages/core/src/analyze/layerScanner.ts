@@ -48,7 +48,14 @@ function scanHtmlLayers(source: MotionSource, layers: Map<string, MotionLayer>):
         kind: layerKind(id, tagName),
         replaceable: true,
         required: false,
-        targets: []
+        targets: [
+          {
+            kind: "html-attribute",
+            file: file.path,
+            selector: `[data-motion-layer="${id.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"]`,
+            attribute: "class"
+          }
+        ]
       });
     }
 
@@ -62,7 +69,9 @@ function scanHtmlLayers(source: MotionSource, layers: Map<string, MotionLayer>):
           kind: layerKind(className),
           replaceable: false,
           required: false,
-          targets: []
+          targets: [
+            { kind: "html-attribute", file: file.path, selector: `.${className}`, attribute: "class" }
+          ]
         });
       }
     }
@@ -72,7 +81,7 @@ function scanHtmlLayers(source: MotionSource, layers: Map<string, MotionLayer>):
 function scanCssLayers(source: MotionSource, layers: Map<string, MotionLayer>): void {
   for (const file of source.files.filter((item) => item.kind === "css")) {
     for (const match of file.content.matchAll(
-      /\.([A-Za-z_-][\w-]*)\s*{[^}]*background(?:-image)?:\s*var\(/g
+      /\.([A-Za-z_-][\w-]*)\s*{[^}]*(background(?:-image)?):\s*var\(/g
     )) {
       const className = match[1];
       if (!className || !isLayerToken(className)) continue;
@@ -83,7 +92,14 @@ function scanCssLayers(source: MotionSource, layers: Map<string, MotionLayer>): 
         kind: layerKind(className),
         replaceable: false,
         required: false,
-        targets: []
+        targets: [
+          {
+            kind: "css-property",
+            file: file.path,
+            selector: `.${className}`,
+            property: match[2] ?? "background"
+          }
+        ]
       });
     }
   }

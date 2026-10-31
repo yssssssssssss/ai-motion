@@ -1,5 +1,6 @@
 import {
   applyPatchToFiles,
+  resolveLocalAssetPath,
   type MotionManifest,
   type MotionPatch,
   type MotionSource
@@ -746,22 +747,26 @@ const EDITOR_SCRIPT = `<script data-motion-preview="editor">
 })();
 </script>`;
 
-function inlineLocalAssets(html: string, files: Record<string, string>): string {
+function inlineLocalAssets(html: string, entry: string, files: Record<string, string>): string {
   return html
     .replace(/<link\b[^>]*>/g, (tag) => {
       if (!/\brel=["']stylesheet["']/.test(tag)) return tag;
 
-      const href = tag.match(/\bhref=["']\.?\/?([^"']+)["']/)?.[1];
+      const href = tag.match(/\bhref=["']([^"']+)["']/)?.[1];
       if (!href) return tag;
 
-      const content = files[`source/${href}`] ?? files[href] ?? "";
+      const path = resolveLocalAssetPath(entry, href, files);
+      if (path === null) return "<style></style>";
+      const content = files[path] ?? "";
       if (/^(?:\/|https?:\/\/)/.test(content)) {
         return tag.replace(/\bhref=["'][^"']+["']/, `href="${content}"`);
       }
       return `<style>${content}</style>`;
     })
-    .replace(/<script\b[^>]*\bsrc=["']\.?\/?([^"']+)["'][^>]*><\/script>/g, (_match, src: string) => {
-      const content = files[`source/${src}`] ?? files[src] ?? "";
+    .replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*><\/script>/g, (_tag, src: string) => {
+      const path = resolveLocalAssetPath(entry, src, files);
+      if (path === null) return "<script></script>";
+      const content = files[path] ?? "";
       return `<script>${content}</script>`;
     });
 }
@@ -806,7 +811,7 @@ function injectCspIfImported(html: string, source: MotionSource): string {
 export function renderPreviewHtml({ source, manifest, patch, mode = "full" }: RenderPreviewInput): string {
   const files = Object.fromEntries(source.files.map((file) => [file.path, file.content]));
   const patchedFiles = applyPatchToFiles({ files, manifest, patch });
-  const html = inlineLocalAssets(patchedFiles[source.entry] ?? "", patchedFiles);
+  const html = inlineLocalAssets(patchedFiles[source.entry] ?? "", source.entry, patchedFiles);
   const safeHtml = injectCspIfImported(html, source);
   if (mode === "thumbnail") return addThumbnailLayout(safeHtml, shouldPreviewAutoplay(manifest));
   if (mode === "editor") return addEditorLayout(safeHtml);

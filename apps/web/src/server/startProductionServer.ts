@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
 import { createProductionServer } from "./productionServer";
+import { loadProductionEnv } from "./productionEnv";
 
+const env = loadProductionEnv();
 const host = process.env.HOST || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "4173", 10);
 const distDir = resolve(process.cwd(), "dist");
@@ -12,14 +14,14 @@ if (!Number.isFinite(port) || port <= 0) {
 createProductionServer({
   distDir,
   brief: {
-    apiKey: process.env.OPENAI_API_KEY,
-    apiBaseUrl: process.env.OPENAI_BASE_URL,
-    model: process.env.OPENAI_BRIEF_MODEL || process.env.OPENAI_GENERATION_MODEL
+    apiKey: env.OPENAI_API_KEY,
+    apiBaseUrl: env.OPENAI_BASE_URL,
+    model: env.OPENAI_BRIEF_MODEL || env.OPENAI_GENERATION_MODEL
   },
   generation: {
-    apiKey: process.env.OPENAI_API_KEY,
-    apiBaseUrl: process.env.OPENAI_BASE_URL,
-    model: process.env.OPENAI_GENERATION_MODEL
+    apiKey: env.OPENAI_API_KEY,
+    apiBaseUrl: env.OPENAI_BASE_URL,
+    model: env.OPENAI_GENERATION_MODEL
   }
 }).listen(port, host, () => {
   console.log(`ai-motion web server listening on http://${host}:${port}`);

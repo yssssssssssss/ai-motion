@@ -1,5 +1,6 @@
 import type { MotionManifest, MotionPatch } from "../manifest/types";
 import { applyPatchToFiles } from "../patch/applyPatch";
+import { resolveLocalAssetPath } from "../import/resolveLocalAssetPath";
 
 export type EmbedPackageFileContent = string | Uint8Array;
 
@@ -23,15 +24,6 @@ export function composeEditablePackageFiles(input: {
   };
 }
 
-function localAssetPath(path: string): string {
-  return path.replace(/^\.?\//, "");
-}
-
-function sourceLookupPath(path: string): string {
-  const normalized = localAssetPath(path);
-  return normalized.startsWith("source/") ? normalized : `source/${normalized}`;
-}
-
 export function composeStandaloneHtmlFile(input: {
   sourceFiles: Record<string, string>;
   manifest: MotionManifest;
@@ -51,11 +43,13 @@ export function composeStandaloneHtmlFile(input: {
       const href = tag.match(/\bhref=["']([^"']+)["']/)?.[1];
       if (!href) return tag;
 
-      const content = patchedFiles[sourceLookupPath(href)] ?? patchedFiles[localAssetPath(href)];
+      const path = resolveLocalAssetPath(input.manifest.runtime.entry, href, patchedFiles);
+      const content = path === null ? undefined : patchedFiles[path];
       return content === undefined ? tag : `<style>\n${content}\n</style>`;
     })
     .replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*><\/script>/g, (tag, src: string) => {
-      const content = patchedFiles[sourceLookupPath(src)] ?? patchedFiles[localAssetPath(src)];
+      const path = resolveLocalAssetPath(input.manifest.runtime.entry, src, patchedFiles);
+      const content = path === null ? undefined : patchedFiles[path];
       return content === undefined ? tag : `<script>${content}</script>`;
     });
 }
@@ -94,33 +88,84 @@ function decodeBase64(base64: string): Uint8Array {
 
 function extractBodyHtml(html: string): string {
   const bodyMatch = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
-  return (bodyMatch?.[1] ?? html)
-    .replace(/<script\b[^>]*\bsrc=["'][^"']+["'][^>]*><\/script>/gi, "")
-    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+  const headDataScripts = bodyMatch
+    ? [...html.slice(0, bodyMatch.index).matchAll(/<script\b[^>]*>[\s\S]*?<\/script>/gi)]
+        .map(([tag]) => tag)
+        .filter((tag) => scriptKind(tag) === "data")
+        .join("")
+    : "";
+  return (headDataScripts + (bodyMatch?.[1] ?? html))
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>|<style\b[^>]*>[\s\S]*?<\/style>/gi, (tag) =>
+      /^<script\b/i.test(tag) && scriptKind(tag) === "data" ? tag : ""
+    )
     .trim();
 }
 
-function collectLinkedStyles(entryHtml: string, files: Record<string, string>): string {
+function collectStyles(entryHtml: string, entry: string, files: Record<string, string>): string {
   const styles: string[] = [];
-  entryHtml.replace(/<link\b[^>]*>/g, (tag) => {
-    if (!/\brel=["']stylesheet["']/.test(tag)) return tag;
-    const href = tag.match(/\bhref=["']([^"']+)["']/)?.[1];
-    if (!href) return tag;
-    const content = files[sourceLookupPath(href)] ?? files[localAssetPath(href)];
-    if (content !== undefined) styles.push(content);
-    return tag;
-  });
+  entryHtml.replace(
+    /<script\b[^>]*>[\s\S]*?<\/script>|<style\b[^>]*>([\s\S]*?)<\/style>|<link\b[^>]*>/gi,
+    (tag, inline: string | undefined) => {
+      if (/^<script\b/i.test(tag)) return tag;
+      if (inline !== undefined) {
+        styles.push(inline);
+        return tag;
+      }
+      if (!/\brel=["']stylesheet["']/.test(tag)) return tag;
+      const href = tag.match(/\bhref=["']([^"']+)["']/)?.[1];
+      if (!href) return tag;
+      const path = resolveLocalAssetPath(entry, href, files);
+      const content = path === null ? undefined : files[path];
+      if (content !== undefined) styles.push(content);
+      return tag;
+    }
+  );
   return styles.join("\n\n");
 }
 
-function collectLinkedScripts(entryHtml: string, files: Record<string, string>): string {
+function htmlAttribute(tag: string, name: string): string | undefined {
+  const opening = tag.slice(0, tag.indexOf(">"));
+  return opening
+    .match(new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i"))
+    ?.slice(1)
+    .find((value) => value !== undefined);
+}
+
+function scriptKind(tag: string): "classic" | "module" | "data" {
+  const type = htmlAttribute(tag, "type")?.trim().toLowerCase() ?? "";
+  if (type === "module") return "module";
+  return !type || /^(?:text|application)\/(?:x-)?(?:java|ecma)script$/.test(type) ? "classic" : "data";
+}
+
+type EmbedWarning = { code: "module-script-skipped"; message: string };
+
+function collectScripts(
+  entryHtml: string,
+  entry: string,
+  files: Record<string, string>
+): { script: string; warnings: EmbedWarning[] } {
   const scripts: string[] = [];
-  entryHtml.replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*><\/script>/g, (_tag, src: string) => {
-    const content = files[sourceLookupPath(src)] ?? files[localAssetPath(src)];
-    if (content !== undefined) scripts.push(content);
-    return "";
-  });
-  return scripts.join("\n\n");
+  const warnings: EmbedWarning[] = [];
+  entryHtml.replace(
+    /<style\b[^>]*>[\s\S]*?<\/style>|<script\b[^>]*>([\s\S]*?)<\/script>/gi,
+    (tag, inline: string) => {
+      if (/^<style\b/i.test(tag)) return tag;
+      const kind = scriptKind(tag);
+      const src = htmlAttribute(tag, "src");
+      if (kind === "module") {
+        warnings.push({
+          code: "module-script-skipped",
+          message: `已跳过 type=module 脚本：${src ?? "内联脚本"}，嵌入运行时仅支持经典脚本`
+        });
+      }
+      if (kind !== "classic") return tag;
+      const path = src === undefined ? null : resolveLocalAssetPath(entry, src, files);
+      const content = src === undefined ? inline : path === null ? undefined : files[path];
+      if (content !== undefined) scripts.push(content);
+      return tag;
+    }
+  );
+  return { script: scripts.join("\n\n"), warnings };
 }
 
 function neutralizePageBackground(css: string): string {
@@ -259,7 +304,12 @@ function mountMotionWidget(container, options = {}) {
   function resize(data) {
     const width = Math.ceil(Math.max(Number(data.width) || 0, 1));
     const height = Math.ceil(Math.max(Number(data.height) || 0, 1));
-    iframe.style.width = width + "px";
+    if (data.responsive) {
+      iframe.style.width = "100%";
+      if (data.fills === false) iframe.style.maxWidth = width + "px";
+    } else {
+      iframe.style.width = width + "px";
+    }
     iframe.style.height = height + "px";
   }
 
@@ -291,6 +341,8 @@ function mountMotionWidget(container, options = {}) {
       post({ type: "ai-motion:seek", progress });
     },
     update(params) {
+      // iframe load 时会按 nextOptions 再次 init，合并后才不会被旧参数覆盖。
+      nextOptions.params = { ...nextOptions.params, ...params };
       post({ type: "ai-motion:update", params: params || {} });
     },
     destroy() {
@@ -390,6 +442,7 @@ function composeIframeScript(componentScript: string, manifest: MotionManifest):
   const PARAMS = ${json(paramRuntimeMetadata(manifest))};
   const root = document.querySelector("[data-motion-root]") || document.body;
   let observer = null;
+  let responsive;
 
   function cssValue(param, value) {
     if (value === undefined || value === null) return "";
@@ -455,14 +508,39 @@ function composeIframeScript(componentScript: string, manifest: MotionManifest):
     const rect = element.getBoundingClientRect();
     let contentRight = rect.right;
     let contentBottom = rect.bottom;
-    for (const child of document.body.querySelectorAll("*")) {
+    for (const child of (responsive ? element : document.body).querySelectorAll("*")) {
       const childRect = child.getBoundingClientRect();
-      contentRight = Math.max(contentRight, childRect.right);
-      contentBottom = Math.max(contentBottom, childRect.bottom);
+      let { left, right, top, bottom } = childRect;
+      for (let ancestor = child.parentElement; ancestor && ancestor !== document.body; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        const clip = ancestor.getBoundingClientRect();
+        if (style.overflowX !== "visible") {
+          left = Math.max(left, clip.left);
+          right = Math.min(right, clip.right);
+        }
+        if (style.overflowY !== "visible") {
+          top = Math.max(top, clip.top);
+          bottom = Math.min(bottom, clip.bottom);
+        }
+        if (right <= left || bottom <= top) break;
+      }
+      if (right <= left || bottom <= top) continue;
+      contentRight = Math.max(contentRight, right);
+      contentBottom = Math.max(contentBottom, bottom);
     }
-    const width = Math.ceil(Math.max(contentRight, rect.width, document.documentElement.scrollWidth, document.body.scrollWidth, 1));
-    const height = Math.ceil(Math.max(contentBottom, rect.height, document.documentElement.scrollHeight, document.body.scrollHeight, 1));
-    window.parent.postMessage({ type, width, height }, "*");
+    let width = Math.ceil(Math.max(contentRight, rect.width, document.documentElement.scrollWidth, document.body.scrollWidth, 1));
+    let height = Math.ceil(Math.max(contentBottom, rect.height, document.documentElement.scrollHeight, document.body.scrollHeight, 1));
+    const fills = rect.width >= window.innerWidth - 1;
+    if (responsive === undefined) {
+      // Decide only at the initial probe; a capped responsive root later stops filling the viewport.
+      responsive = window.innerWidth <= 1 && fills && width <= window.innerWidth;
+    }
+    if (responsive) {
+      // Page scroll sizes include the viewport floor; centering offsets are not widget content.
+      width = Math.ceil(Math.max(contentRight - rect.left, rect.width, 1));
+      height = Math.ceil(Math.max(contentBottom - rect.top, rect.height, 1));
+    }
+    window.parent.postMessage({ type, width, height, ...(responsive ? { responsive: true } : {}), fills }, "*");
   }
 
   function handleMessage(event) {
@@ -936,9 +1014,11 @@ export function composeEmbedPackageFiles(input: {
   const extracted = extractDataUrlAssets(patchedFiles, input.manifest, input.patch);
   const entry = extracted.files[input.manifest.runtime.entry] ?? "";
   const widgetFragment = extractBodyHtml(entry);
-  const sourceCss = neutralizePageBackground(collectLinkedStyles(entry, extracted.files));
+  const sourceCss = neutralizePageBackground(
+    collectStyles(entry, input.manifest.runtime.entry, extracted.files)
+  );
   const widgetCss = composeWidgetCss(sourceCss);
-  const componentScript = collectLinkedScripts(entry, extracted.files);
+  const scripts = collectScripts(entry, input.manifest.runtime.entry, extracted.files);
   const metadata = {
     ...input.metadata,
     manifest: input.manifest,
@@ -947,7 +1027,8 @@ export function composeEmbedPackageFiles(input: {
     style: "dist/style.css",
     react: "react/index.js",
     iframe: "dist/iframe.html",
-    transparentBackground: true
+    transparentBackground: true,
+    ...(scripts.warnings.length > 0 ? { warnings: scripts.warnings } : {})
   };
 
   return {
@@ -960,7 +1041,7 @@ export function composeEmbedPackageFiles(input: {
     "dist/style.css": widgetCss,
     "dist/iframe.html": composeIframeHtml(input.manifest, widgetFragment),
     "dist/iframe.css": widgetCss,
-    "dist/iframe.js": composeIframeScript(componentScript, input.manifest),
+    "dist/iframe.js": composeIframeScript(scripts.script, input.manifest),
     "react/index.js": composeReactWrapperCjs(),
     "react/index.esm.mjs": composeReactWrapperEsm(),
     "react/index.d.ts": composeReactTypes(),
@@ -969,7 +1050,11 @@ export function composeEmbedPackageFiles(input: {
     "examples/react18.tsx": composeReact18Example(input.manifest),
     "manifest.json": JSON.stringify(metadata, null, 2),
     "motion.patch.json": JSON.stringify(input.patch, null, 2),
-    "README.md": composeEmbedReadme(input.manifest),
+    "README.md":
+      composeEmbedReadme(input.manifest) +
+      (scripts.warnings.length > 0
+        ? `\n## 导出警告\n\n${scripts.warnings.map((warning) => `- ${warning.message}`).join("\n")}\n`
+        : ""),
     ...prefixedAssets(extracted.assets)
   };
 }

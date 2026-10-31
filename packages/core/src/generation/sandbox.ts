@@ -52,6 +52,35 @@ function check(id: SandboxCheck["id"], status: SandboxCheckStatus, message: stri
   return { id, status, message };
 }
 
+// Function cannot parse module syntax, and engine error messages differ, so detect it up front.
+const MODULE_SYNTAX = /^\s*(?:import\s*[\w{*"'.]|export\s)/m;
+
+function hasSyntaxError(code: string): boolean {
+  if (MODULE_SYNTAX.test(code)) return false;
+  try {
+    new Function(code);
+    return false;
+  } catch (error) {
+    return error instanceof SyntaxError;
+  }
+}
+
+function syntaxErrorFile(component: MotionComponent): string | undefined {
+  for (const file of component.source.files) {
+    if (file.kind === "js" && hasSyntaxError(file.content)) return file.path;
+    if (file.kind !== "html") continue;
+    for (const script of file.content.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+      const attributes = script[1] ?? "";
+      if (/\bsrc\s*=/i.test(attributes)) continue;
+      const type = attributes.match(/\btype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+      const scriptType = (type?.[1] ?? type?.[2] ?? type?.[3] ?? "").trim().toLowerCase();
+      if (scriptType && !/^(?:text|application)\/(?:java|ecma)script$/.test(scriptType)) continue;
+      if (hasSyntaxError(script[2] ?? "")) return file.path;
+    }
+  }
+  return undefined;
+}
+
 export function validateGeneratedComponent(input: {
   component: MotionComponent;
   allowed: GenerationAllowedDiff;
@@ -69,7 +98,9 @@ export function validateGeneratedComponent(input: {
   const diff = validateGenerationDiff(diffInput);
   const health = analyzeComponentHealth(input.component);
   const readiness = analyzeGenerationReadiness(input.component);
-  const previewOk = health.checks.every((item) => item.id !== "renderable-source" || item.status === "pass");
+  const syntaxFile = syntaxErrorFile(input.component);
+  const previewOk =
+    !syntaxFile && health.checks.every((item) => item.id !== "renderable-source" || item.status === "pass");
   const checks: SandboxCheck[] = [
     schema.success
       ? check("schema-valid", "pass", "manifest schema 校验通过")
@@ -79,7 +110,11 @@ export function validateGeneratedComponent(input: {
       : check("source-whitelist", "fail", "源码修改超出白名单或包含高风险调用"),
     previewOk
       ? check("preview-playable", "pass", "预览入口可渲染")
-      : check("preview-playable", "fail", "预览入口不可渲染"),
+      : check(
+          "preview-playable",
+          "fail",
+          syntaxFile ? `JavaScript 语法错误：${syntaxFile}` : "预览入口不可渲染"
+        ),
     readiness.status !== "blocked"
       ? check("readiness-gate", "pass", "生成就绪度满足最低门禁")
       : check("readiness-gate", "fail", "生成就绪度未通过门禁")

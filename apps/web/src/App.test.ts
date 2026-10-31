@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 import { createEmptyPatch } from "./state/projectStore";
 import { EditorRoute } from "./routes/EditorRoute";
 import { createReferenceGuidedComponent, type MotionComponent } from "@motion-tool/core";
-import { removeComponentById } from "./App";
+import { componentFromProject, componentWithUniqueId, removeComponentById } from "./App";
 import { generateAtomicMotionComponent } from "./services/atomicMotionGeneration";
+import { previewPatchValues } from "./features/editor/PreviewFrame";
 
 const appSource = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
@@ -203,5 +204,61 @@ describe("removeComponentById", () => {
     const components = [makeComponent("one")];
 
     expect(removeComponentById(components, "missing")).toBe(components);
+  });
+});
+
+it("reopens saved values as the baseline for preview and reset", () => {
+  const component = makeComponent("saved");
+  component.source.files[0]!.content = '<span data-motion="price">old</span>';
+  component.manifest.params = [
+    {
+      id: "price",
+      label: "价格",
+      type: "text",
+      default: "old",
+      status: "confirmed",
+      targets: [{ kind: "html-text", file: "source/index.html", selector: "[data-motion=price]" }]
+    }
+  ];
+  const project = makeProject(component);
+  project.patch.values = { price: "$1 off" };
+  const saved = componentFromProject(component, project);
+  const reopened = makeProject(saved);
+  expect(saved.manifest.params[0]).toMatchObject({ default: "$1 off", value: "$1 off" });
+  expect(previewPatchValues(reopened.manifest, reopened.patch)).toEqual({ price: "$1 off" });
+  expect(saved.source.files[0]?.content).toBe('<span data-motion="price">$1 off</span>');
+  expect(previewPatchValues(saved.manifest, createEmptyPatch(saved.manifest))).toEqual({ price: "$1 off" });
+});
+
+describe("componentWithUniqueId", () => {
+  it("keeps non-colliding components unchanged", () => {
+    const incoming = makeComponent("new");
+    expect(componentWithUniqueId(incoming, [makeComponent("existing")], 123)).toBe(incoming);
+  });
+
+  it("copies colliding ids consistently without mutating either component", () => {
+    const original = makeComponent("existing");
+    const incoming = makeComponent("existing");
+    const before = structuredClone(incoming);
+    const copy = componentWithUniqueId(incoming, [original], 123);
+    expect(copy.id).toBe("existing-copy-123");
+    expect(copy.source.id).toBe(copy.id);
+    expect(copy.manifest.id).toBe(`${copy.id}-manifest`);
+    expect(copy.source.files).toBe(incoming.source.files);
+    expect(copy.manifest.params).toBe(incoming.manifest.params);
+    expect(incoming).toEqual(before);
+    expect(original).toEqual(before);
+  });
+
+  it("avoids existing copies even when uploads share a timestamp", () => {
+    const incoming = makeComponent("existing");
+    const copy = componentWithUniqueId(
+      incoming,
+      [incoming, makeComponent("existing-copy-123"), makeComponent("existing-copy-124")],
+      123
+    );
+    expect(copy.id).toBe("existing-copy-125");
+    expect(copy.source.id).toBe(copy.id);
+    expect(copy.manifest.id).toBe(`${copy.id}-manifest`);
   });
 });

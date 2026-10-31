@@ -78,7 +78,13 @@ export function createProductionServer(input: ProductionServerInput) {
   const referenceGuidedGenerationHandler = createReferenceGuidedGenerationHandler(input.generation);
 
   return createServer((req, res) => {
-    const pathName = requestPath(req);
+    let pathName: string;
+    try {
+      pathName = requestPath(req);
+    } catch {
+      sendJson(res, 400, { error: "请求路径无效" });
+      return;
+    }
 
     if (pathName === "/api/brief/parse") {
       handleApiRequest(briefParseHandler, req, res);
