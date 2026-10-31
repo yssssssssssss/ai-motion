@@ -57,7 +57,17 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         process: "readonly",
-        console: "readonly"
+        console: "readonly",
+        URL: "readonly",
+        fetch: "readonly",
+        Buffer: "readonly",
+        AbortController: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        // page.evaluate 内的浏览器代码
+        window: "readonly",
+        document: "readonly",
+        Image: "readonly"
       }
     }
   }

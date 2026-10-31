@@ -1,4 +1,3 @@
-/* global URL, fetch, window, document, setTimeout, clearTimeout */
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import net from "node:net";
