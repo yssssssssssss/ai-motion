@@ -8,11 +8,7 @@
     "entry": "source/index.html",
     "sandbox": "iframe"
   },
-  "capabilities": [
-    "builtin",
-    "editable",
-    "export-html"
-  ],
+  "capabilities": ["builtin", "editable", "export-html"],
   "params": [
     {
       "id": "cycleDuration",
@@ -83,11 +79,7 @@
       "type": "image",
       "default": null,
       "constraints": {
-        "allowedFileTypes": [
-          "image/png",
-          "image/jpeg",
-          "image/webp"
-        ]
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
       },
       "status": "confirmed",
       "targets": [
@@ -160,33 +152,22 @@
     {
       "id": "timing",
       "label": "速度",
-      "params": [
-        "cycleDuration",
-        "easing"
-      ]
+      "params": ["cycleDuration", "easing"]
     },
     {
       "id": "trajectory",
       "label": "轨迹",
-      "params": [
-        "enterDistance",
-        "exitDistance"
-      ]
+      "params": ["enterDistance", "exitDistance"]
     },
     {
       "id": "assets",
       "label": "素材",
-      "params": [
-        "ordersContentImage"
-      ]
+      "params": ["ordersContentImage"]
     },
     {
       "id": "visual",
       "label": "视觉",
-      "params": [
-        "transitionOpacity",
-        "windowRadius"
-      ]
+      "params": ["transitionOpacity", "windowRadius"]
     }
   ],
   "layers": [

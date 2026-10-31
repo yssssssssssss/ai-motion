@@ -16,7 +16,8 @@ function numeric(value: number | undefined, fallback: number): number {
 
 function changedFields(initial: MotionState, animate: MotionState): string[] {
   return (["x", "y", "scale", "opacity", "blur", "rotate"] as const).filter(
-    (field) => numeric(initial[field], field === "scale" || field === "opacity" ? 1 : 0) !==
+    (field) =>
+      numeric(initial[field], field === "scale" || field === "opacity" ? 1 : 0) !==
       numeric(animate[field], field === "scale" || field === "opacity" ? 1 : 0)
   );
 }
@@ -67,7 +68,11 @@ export function evaluateGuidelines(document: MotionDocument): GuidelineSuggestio
     });
   }
 
-  if (element.role === "button" && document.timeline.trigger === "click" && document.timeline.easing.type !== "spring") {
+  if (
+    element.role === "button" &&
+    document.timeline.trigger === "click" &&
+    document.timeline.easing.type !== "spring"
+  ) {
     suggestions.push({
       id: "button-click-needs-spring",
       target: { elementId: element.id, field: "timeline.easing" },
@@ -76,7 +81,15 @@ export function evaluateGuidelines(document: MotionDocument): GuidelineSuggestio
       reason: "按钮点击属于明确反馈动作，适度回弹能强化按压感。",
       suggestedPatch: {
         element: { animate: { scale: 0.96 } },
-        timeline: { easing: { type: "spring", stiffness: 220, damping: 18, mass: 1, cssFallback: "cubic-bezier(0.34, 1.56, 0.64, 1)" } }
+        timeline: {
+          easing: {
+            type: "spring",
+            stiffness: 220,
+            damping: 18,
+            mass: 1,
+            cssFallback: "cubic-bezier(0.34, 1.56, 0.64, 1)"
+          }
+        }
       },
       status: "open"
     });
@@ -103,7 +116,10 @@ export function evaluateGuidelines(document: MotionDocument): GuidelineSuggestio
     });
   }
 
-  if (document.timeline.easing.type === "spring" && changedFields(element.initial, element.animate).join(",") === "opacity") {
+  if (
+    document.timeline.easing.type === "spring" &&
+    changedFields(element.initial, element.animate).join(",") === "opacity"
+  ) {
     suggestions.push({
       id: "opacity-only-no-spring",
       target: { elementId: element.id, field: "timeline.easing" },
@@ -129,7 +145,9 @@ export function evaluateGuidelines(document: MotionDocument): GuidelineSuggestio
       title: "大面积回弹过强",
       reason: "大面积容器使用高弹性回弹容易造成视觉噪点，建议改为克制缓动。",
       suggestedPatch: {
-        timeline: { easing: { type: "classic", preset: "decelerate", css: "cubic-bezier(0.18, 0.86, 0.22, 1)" } }
+        timeline: {
+          easing: { type: "classic", preset: "decelerate", css: "cubic-bezier(0.18, 0.86, 0.22, 1)" }
+        }
       },
       status: "open"
     });
@@ -143,7 +161,12 @@ export function evaluateGuidelines(document: MotionDocument): GuidelineSuggestio
   const zLevel = zLevelForRole(element.role);
   const strategy = springStrategyForZLevel(zLevel);
 
-  if (hasSpatialChange && document.timeline.easing.type !== "spring" && strategy.allowBounce && document.timeline.trigger !== "load") {
+  if (
+    hasSpatialChange &&
+    document.timeline.easing.type !== "spring" &&
+    strategy.allowBounce &&
+    document.timeline.trigger !== "load"
+  ) {
     suggestions.push({
       id: "spatial-change-suggest-spring",
       target: { elementId: element.id, field: "timeline.easing" },

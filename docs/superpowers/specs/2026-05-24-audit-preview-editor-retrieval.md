@@ -15,13 +15,13 @@
 
 ### 已修复的问题
 
-| # | 现象 | 原因 | 修复 |
-|---|---|---|---|
-| 1 | WorkEasy 翻译后文字相邻 inline 元素粘连 (`Hello <strong>保存</strong>编辑`) | `localizedSample(text.trim())` 把前后空白吃掉 | 拆出 leading/trailing 空白，仅对核心文本查字典 |
-| 2 | hero-text-reveal 等组件在编辑预览里被 `min-height: 100vh` 顶起一片大空白 | EDITOR_STYLE 没有覆盖组件内 vh 单位 | 给 `.motion-editor-stage > *` 注入 `min-height/min-width: auto !important` |
-| 3 | WorkEasy 重复 `.button { color: ... }` 块只有第一处生效 | `applyCssProperty` 用 `m` 标志而非 `gm` | 改为全局匹配，覆盖所有出现 |
-| 4 | 缩略图初次测量偏小、缩放比例错误 | `fitThumbnail` 立刻 `requestAnimationFrame` 时 transform 还没落地 | 双 rAF 后再测量 |
-| 5 | 用户改任意参数都会触发 iframe 重渲、动画从头播放 | `PreviewFrame` 每次 render 都重算 srcDoc | `useMemo` 缓存，依赖只为 source/manifest/patch |
+| #   | 现象                                                                        | 原因                                                              | 修复                                                                       |
+| --- | --------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 1   | WorkEasy 翻译后文字相邻 inline 元素粘连 (`Hello <strong>保存</strong>编辑`) | `localizedSample(text.trim())` 把前后空白吃掉                     | 拆出 leading/trailing 空白，仅对核心文本查字典                             |
+| 2   | hero-text-reveal 等组件在编辑预览里被 `min-height: 100vh` 顶起一片大空白    | EDITOR_STYLE 没有覆盖组件内 vh 单位                               | 给 `.motion-editor-stage > *` 注入 `min-height/min-width: auto !important` |
+| 3   | WorkEasy 重复 `.button { color: ... }` 块只有第一处生效                     | `applyCssProperty` 用 `m` 标志而非 `gm`                           | 改为全局匹配，覆盖所有出现                                                 |
+| 4   | 缩略图初次测量偏小、缩放比例错误                                            | `fitThumbnail` 立刻 `requestAnimationFrame` 时 transform 还没落地 | 双 rAF 后再测量                                                            |
+| 5   | 用户改任意参数都会触发 iframe 重渲、动画从头播放                            | `PreviewFrame` 每次 render 都重算 srcDoc                          | `useMemo` 缓存，依赖只为 source/manifest/patch                             |
 
 ### 仍待跟进 (非阻塞)
 
@@ -31,12 +31,12 @@
 
 ### 已修复
 
-| # | 优化点 | 落点 |
-|---|---|---|
-| 6 | 参数面板按 `manifest.groups` (显式) 或 `param.ui.group` (隐式) 分组渲染；无分组时回退平铺 | `apps/web/src/features/editor/ParameterPanel.tsx` 新增 `groupParameters` |
-| 7 | 顶部"重置默认值"按钮，把所有参数清回 `manifest.params.default` | `useProject.resetParams` + ParameterPanel `onReset` |
-| 8 | 删除 EditorRoute 里"暂停"、"视口"两个无 onClick 的死按钮 | `apps/web/src/routes/EditorRoute.tsx` |
-| 9 | 右侧面板宽度改 `clamp(300px, 28vw, 380px)`；900px 断点改 `min(60vh, 520px)` 控制预览高度 | `apps/web/src/styles/editor.css`、`responsive.css` |
+| #   | 优化点                                                                                    | 落点                                                                     |
+| --- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 6   | 参数面板按 `manifest.groups` (显式) 或 `param.ui.group` (隐式) 分组渲染；无分组时回退平铺 | `apps/web/src/features/editor/ParameterPanel.tsx` 新增 `groupParameters` |
+| 7   | 顶部"重置默认值"按钮，把所有参数清回 `manifest.params.default`                            | `useProject.resetParams` + ParameterPanel `onReset`                      |
+| 8   | 删除 EditorRoute 里"暂停"、"视口"两个无 onClick 的死按钮                                  | `apps/web/src/routes/EditorRoute.tsx`                                    |
+| 9   | 右侧面板宽度改 `clamp(300px, 28vw, 380px)`；900px 断点改 `min(60vh, 520px)` 控制预览高度  | `apps/web/src/styles/editor.css`、`responsive.css`                       |
 
 ### 仍待跟进
 
@@ -72,12 +72,12 @@ convertWorkEasyComponent     loadMotionComponentFromFiles
 
 ### 已修复
 
-| # | 优化点 | 落点 |
-|---|---|---|
-| 10 | `createSearchProfile` 用 WeakMap 按 component 实例缓存，避免每次推荐都重新扫 html/css | `packages/core/src/orchestrator/recommend.ts` |
-| 11 | `searchProfile.rawText` 不再塞整段 css/html，只保留可见文案 + class 名 + keyframes 名 | `packages/core/src/orchestrator/searchProfile.ts` |
-| 12 | `briefParserClient` 加 32 条 LRU，相同 brief 不重复调 LLM | `apps/web/src/services/briefParserClient.ts` |
-| 13 | (副产物) WorkEasy 静态数据 / builtin 组件资源 拆到独立 chunk | `apps/web/vite.config.ts` `manualChunks` |
+| #   | 优化点                                                                                | 落点                                              |
+| --- | ------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| 10  | `createSearchProfile` 用 WeakMap 按 component 实例缓存，避免每次推荐都重新扫 html/css | `packages/core/src/orchestrator/recommend.ts`     |
+| 11  | `searchProfile.rawText` 不再塞整段 css/html，只保留可见文案 + class 名 + keyframes 名 | `packages/core/src/orchestrator/searchProfile.ts` |
+| 12  | `briefParserClient` 加 32 条 LRU，相同 brief 不重复调 LLM                             | `apps/web/src/services/briefParserClient.ts`      |
+| 13  | (副产物) WorkEasy 静态数据 / builtin 组件资源 拆到独立 chunk                          | `apps/web/vite.config.ts` `manualChunks`          |
 
 构建指标：
 

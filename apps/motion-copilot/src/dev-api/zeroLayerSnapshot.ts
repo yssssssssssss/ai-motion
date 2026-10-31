@@ -18,7 +18,11 @@ type ZeroLayerResponse = {
   end(body: string): void;
 };
 
-export type ZeroLayerSnapshotSource = "real-zero-mcp-http" | "fixture" | "zero-layer-bridge" | "custom-command";
+export type ZeroLayerSnapshotSource =
+  | "real-zero-mcp-http"
+  | "fixture"
+  | "zero-layer-bridge"
+  | "custom-command";
 
 export type ZeroLayerSnapshotOptions = {
   layerCommand?: string | undefined;
@@ -122,7 +126,9 @@ function runLayerCommand(
         try {
           resolve(normalizeZeroLayerSnapshot(JSON.parse(stdout) as unknown));
         } catch (parseError) {
-          reject(parseError instanceof Error ? parseError : new Error("Zero layer snapshot output is invalid."));
+          reject(
+            parseError instanceof Error ? parseError : new Error("Zero layer snapshot output is invalid.")
+          );
         }
       }
     );
@@ -133,7 +139,10 @@ export function createZeroLayerSnapshotHandler(options: ZeroLayerSnapshotOptions
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  return async function zeroLayerSnapshotHandler(req: ZeroLayerRequest, res: ZeroLayerResponse): Promise<void> {
+  return async function zeroLayerSnapshotHandler(
+    req: ZeroLayerRequest,
+    res: ZeroLayerResponse
+  ): Promise<void> {
     if (req.method !== "POST") {
       writeJson(res, 405, { error: "Method not allowed" });
       return;

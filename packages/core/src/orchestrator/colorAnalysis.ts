@@ -11,7 +11,10 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   if (normalized.length !== 3 && normalized.length !== 6) return null;
   const value =
     normalized.length === 3
-      ? normalized.split("").map((p) => p + p).join("")
+      ? normalized
+          .split("")
+          .map((p) => p + p)
+          .join("")
       : normalized;
   const intValue = Number.parseInt(value, 16);
   if (!Number.isFinite(intValue)) return null;
@@ -41,13 +44,28 @@ function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: n
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = l - c / 2;
-  let r = 0, g = 0, b = 0;
-  if (h < 60) { r = c; g = x; }
-  else if (h < 120) { r = x; g = c; }
-  else if (h < 180) { g = c; b = x; }
-  else if (h < 240) { g = x; b = c; }
-  else if (h < 300) { r = x; b = c; }
-  else { r = c; b = x; }
+  let r = 0,
+    g = 0,
+    b = 0;
+  if (h < 60) {
+    r = c;
+    g = x;
+  } else if (h < 120) {
+    r = x;
+    g = c;
+  } else if (h < 180) {
+    g = c;
+    b = x;
+  } else if (h < 240) {
+    g = x;
+    b = c;
+  } else if (h < 300) {
+    r = x;
+    b = c;
+  } else {
+    r = c;
+    b = x;
+  }
   return {
     r: Math.round((r + m) * 255),
     g: Math.round((g + m) * 255),
@@ -88,13 +106,26 @@ function hueToTraits(hue: number, brightness: number): string[] {
 }
 
 const NAMED_COLORS: Record<string, string[]> = {
-  red: ["红色", "red"], orange: ["橙色", "orange"], yellow: ["黄色", "yellow"],
-  green: ["绿色", "green"], blue: ["蓝色", "blue"], purple: ["紫色", "purple"],
-  pink: ["粉色", "pink"], black: ["黑色", "black"], white: ["白色", "white"],
-  gray: ["灰色", "gray"], grey: ["灰色", "grey"], cyan: ["青色", "cyan"],
-  teal: ["青色", "teal"], magenta: ["紫色", "magenta"], violet: ["紫色", "violet"],
-  lime: ["绿色", "lime"], coral: ["橙色", "coral"], gold: ["金色", "gold"],
-  silver: ["银色", "silver"], brown: ["棕色", "brown"]
+  red: ["红色", "red"],
+  orange: ["橙色", "orange"],
+  yellow: ["黄色", "yellow"],
+  green: ["绿色", "green"],
+  blue: ["蓝色", "blue"],
+  purple: ["紫色", "purple"],
+  pink: ["粉色", "pink"],
+  black: ["黑色", "black"],
+  white: ["白色", "white"],
+  gray: ["灰色", "gray"],
+  grey: ["灰色", "grey"],
+  cyan: ["青色", "cyan"],
+  teal: ["青色", "teal"],
+  magenta: ["紫色", "magenta"],
+  violet: ["紫色", "violet"],
+  lime: ["绿色", "lime"],
+  coral: ["橙色", "coral"],
+  gold: ["金色", "gold"],
+  silver: ["银色", "silver"],
+  brown: ["棕色", "brown"]
 };
 
 /**
@@ -108,7 +139,17 @@ export function analyzeColors(css: string): ColorFacet {
   const colorProps = [
     { names: ["background", "background-color"], weight: 3 },
     { names: ["color"], weight: 2 },
-    { names: ["border", "border-color", "border-top-color", "border-bottom-color", "border-left-color", "border-right-color"], weight: 1.5 },
+    {
+      names: [
+        "border",
+        "border-color",
+        "border-top-color",
+        "border-bottom-color",
+        "border-left-color",
+        "border-right-color"
+      ],
+      weight: 1.5
+    },
     { names: ["box-shadow", "text-shadow"], weight: 0.8 },
     { names: ["fill", "stroke"], weight: 1 }
   ];
@@ -133,7 +174,10 @@ export function analyzeColors(css: string): ColorFacet {
     isGradient = true;
     const stops = gradientBody.split(/,(?![^(]*\))/);
     for (const stop of stops) {
-      const colorPart = stop.trim().replace(/^\d+%\s*/, "").trim();
+      const colorPart = stop
+        .trim()
+        .replace(/^\d+%\s*/, "")
+        .trim();
       const parsed = parseColor(colorPart);
       if (parsed) {
         const key = `${parsed.r},${parsed.g},${parsed.b}`;
@@ -152,9 +196,7 @@ export function analyzeColors(css: string): ColorFacet {
     }
   }
 
-  const sorted = [...counts.entries()]
-    .sort((a, b) => b[1].weight - a[1].weight)
-    .slice(0, 5);
+  const sorted = [...counts.entries()].sort((a, b) => b[1].weight - a[1].weight).slice(0, 5);
 
   const allTraits: string[] = [];
   let primary = "多彩";

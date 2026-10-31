@@ -50,7 +50,11 @@ function proxyLayerName(node: ZeroVisualNode): string {
   return node.text?.trim() || node.name;
 }
 
-function bindingLabel(binding: VisualMotionBinding, from: ZeroVisualSnapshot, to: ZeroVisualSnapshot): string {
+function bindingLabel(
+  binding: VisualMotionBinding,
+  from: ZeroVisualSnapshot,
+  to: ZeroVisualSnapshot
+): string {
   const fromNode = from.nodes.find((node) => node.nodeId === binding.nodeId);
   const toNode = to.nodes.find((node) => node.nodeId === binding.toNodeId);
   const fromLabel = fromNode ? nodeLabel(fromNode) : binding.nodeId;
@@ -154,7 +158,12 @@ function matchedStep(
   };
 }
 
-function enterStep(node: ZeroVisualNode, intent: VisualMotionIntent, index: number, enterIndex: number): CompositionStep {
+function enterStep(
+  node: ZeroVisualNode,
+  intent: VisualMotionIntent,
+  index: number,
+  enterIndex: number
+): CompositionStep {
   return {
     id: `zero-visual-enter-${index}-${safeId(node.nodeId)}`,
     presetId: visualMorphPresetId,

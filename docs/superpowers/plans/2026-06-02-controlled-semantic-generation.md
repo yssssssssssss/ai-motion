@@ -44,6 +44,7 @@
 ### Task 1: Expand Design Spec Skill Registry
 
 **Files:**
+
 - Modify: `packages/core/src/library/designSpecs.ts`
 - Create: `packages/core/test/designSpecs.test.ts`
 
@@ -181,7 +182,10 @@ export const designSpecSkills: DesignSpecSkill[] = [
     version: "1.0",
     terms: ["media", "video", "image", "poster", "媒体", "视频", "图片"],
     appliesTo: ["图片层", "视频首帧", "媒体卡片", "海报图层"],
-    rules: ["媒体图层替换必须走声明的 image 参数或 layer target。", "默认只调整已声明的位移、缩放、透明度和圆角参数。"],
+    rules: [
+      "媒体图层替换必须走声明的 image 参数或 layer target。",
+      "默认只调整已声明的位移、缩放、透明度和圆角参数。"
+    ],
     forbidden: ["禁止从视频中臆造未识别出的独立图层。", "禁止把原始 video 标签作为最终生成结果。"],
     motionPrinciples: ["图层可替换", "单层可控", "抽帧可预览"],
     preferredParamConcepts: ["trajectory", "intensity", "rhythm"],
@@ -216,6 +220,7 @@ git commit -m "feat: expand design spec skill registry"
 ### Task 2: Return Top 3 Controlled Generation Candidates
 
 **Files:**
+
 - Modify: `packages/core/src/orchestrator/generationPlan.ts`
 - Modify: `packages/core/test/generationPlan.test.ts`
 
@@ -367,6 +372,7 @@ git commit -m "feat: return top three generation candidates"
 ### Task 3: Add Controlled Generation Patch Contract
 
 **Files:**
+
 - Create: `packages/core/src/generation/controlledPatch.ts`
 - Create: `packages/core/test/controlledPatch.test.ts`
 - Modify: `packages/core/src/index.ts`
@@ -495,12 +501,12 @@ describe("controlled semantic generation", () => {
     expect(generated.validation.valid).toBe(true);
     expect(generated.component.id).toMatch(/^generated-product-transition-/);
     expect(generated.component.source.origin).toBe("generated");
-    expect(generated.component.source.files.find((file) => file.path === "source/style.css")?.content).toContain(
-      "--motion-duration: 540ms"
-    );
-    expect(generated.component.source.files.find((file) => file.path === "source/style.css")?.content).toContain(
-      "--slide-distance: 260px"
-    );
+    expect(
+      generated.component.source.files.find((file) => file.path === "source/style.css")?.content
+    ).toContain("--motion-duration: 540ms");
+    expect(
+      generated.component.source.files.find((file) => file.path === "source/style.css")?.content
+    ).toContain("--slide-distance: 260px");
   });
 });
 ```
@@ -523,7 +529,11 @@ Create `packages/core/src/generation/controlledPatch.ts`:
 import type { MotionComponent } from "../library/componentLibrary";
 import type { MotionPatch } from "../manifest/types";
 import { applyPatchToFiles } from "../patch/applyPatch";
-import { createGenerationPlan, type GenerationPlan, type GenerationPlanCandidate } from "../orchestrator/generationPlan";
+import {
+  createGenerationPlan,
+  type GenerationPlan,
+  type GenerationPlanCandidate
+} from "../orchestrator/generationPlan";
 import { validateGeneratedComponent, type GeneratedComponentValidationResult } from "./sandbox";
 
 export type ControlledGenerationPatch = {
@@ -568,7 +578,8 @@ function shorterValue(param: MotionComponent["manifest"]["params"][number]): num
   const current = numericDefault(param.default);
   if (current === null) return null;
   const step = param.constraints?.step ?? 1;
-  if (param.type === "duration") return clamp(current - step * 4, param.constraints?.min, param.constraints?.max);
+  if (param.type === "duration")
+    return clamp(current - step * 4, param.constraints?.min, param.constraints?.max);
   return clamp(current - step * 6, param.constraints?.min, param.constraints?.max);
 }
 
@@ -597,9 +608,7 @@ export function compileSemanticPatch(request: ControlledGenerationRequest): Cont
   if (!candidate) {
     throw new Error("没有可用于受控生成的候选组件");
   }
-  const component = request.plan.intent.query
-    ? undefined
-    : undefined;
+  const component = request.plan.intent.query ? undefined : undefined;
   void component;
 
   const base = request.plan.candidates[0];
@@ -655,7 +664,9 @@ export function createGeneratedComponentFromPatch(input: {
     sourceManifestId: input.baseComponent.manifest.id,
     values: resolved.paramValues
   };
-  const beforeFiles = Object.fromEntries(input.baseComponent.source.files.map((file) => [file.path, file.content]));
+  const beforeFiles = Object.fromEntries(
+    input.baseComponent.source.files.map((file) => [file.path, file.content])
+  );
   const afterFiles = applyPatchToFiles({
     files: beforeFiles,
     manifest: input.baseComponent.manifest,
@@ -680,7 +691,9 @@ export function createGeneratedComponentFromPatch(input: {
       ...input.baseComponent.manifest,
       id: `${id}-manifest`,
       name: resolved.metadata.name,
-      capabilities: [...new Set([...(input.baseComponent.manifest.capabilities ?? []), "editable", "export-html"])]
+      capabilities: [
+        ...new Set([...(input.baseComponent.manifest.capabilities ?? []), "editable", "export-html"])
+      ]
     }
   };
   const validation = validateGeneratedComponent({
@@ -732,6 +745,7 @@ git commit -m "feat: add controlled semantic generation patch"
 ### Task 4: Add Server Route and Client for Controlled Generation
 
 **Files:**
+
 - Create: `apps/web/src/dev-api/controlledGenerationRoute.ts`
 - Create: `apps/web/src/dev-api/controlledGenerationRoute.test.ts`
 - Create: `apps/web/src/services/controlledGenerationClient.ts`
@@ -792,7 +806,7 @@ const component: MotionComponent = {
       {
         path: "source/index.html",
         kind: "html",
-        content: '<main data-motion-root><script>window.motionReplay=function(){}</script></main>'
+        content: "<main data-motion-root><script>window.motionReplay=function(){}</script></main>"
       },
       {
         path: "source/style.css",
@@ -863,7 +877,10 @@ function json(status: number, body: unknown): Response {
 function isMotionComponentArray(value: unknown): value is MotionComponent[] {
   return (
     Array.isArray(value) &&
-    value.every((item) => Boolean(item) && typeof item === "object" && "id" in item && "manifest" in item && "source" in item)
+    value.every(
+      (item) =>
+        Boolean(item) && typeof item === "object" && "id" in item && "manifest" in item && "source" in item
+    )
   );
 }
 
@@ -874,13 +891,16 @@ export function createControlledGenerationHandler() {
     const body = (await request.json()) as ControlledGenerationBody;
     const brief = typeof body.brief === "string" ? body.brief.trim() : "";
     if (!brief) return json(400, { error: "brief is required" });
-    if (!isMotionComponentArray(body.components)) return json(400, { error: "components must be MotionComponent[]" });
+    if (!isMotionComponentArray(body.components))
+      return json(400, { error: "components must be MotionComponent[]" });
 
     try {
       const generationRequest = buildControlledGenerationRequest({ brief, components: body.components });
       const patch = compileSemanticPatch(generationRequest);
       const baseComponent = body.components.find((component) => component.id === patch.baseComponentId);
-      const candidate = generationRequest.plan.candidates.find((item) => item.componentId === patch.baseComponentId);
+      const candidate = generationRequest.plan.candidates.find(
+        (item) => item.componentId === patch.baseComponentId
+      );
       if (!baseComponent || !candidate) throw new Error("没有可用于受控生成的候选组件");
 
       const generated = createGeneratedComponentFromPatch({
@@ -953,6 +973,7 @@ git commit -m "feat: add controlled generation api"
 ### Task 5: Add Semantic Generation UI Entry
 
 **Files:**
+
 - Create: `apps/web/src/features/generation/SemanticGenerationPanel.tsx`
 - Create: `apps/web/src/features/generation/SemanticGenerationPanel.test.tsx`
 - Modify: `apps/web/src/routes/HomeRoute.tsx`
@@ -1183,6 +1204,7 @@ Expected: build exits 0. Existing Vite warning about Node `20.18.1` versus recom
 Open `http://127.0.0.1:5173/`.
 
 Verify:
+
 - The natural-language generation panel is visible.
 - A brief such as `商品详情转场更快一点，滑动距离短一点` shows up to 3 candidates.
 - Clicking `生成新组件` adds a generated component to the library.
@@ -1193,6 +1215,7 @@ Verify:
 ## Self-Review
 
 Spec coverage:
+
 - Skill reading capability is covered by Task 1 through schema-checked skill registry fields.
 - Top 3 retrieval is covered by Task 2.
 - Skill plus natural language plus candidate-controlled generation is covered by Task 3.
@@ -1201,11 +1224,13 @@ Spec coverage:
 - Validation and fallback are covered by Task 3 route validation and final verification.
 
 Scope control:
+
 - MVP does not allow arbitrary LLM source-code rewriting.
 - MVP does not perform video object detection, OCR, or multi-layer decomposition.
 - MVP does not require external AI provider credentials. The deterministic semantic compiler creates a real patch inside existing constraints; an LLM provider can replace `compileSemanticPatch` later while keeping the same schema and whitelist gate.
 
 Type consistency:
+
 - `ControlledGenerationPatch.paramValues` maps to existing `MotionPatch.values`.
 - `GenerationPlanCandidate.allowed` reuses the existing whitelist shape.
 - Generated components reuse existing `MotionComponent` and `validateGeneratedComponent`.

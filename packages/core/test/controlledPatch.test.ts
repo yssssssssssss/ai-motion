@@ -185,12 +185,12 @@ describe("controlled semantic generation", () => {
     expect(generated.validation.valid).toBe(true);
     expect(generated.component.id).toMatch(/^generated-product-transition-/);
     expect(generated.component.source.origin).toBe("generated");
-    expect(generated.component.source.files.find((file) => file.path === "source/style.css")?.content).toContain(
-      "--motion-duration: 540ms"
-    );
-    expect(generated.component.source.files.find((file) => file.path === "source/style.css")?.content).toContain(
-      "--slide-distance: 260px"
-    );
+    expect(
+      generated.component.source.files.find((file) => file.path === "source/style.css")?.content
+    ).toContain("--motion-duration: 540ms");
+    expect(
+      generated.component.source.files.find((file) => file.path === "source/style.css")?.content
+    ).toContain("--slide-distance: 260px");
   });
 
   it("does not treat a generic generation brief as a no-op clone", () => {
@@ -220,8 +220,8 @@ describe("controlled semantic generation", () => {
     expect(patch.paramValues).toMatchObject({
       headline: "效率提升 40%"
     });
-    expect(generated.component.source.files.find((file) => file.path === "source/index.html")?.content).toContain(
-      "效率提升 40%"
-    );
+    expect(
+      generated.component.source.files.find((file) => file.path === "source/index.html")?.content
+    ).toContain("效率提升 40%");
   });
 });

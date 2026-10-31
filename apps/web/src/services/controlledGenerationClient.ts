@@ -12,7 +12,9 @@ export type ControlledGenerationClientResponse = {
   plan: GenerationPlan;
 };
 
-async function readPayload(response: Response): Promise<Partial<ControlledGenerationClientResponse> & { error?: string }> {
+async function readPayload(
+  response: Response
+): Promise<Partial<ControlledGenerationClientResponse> & { error?: string }> {
   const text = await response.text();
   if (!text.trim()) return {};
 

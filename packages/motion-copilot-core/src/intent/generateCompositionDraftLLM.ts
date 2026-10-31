@@ -60,7 +60,8 @@ function isLLMDraftStep(value: unknown): value is LLMDraftStep {
   const step = value as Record<string, unknown>;
   if (typeof step.presetId !== "string" || !PRESET_ID_SET.has(step.presetId)) return false;
   if (!(step.layerId === null || typeof step.layerId === "string")) return false;
-  if (typeof step.timing !== "string" || !TIMING_VALUES.includes(step.timing as CompositionTiming)) return false;
+  if (typeof step.timing !== "string" || !TIMING_VALUES.includes(step.timing as CompositionTiming))
+    return false;
   if (typeof step.delayMs !== "number" || !Number.isFinite(step.delayMs)) return false;
   if (typeof step.reason !== "string") return false;
   return true;
@@ -115,7 +116,10 @@ export function buildDraftPromptContext(document: MotionDocument): string {
 
   const layers = selectableLayers(document);
   const layerLines = layers.length
-    ? layers.map((layer) => `- ${layer.id}｜${layer.kind}｜${layer.name}${layer.content?.text ? `（文案:${layer.content.text}）` : ""}`)
+    ? layers.map(
+        (layer) =>
+          `- ${layer.id}｜${layer.kind}｜${layer.name}${layer.content?.text ? `（文案:${layer.content.text}）` : ""}`
+      )
     : ["- （当前没有可编辑图层，layerId 一律返回 null）"];
 
   return [

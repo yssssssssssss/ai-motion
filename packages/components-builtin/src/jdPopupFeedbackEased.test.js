@@ -22,9 +22,9 @@ describe("jd popup feedback eased component", () => {
     expect(html).toContain("data-motion-root");
     expect(html).toContain("coupon-popup");
     expect(html).toContain("close-button");
-    expect(assets).toContain("--shell-frame: url(\"data:image/webp;base64,");
-    expect(assets).toContain("--product-screen: url(\"data:image/webp;base64,");
-    expect(assets).toContain("--coupon-popup: url(\"data:image/webp;base64,");
+    expect(assets).toContain('--shell-frame: url("data:image/webp;base64,');
+    expect(assets).toContain('--product-screen: url("data:image/webp;base64,');
+    expect(assets).toContain('--coupon-popup: url("data:image/webp;base64,');
     expect(assets).toContain("product-screen-source: frame_0001_crop_213_222_1118_2417");
     expect(assets).toContain("coupon-popup-source: frame_0075_crop_333_770_874_1134");
   });

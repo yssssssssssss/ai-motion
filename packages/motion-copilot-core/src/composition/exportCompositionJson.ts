@@ -109,7 +109,9 @@ export function createCompositionJsonExport(
   document: MotionDocument,
   track: CompositionTrack
 ): MotionCompositionJsonV1 {
-  const windows = new Map(computeCompositionStepWindows(track.steps).map((window) => [window.stepId, window]));
+  const windows = new Map(
+    computeCompositionStepWindows(track.steps).map((window) => [window.stepId, window])
+  );
   const lanes = new Map<string, MotionCompositionLaneExport>();
 
   const steps = track.steps.map((step) => {

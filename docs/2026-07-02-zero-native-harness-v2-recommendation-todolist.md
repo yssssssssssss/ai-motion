@@ -244,4 +244,3 @@
 - 新增逻辑必须复用现有 recipe id，不使用文档示例中的虚构 id。
 - 显著度和推荐是 soft guidance，不应破坏现有 hard gate。
 - 尾帧还原和 corridor 仍然是最高优先级。
-

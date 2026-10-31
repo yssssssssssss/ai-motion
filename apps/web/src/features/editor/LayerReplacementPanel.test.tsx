@@ -130,7 +130,11 @@ describe("LayerReplacementPanel", () => {
     const uploadedHtml = renderToStaticMarkup(
       <LayerReplacementPanel
         manifest={manifest}
-        patch={{ id: "patch", sourceManifestId: "layered", values: { heroImage: "data:image/png;base64,abc" } }}
+        patch={{
+          id: "patch",
+          sourceManifestId: "layered",
+          values: { heroImage: "data:image/png;base64,abc" }
+        }}
         onChange={vi.fn()}
       />
     );
@@ -154,7 +158,11 @@ describe("LayerReplacementPanel", () => {
     const dirtyHtml = renderToStaticMarkup(
       <LayerReplacementPanel
         manifest={manifest}
-        patch={{ id: "patch", sourceManifestId: "layered", values: { heroImage: "data:image/png;base64,abc" } }}
+        patch={{
+          id: "patch",
+          sourceManifestId: "layered",
+          values: { heroImage: "data:image/png;base64,abc" }
+        }}
         onChange={vi.fn()}
         onReset={vi.fn()}
       />
@@ -318,7 +326,9 @@ describe("LayerReplacementPanel", () => {
               default: 430,
               status: "confirmed",
               constraints: { min: 320, max: 520, step: 1, unit: "px" },
-              targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--stage-width" }]
+              targets: [
+                { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--stage-width" }
+              ]
             },
             {
               id: "stageHeight",
@@ -327,7 +337,9 @@ describe("LayerReplacementPanel", () => {
               default: 932,
               status: "confirmed",
               constraints: { min: 700, max: 1200, step: 1, unit: "px" },
-              targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--stage-height" }]
+              targets: [
+                { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--stage-height" }
+              ]
             },
             {
               id: "backgroundLayerWidth",
@@ -337,7 +349,12 @@ describe("LayerReplacementPanel", () => {
               status: "confirmed",
               constraints: { min: 360, max: 640, step: 1, unit: "px" },
               targets: [
-                { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--background-layer-width" }
+                {
+                  kind: "css-variable",
+                  file: "source/style.css",
+                  selector: ":root",
+                  name: "--background-layer-width"
+                }
               ]
             },
             {
@@ -348,7 +365,12 @@ describe("LayerReplacementPanel", () => {
               status: "confirmed",
               constraints: { min: 800, max: 1280, step: 1, unit: "px" },
               targets: [
-                { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--background-layer-height" }
+                {
+                  kind: "css-variable",
+                  file: "source/style.css",
+                  selector: ":root",
+                  name: "--background-layer-height"
+                }
               ]
             }
           ]

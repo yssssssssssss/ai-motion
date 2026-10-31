@@ -33,26 +33,44 @@ describe("isLLMDraftPlan", () => {
   it("accepts a well-formed plan", () => {
     expect(
       isLLMDraftPlan(
-        plan([{ presetId: "enter-screen", layerId: "modal-title", timing: "sequential", delayMs: 0, reason: "进场" }])
+        plan([
+          {
+            presetId: "enter-screen",
+            layerId: "modal-title",
+            timing: "sequential",
+            delayMs: 0,
+            reason: "进场"
+          }
+        ])
       )
     ).toBe(true);
   });
 
   it("accepts null layerId", () => {
     expect(
-      isLLMDraftPlan(plan([{ presetId: "enter-screen", layerId: null, timing: "parallel", delayMs: 40, reason: "x" }]))
+      isLLMDraftPlan(
+        plan([{ presetId: "enter-screen", layerId: null, timing: "parallel", delayMs: 40, reason: "x" }])
+      )
     ).toBe(true);
   });
 
   it("rejects unknown presetId", () => {
     expect(
-      isLLMDraftPlan(plan([{ presetId: "not-a-preset", layerId: null, timing: "sequential", delayMs: 0, reason: "x" } as never]))
+      isLLMDraftPlan(
+        plan([
+          { presetId: "not-a-preset", layerId: null, timing: "sequential", delayMs: 0, reason: "x" } as never
+        ])
+      )
     ).toBe(false);
   });
 
   it("rejects invalid timing", () => {
     expect(
-      isLLMDraftPlan(plan([{ presetId: "enter-screen", layerId: null, timing: "diagonal", delayMs: 0, reason: "x" } as never]))
+      isLLMDraftPlan(
+        plan([
+          { presetId: "enter-screen", layerId: null, timing: "diagonal", delayMs: 0, reason: "x" } as never
+        ])
+      )
     ).toBe(false);
   });
 
@@ -66,7 +84,15 @@ describe("isLLMDraftPlan", () => {
 describe("parseLLMDraftPlan", () => {
   it("parses a valid JSON plan", () => {
     const text = JSON.stringify(
-      plan([{ presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "焦点" }])
+      plan([
+        {
+          presetId: "modal-feedback",
+          layerId: "modal-image",
+          timing: "sequential",
+          delayMs: 0,
+          reason: "焦点"
+        }
+      ])
     );
     expect(parseLLMDraftPlan(text)?.steps).toHaveLength(1);
   });
@@ -87,7 +113,13 @@ describe("draftSpecsFromLLM", () => {
       document,
       plan([
         { presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "a" },
-        { presetId: "enter-screen", layerId: "modal-container", timing: "parallel", delayMs: 50, reason: "b" },
+        {
+          presetId: "enter-screen",
+          layerId: "modal-container",
+          timing: "parallel",
+          delayMs: 50,
+          reason: "b"
+        },
         { presetId: "enter-screen", layerId: "ghost-layer", timing: "parallel", delayMs: 60, reason: "c" }
       ])
     );
@@ -126,8 +158,20 @@ describe("generateCompositionDraftFromLLM", () => {
     const result = generateCompositionDraftFromLLM(
       { prompt: "弹窗进场", document },
       plan([
-        { presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "焦点容器" },
-        { presetId: "enter-screen", layerId: "modal-title", timing: "parallel", delayMs: 80, reason: "标题错峰" }
+        {
+          presetId: "modal-feedback",
+          layerId: "modal-image",
+          timing: "sequential",
+          delayMs: 0,
+          reason: "焦点容器"
+        },
+        {
+          presetId: "enter-screen",
+          layerId: "modal-title",
+          timing: "parallel",
+          delayMs: 80,
+          reason: "标题错峰"
+        }
       ])
     );
     expect(result.steps).toHaveLength(2);
@@ -148,11 +192,15 @@ describe("generateCompositionDraftFromLLM", () => {
     const document = createDefaultDocument("modal");
     const first = generateCompositionDraftFromLLM(
       { prompt: "一次", document },
-      plan([{ presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "a" }])
+      plan([
+        { presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "a" }
+      ])
     );
     const second = generateCompositionDraftFromLLM(
       { prompt: "二次", document, existingSteps: first.steps },
-      plan([{ presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "b" }])
+      plan([
+        { presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "b" }
+      ])
     );
     expect(second.steps).toHaveLength(0);
     expect(second.corrections.length).toBeGreaterThan(0);

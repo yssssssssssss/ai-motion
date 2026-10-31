@@ -22,7 +22,11 @@ type ZeroVisualInput = {
   nodeId?: unknown;
 };
 
-export type ZeroVisualSnapshotSource = "real-zero-mcp-http" | "fixture" | "zero-mcp-bridge" | "custom-command";
+export type ZeroVisualSnapshotSource =
+  | "real-zero-mcp-http"
+  | "fixture"
+  | "zero-mcp-bridge"
+  | "custom-command";
 
 export type ZeroVisualSnapshotOptions = {
   visualCommand?: string | undefined;

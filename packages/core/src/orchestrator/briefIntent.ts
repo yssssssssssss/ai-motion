@@ -20,7 +20,16 @@ export type BriefParseResult = {
 };
 
 const KIND_TERMS = ["button", "card", "checkbox", "hero", "text"];
-const MOTION_TERMS = ["hover", "reveal", "transition", "page-transition", "animation", "micro", "magnetic", "rainbow"];
+const MOTION_TERMS = [
+  "hover",
+  "reveal",
+  "transition",
+  "page-transition",
+  "animation",
+  "micro",
+  "magnetic",
+  "rainbow"
+];
 const SOURCE_TERMS = ["workeasy", "native"];
 const CATEGORY_BY_KIND: Record<string, string> = {
   button: "interaction",
@@ -67,12 +76,11 @@ function preferenceTerms(value: string): string[] {
   return unique(terms);
 }
 
-const NEGATED_CLAUSE_PATTERN = /(?:不要|别|不需要|无需|不是|排除|禁止|别再|不要再)\s*([^，。；;,.!！?？\n]{1,80})/gi;
+const NEGATED_CLAUSE_PATTERN =
+  /(?:不要|别|不需要|无需|不是|排除|禁止|别再|不要再)\s*([^，。；;,.!！?？\n]{1,80})/gi;
 
 function negativeClauses(value: string): string[] {
-  return [...value.matchAll(NEGATED_CLAUSE_PATTERN)]
-    .map((match) => match[1]?.trim() ?? "")
-    .filter(Boolean);
+  return [...value.matchAll(NEGATED_CLAUSE_PATTERN)].map((match) => match[1]?.trim() ?? "").filter(Boolean);
 }
 
 function positiveText(value: string): string {

@@ -191,13 +191,13 @@ Zero 首尾帧
 
 针对 `33:36 -> 33:35`，至少应形成这些体感不同方案：
 
-| 方案 | 预期体感 |
-| --- | --- |
-| dropdown-reveal | 下拉菜单从 tab 下方展开，容器高度逐步打开 |
-| container-first | 白色菜单容器先撑开，列表内容随后出现 |
-| content-stagger | 三个 action item 依次滑入 |
-| anchored-popover | 下拉层从触发点轻微弹出并落位 |
-| smooth-morph | 整体平滑过渡，保守但不作为强差异主方案 |
+| 方案             | 预期体感                                  |
+| ---------------- | ----------------------------------------- |
+| dropdown-reveal  | 下拉菜单从 tab 下方展开，容器高度逐步打开 |
+| container-first  | 白色菜单容器先撑开，列表内容随后出现      |
+| content-stagger  | 三个 action item 依次滑入                 |
+| anchored-popover | 下拉层从触发点轻微弹出并落位              |
+| smooth-morph     | 整体平滑过渡，保守但不作为强差异主方案    |
 
 ## 代码落点
 

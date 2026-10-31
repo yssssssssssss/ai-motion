@@ -67,7 +67,9 @@ export function readLayerFileAsDataUrl(file: File): Promise<string> {
       if (typeof reader.result === "string") resolve(reader.result);
       else reject(new Error("图片读取失败，请重新选择图片。"));
     });
-    reader.addEventListener("error", () => reject(reader.error ?? new Error("图片读取失败，请重新选择图片。")));
+    reader.addEventListener("error", () =>
+      reject(reader.error ?? new Error("图片读取失败，请重新选择图片。"))
+    );
     reader.readAsDataURL(file);
   });
 }
@@ -294,13 +296,7 @@ function ForegroundLayerSizePanel({
   );
 }
 
-export function LayerReplacementPanel({
-  manifest,
-  patch,
-  onChange,
-  onReset,
-  uploadErrorByParamId
-}: Props) {
+export function LayerReplacementPanel({ manifest, patch, onChange, onReset, uploadErrorByParamId }: Props) {
   const [localUploadErrors, setLocalUploadErrors] = useState<Record<string, string>>({});
   if (!manifest || !patch) return null;
   const params = manifest.params.filter(isLayerParam);
@@ -350,7 +346,12 @@ export function LayerReplacementPanel({
       </div>
       {onReset && resetParamIds.length > 0 ? (
         <div className="field-toolbar">
-          <button type="button" className="ghost" disabled={!hasResettableOverrides} onClick={resetLayerDefaults}>
+          <button
+            type="button"
+            className="ghost"
+            disabled={!hasResettableOverrides}
+            onClick={resetLayerDefaults}
+          >
             恢复默认
           </button>
         </div>
@@ -395,7 +396,7 @@ export function LayerReplacementPanel({
                               ? error.message
                               : "图片读取失败，请重新选择图片。"
                           );
-                      });
+                        });
                     }}
                   />
                   <output

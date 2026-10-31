@@ -88,9 +88,9 @@ describe("motion skill normalization", () => {
       { x: 0, y: 480, offsetMs: 200 },
       { x: 0, y: 460 }
     ]);
-    expect(() => parseKeyframes("position: x 0 -> 0(200ms) -> 0 | y 0 -> 480(100ms) -> 460", "position")).toThrow(
-      /Mismatched position keyframe offsets/
-    );
+    expect(() =>
+      parseKeyframes("position: x 0 -> 0(200ms) -> 0 | y 0 -> 480(100ms) -> 460", "position")
+    ).toThrow(/Mismatched position keyframe offsets/);
     expect(parseKeyframes("scale: 50 -> 110%(133ms) -> 100%", "scale")).toEqual([
       0.5,
       { value: 1.1, offsetMs: 133 },

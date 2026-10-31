@@ -1,6 +1,11 @@
 import { normalizeZeroVisualSnapshot, type ZeroVisualSnapshot } from "@motion-copilot/core";
 
-export type ZeroVisualSnapshotSource = "real-zero-mcp-http" | "fixture" | "zero-mcp-bridge" | "custom-command" | "unknown";
+export type ZeroVisualSnapshotSource =
+  | "real-zero-mcp-http"
+  | "fixture"
+  | "zero-mcp-bridge"
+  | "custom-command"
+  | "unknown";
 
 export type ZeroVisualSnapshotResult = {
   snapshot: ZeroVisualSnapshot;

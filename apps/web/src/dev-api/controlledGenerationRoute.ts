@@ -56,7 +56,10 @@ function isMotionComponent(value: unknown): value is MotionComponent {
 export function createControlledGenerationHandler(input: CreateControlledGenerationHandlerInput = {}) {
   const maxBodyBytes = input.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
 
-  return async function controlledGenerationHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  return async function controlledGenerationHandler(
+    req: IncomingMessage,
+    res: ServerResponse
+  ): Promise<void> {
     if (req.method !== "POST") {
       writeJson(res, 405, { error: "Method not allowed" });
       return;
@@ -70,11 +73,8 @@ export function createControlledGenerationHandler(input: CreateControlledGenerat
         return;
       }
 
-      const {
-        buildControlledGenerationRequest,
-        compileSemanticPatch,
-        createGeneratedComponentFromPatch
-      } = await import("@motion-tool/core");
+      const { buildControlledGenerationRequest, compileSemanticPatch, createGeneratedComponentFromPatch } =
+        await import("@motion-tool/core");
       const components = parsed.components.filter(isMotionComponent);
       const request = buildControlledGenerationRequest({ brief: parsed.brief, components });
       const patch = compileSemanticPatch(request);

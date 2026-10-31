@@ -35,7 +35,9 @@ export function createZeroVisualNodeOverrideCss(
   scope = ""
 ): string {
   if (!overrides?.length) return "";
-  const rules = nodes?.length ? overrides.flatMap((override) => rulesForStructuredOverride(override, nodes)) : overrides;
+  const rules = nodes?.length
+    ? overrides.flatMap((override) => rulesForStructuredOverride(override, nodes))
+    : overrides;
   return rules
     .map((rule) => ruleCss(rule, scope))
     .filter(Boolean)
@@ -46,7 +48,9 @@ function ruleCss(rule: OverrideRule, scope: string): string {
   const selectorPrefix = scope.trim();
   const selector = `${selectorPrefix ? `${selectorPrefix} ` : ""}[data-node-id="${cssAttributeValue(rule.nodeId)}"]`;
   const body = [
-    rule.forceBox ? "position:absolute!important;display:block!important;box-sizing:border-box!important;" : "",
+    rule.forceBox
+      ? "position:absolute!important;display:block!important;box-sizing:border-box!important;"
+      : "",
     px("left", rule.x),
     px("top", rule.y),
     px("width", rule.width),
@@ -58,10 +62,7 @@ function ruleCss(rule: OverrideRule, scope: string): string {
   return body ? `${selector}{${body}}` : "";
 }
 
-function rulesForStructuredOverride(
-  override: ZeroVisualNodeOverride,
-  nodes: OverrideNode[]
-): OverrideRule[] {
+function rulesForStructuredOverride(override: ZeroVisualNodeOverride, nodes: OverrideNode[]): OverrideRule[] {
   const base = nodes.find((node) => node.nodeId === override.nodeId);
   if (!base) return [override];
   const x = override.x ?? base.bounds.x;

@@ -45,7 +45,15 @@ describe("evaluateComposition", () => {
   it("computes total duration for parallel steps", () => {
     const track = evaluateComposition([
       step({ id: "a", durationMs: 200 }),
-      step({ id: "b", durationMs: 300, timing: "parallel", delayMs: 50, slot: "scene", presetId: "navigation-push", label: "前后切换" })
+      step({
+        id: "b",
+        durationMs: 300,
+        timing: "parallel",
+        delayMs: 50,
+        slot: "scene",
+        presetId: "navigation-push",
+        label: "前后切换"
+      })
     ]);
     // parallel: b starts at a.start(0) + 50 = 50, ends at 350
     expect(track.totalDurationMs).toBe(350);
@@ -54,7 +62,15 @@ describe("evaluateComposition", () => {
   it("exposes step windows for preview playback", () => {
     const windows = computeCompositionStepWindows([
       step({ id: "a", durationMs: 200 }),
-      step({ id: "b", durationMs: 300, timing: "parallel", delayMs: 50, slot: "scene", presetId: "navigation-push", label: "前后切换" })
+      step({
+        id: "b",
+        durationMs: 300,
+        timing: "parallel",
+        delayMs: 50,
+        slot: "scene",
+        presetId: "navigation-push",
+        label: "前后切换"
+      })
     ]);
 
     expect(windows).toEqual([
@@ -84,23 +100,26 @@ describe("evaluateComposition", () => {
   it("allows same slot on different targets", () => {
     const track = evaluateComposition([
       step({ id: "a", presetId: "enter-screen", label: "进入屏幕", slot: "trajectory", target: "target" }),
-      step({ id: "b", presetId: "exit-final", label: "永久离开", slot: "trajectory", target: "selected-layer", layerId: "layer-1" })
+      step({
+        id: "b",
+        presetId: "exit-final",
+        label: "永久离开",
+        slot: "trajectory",
+        target: "selected-layer",
+        layerId: "layer-1"
+      })
     ]);
     const slotConflicts = track.issues.filter((i) => i.id.startsWith("slot-conflict"));
     expect(slotConflicts).toEqual([]);
   });
 
   it("warns about too-short step duration", () => {
-    const track = evaluateComposition([
-      step({ id: "a", durationMs: 40 })
-    ]);
+    const track = evaluateComposition([step({ id: "a", durationMs: 40 })]);
     expect(track.issues.map((i) => i.id)).toContain("step-too-short-a");
   });
 
   it("suggests about too-long step duration", () => {
-    const track = evaluateComposition([
-      step({ id: "a", durationMs: 900 })
-    ]);
+    const track = evaluateComposition([step({ id: "a", durationMs: 900 })]);
     expect(track.issues.map((i) => i.id)).toContain("step-too-long-a");
   });
 
@@ -181,8 +200,18 @@ describe("evaluateComposition", () => {
     expect(payload.layers.map((layer) => layer.id)).toContain("modal-title");
     expect(payload.timeline.totalDurationMs).toBe(420);
     expect(payload.timeline.lanes).toEqual([
-      { id: "layer:modal-title", label: "标题", binding: { type: "layer", layerId: "modal-title", layerName: "标题" }, stepIds: ["title-in"] },
-      { id: "layer:modal-image", label: "图片位", binding: { type: "layer", layerId: "modal-image", layerName: "图片位" }, stepIds: ["image-transform"] }
+      {
+        id: "layer:modal-title",
+        label: "标题",
+        binding: { type: "layer", layerId: "modal-title", layerName: "标题" },
+        stepIds: ["title-in"]
+      },
+      {
+        id: "layer:modal-image",
+        label: "图片位",
+        binding: { type: "layer", layerId: "modal-image", layerName: "图片位" },
+        stepIds: ["image-transform"]
+      }
     ]);
     expect(payload.timeline.steps[0]).toMatchObject({
       id: "title-in",
@@ -238,8 +267,12 @@ describe("evaluateComposition", () => {
     expect(markdown).toContain("# Motion Copilot 编排参数表");
     expect(markdown).toContain("| 总时长 | 420ms |");
     expect(markdown).toContain("| 标题 | text |");
-    expect(markdown).toContain("| 1 | 标题 | 进入屏幕 | enter-screen | trajectory | 串行 | 0ms | 240ms | 240ms | classic/decelerate");
-    expect(markdown).toContain("| 2 | 图片位 | 容器变化 | container-transform | scene | 并行 | 80ms | 420ms | 340ms | classic/standard");
+    expect(markdown).toContain(
+      "| 1 | 标题 | 进入屏幕 | enter-screen | trajectory | 串行 | 0ms | 240ms | 240ms | classic/decelerate"
+    );
+    expect(markdown).toContain(
+      "| 2 | 图片位 | 容器变化 | container-transform | scene | 并行 | 80ms | 420ms | 340ms | classic/standard"
+    );
     expect(markdown).toContain("x:0px, y:24px, opacity:0");
     expect(markdown).not.toContain("目标对象");
     expect(markdown).not.toContain("主目标");

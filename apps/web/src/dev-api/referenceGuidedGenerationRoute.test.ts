@@ -96,7 +96,9 @@ const pageTransitionComponent: MotionComponent = {
         default: 2640,
         constraints: { min: 1400, max: 5000, step: 40, unit: "ms" },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--cycle-duration" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--cycle-duration" }
+        ]
       },
       {
         id: "enterDistance",
@@ -105,7 +107,9 @@ const pageTransitionComponent: MotionComponent = {
         default: 520,
         constraints: { min: 0, max: 1118, step: 1, unit: "px" },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--enter-distance" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--enter-distance" }
+        ]
       },
       {
         id: "exitDistance",
@@ -114,7 +118,9 @@ const pageTransitionComponent: MotionComponent = {
         default: -520,
         constraints: { min: -1118, max: 0, step: 1, unit: "px" },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--exit-distance" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--exit-distance" }
+        ]
       },
       {
         id: "transitionOpacity",
@@ -123,7 +129,9 @@ const pageTransitionComponent: MotionComponent = {
         default: 0.72,
         constraints: { min: 0, max: 0.9, step: 0.01 },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--transition-opacity" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--transition-opacity" }
+        ]
       },
       {
         id: "windowRadius",
@@ -132,7 +140,9 @@ const pageTransitionComponent: MotionComponent = {
         default: 92,
         constraints: { min: 0, max: 160, step: 1, unit: "px" },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--window-radius" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--window-radius" }
+        ]
       },
       {
         id: "easing",
@@ -140,7 +150,9 @@ const pageTransitionComponent: MotionComponent = {
         type: "easing",
         default: "cubic-bezier(0.18, 0.86, 0.22, 1)",
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }
+        ]
       }
     ],
     layers: [
@@ -343,7 +355,9 @@ describe("referenceGuidedGenerationRoute", () => {
       })
     });
     const body = JSON.parse(res.body);
-    const css = body.component.source.files.find((file: { path: string }) => file.path === "source/style.css").content;
+    const css = body.component.source.files.find(
+      (file: { path: string }) => file.path === "source/style.css"
+    ).content;
 
     expect(res.statusCode).toBe(200);
     expect(body.intent.role).toBe("page-transition");
@@ -359,7 +373,9 @@ describe("referenceGuidedGenerationRoute", () => {
   it("uses an OpenAI source draft when configured and valid", async () => {
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify(responsePayload(modelSemanticIntentV2)), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(responsePayload(modelSemanticIntentV2)), { status: 200 })
+      )
       .mockResolvedValueOnce(new Response(JSON.stringify(responsePayload(modelDraft)), { status: 200 }));
     const res = await invoke({
       method: "POST",
@@ -370,7 +386,9 @@ describe("referenceGuidedGenerationRoute", () => {
       })
     });
     const body = JSON.parse(res.body);
-    const css = body.component.source.files.find((file: { path: string }) => file.path === "source/style.css").content;
+    const css = body.component.source.files.find(
+      (file: { path: string }) => file.path === "source/style.css"
+    ).content;
     const secondCall = fetchImpl.mock.calls[1] as [RequestInfo | URL, RequestInit | undefined];
     const requestBody = JSON.parse(secondCall[1]?.body as string);
     const modelContext = JSON.parse(requestBody.input[1].content);
@@ -388,7 +406,9 @@ describe("referenceGuidedGenerationRoute", () => {
   it("falls back when the OpenAI source draft is unsafe", async () => {
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify(responsePayload(modelSemanticIntentV2)), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(responsePayload(modelSemanticIntentV2)), { status: 200 })
+      )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(responsePayload({ ...modelDraft, js: `fetch("https://example.com")` })), {
           status: 200
@@ -414,8 +434,12 @@ describe("referenceGuidedGenerationRoute", () => {
   it("uses model semantic intent to avoid button fallback for layer-based page requests", async () => {
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify(responsePayload(modelMobilePageIntentV2)), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(responsePayload({ html: "", css: "", js: "" })), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(responsePayload(modelMobilePageIntentV2)), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(responsePayload({ html: "", css: "", js: "" })), { status: 200 })
+      );
     const res = await invoke({
       method: "POST",
       handlerInput: { apiKey: "test-key", fetchImpl },
@@ -460,7 +484,9 @@ describe("referenceGuidedGenerationRoute", () => {
   });
 
   it("falls back to local V2 semantic intent when model semantic parsing is malformed", async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(responsePayload({ bad: true })), { status: 200 }));
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify(responsePayload({ bad: true })), { status: 200 })
+    );
     const res = await invoke({
       method: "POST",
       handlerInput: { apiKey: "test-key", fetchImpl },

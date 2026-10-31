@@ -16,13 +16,23 @@ function stubFetch(impl: typeof fetch) {
 }
 
 function llmResponse(planSteps: unknown) {
-  return new Response(JSON.stringify({ mode: "llm", message: "ok", plan: { steps: planSteps } }), { status: 200 });
+  return new Response(JSON.stringify({ mode: "llm", message: "ok", plan: { steps: planSteps } }), {
+    status: 200
+  });
 }
 
 describe("generateDraftViaService", () => {
   it("assembles llm steps when the service returns a valid plan", async () => {
     stubFetch(async () =>
-      llmResponse([{ presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "焦点" }])
+      llmResponse([
+        {
+          presetId: "modal-feedback",
+          layerId: "modal-image",
+          timing: "sequential",
+          delayMs: 0,
+          reason: "焦点"
+        }
+      ])
     );
     const result = await generateDraftViaService({ prompt: "弹窗进场", document });
     expect(result.mode).toBe("llm");
@@ -40,7 +50,9 @@ describe("generateDraftViaService", () => {
   });
 
   it("falls back when the service reports fallback mode", async () => {
-    stubFetch(async () => new Response(JSON.stringify({ mode: "fallback", message: "no key" }), { status: 200 }));
+    stubFetch(
+      async () => new Response(JSON.stringify({ mode: "fallback", message: "no key" }), { status: 200 })
+    );
     const result = await generateDraftViaService({ prompt: "切换 tab", document });
     expect(result.mode).toBe("fallback");
     expect(result.draft.steps.length).toBeGreaterThan(0);
@@ -54,7 +66,9 @@ describe("generateDraftViaService", () => {
 
   it("caches the plan and only calls the service once for identical input", async () => {
     const fetchSpy = vi.fn(async () =>
-      llmResponse([{ presetId: "enter-screen", layerId: "modal-title", timing: "sequential", delayMs: 0, reason: "x" }])
+      llmResponse([
+        { presetId: "enter-screen", layerId: "modal-title", timing: "sequential", delayMs: 0, reason: "x" }
+      ])
     );
     vi.stubGlobal("fetch", fetchSpy);
     await generateDraftViaService({ prompt: "进场", document });

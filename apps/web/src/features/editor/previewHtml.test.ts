@@ -288,7 +288,10 @@ describe("renderPreviewHtml", () => {
   });
 
   it("injects uploaded popup feedback images into the coupon popup css variable", () => {
-    const componentRoot = new URL("../../../../../packages/components-builtin/jd-popup-feedback-eased/", import.meta.url);
+    const componentRoot = new URL(
+      "../../../../../packages/components-builtin/jd-popup-feedback-eased/",
+      import.meta.url
+    );
     const popupSource: MotionSource = {
       id: "jd-popup-feedback-eased",
       origin: "builtin",

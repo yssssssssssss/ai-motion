@@ -31,7 +31,9 @@ function component(input: {
           kind: "image",
           replaceable: true,
           paramId: "productImage",
-          targets: [{ kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--product-image" }]
+          targets: [
+            { kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--product-image" }
+          ]
         }
       ],
       params: [
@@ -42,7 +44,9 @@ function component(input: {
           default: 620,
           constraints: { min: 220, max: 1400, step: 20, unit: "ms" },
           status: "confirmed",
-          targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }]
+          targets: [
+            { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }
+          ]
         }
       ]
     },
@@ -113,7 +117,7 @@ describe("loadControlledGenerationCandidates", () => {
       name: "前后进场代码动效",
       tags: ["jd", "page-transition"],
       useCases: ["mobile-ui", "page-transition", "app-prototype"],
-      entryContent: "<main data-motion-root class=\"jd-front-back-entry\"></main>"
+      entryContent: '<main data-motion-root class="jd-front-back-entry"></main>'
     });
     const buttonLike = component({
       id: "workeasy-buttons-31-button",
@@ -140,7 +144,7 @@ describe("loadControlledGenerationCandidates", () => {
         name: "横向切换 / 频道Tab",
         tags: ["generated", "atomic-motion", "horizontal-switch"],
         useCases: ["atomic-motion"],
-        entryContent: "<main data-motion-root class=\"motion-skill-horizontal-switch-channel-tab\"></main>"
+        entryContent: '<main data-motion-root class="motion-skill-horizontal-switch-channel-tab"></main>'
       }),
       manifest: {
         ...component({
@@ -166,7 +170,7 @@ describe("loadControlledGenerationCandidates", () => {
       name: "横向切换代码动效",
       tags: ["jd", "horizontal", "switch"],
       useCases: ["channel-switch", "motion-reference"],
-      entryContent: "<main data-motion-root class=\"jd-horizontal-switch\"></main>"
+      entryContent: '<main data-motion-root class="jd-horizontal-switch"></main>'
     });
     const loadComponentSource = vi.fn(async (item: MotionComponent) => item);
 

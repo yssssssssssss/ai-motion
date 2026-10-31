@@ -29,6 +29,7 @@
 ### Task 1: Add Candidate Hydration Service
 
 **Files:**
+
 - Create: `apps/web/src/services/generationCandidates.ts`
 - Create: `apps/web/src/services/generationCandidates.test.ts`
 
@@ -69,7 +70,9 @@ function component(input: {
           kind: "image",
           replaceable: true,
           paramId: "productImage",
-          targets: [{ kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--product-image" }]
+          targets: [
+            { kind: "css-variable", file: "source/assets.css", selector: ":root", name: "--product-image" }
+          ]
         }
       ],
       params: [
@@ -80,7 +83,9 @@ function component(input: {
           default: 620,
           constraints: { min: 220, max: 1400, step: 20, unit: "ms" },
           status: "confirmed",
-          targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }]
+          targets: [
+            { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }
+          ]
         }
       ]
     },
@@ -162,11 +167,7 @@ Expected: FAIL because `apps/web/src/services/generationCandidates.ts` does not 
 Create `apps/web/src/services/generationCandidates.ts`:
 
 ```ts
-import {
-  createGenerationPlan,
-  recommendComponents,
-  type MotionComponent
-} from "@motion-tool/core";
+import { createGenerationPlan, recommendComponents, type MotionComponent } from "@motion-tool/core";
 import { hasRenderableSource } from "../features/library/sourceState";
 
 const GENERATION_PREFETCH_LIMIT = 6;
@@ -234,6 +235,7 @@ Expected: PASS.
 ### Task 2: Wire Hydrated Candidates Into HomeRoute
 
 **Files:**
+
 - Modify: `apps/web/src/routes/HomeRoute.tsx`
 - Create: `apps/web/src/routes/HomeRoute.test.ts`
 
@@ -251,7 +253,9 @@ describe("HomeRoute controlled generation wiring", () => {
   it("loads hydrated Top 3 candidates before calling the generation API", () => {
     expect(homeRouteSource).toContain("loadControlledGenerationCandidates");
     expect(homeRouteSource).toContain("onLoadComponentSource");
-    expect(homeRouteSource).toContain("generateControlledComponent({ brief, components: generationCandidates })");
+    expect(homeRouteSource).toContain(
+      "generateControlledComponent({ brief, components: generationCandidates })"
+    );
     expect(homeRouteSource).not.toContain("generateControlledComponent({ brief, components })");
   });
 });
@@ -314,6 +318,7 @@ Expected: PASS.
 ### Task 3: Regression Test The Existing API Boundary
 
 **Files:**
+
 - Existing: `apps/web/src/dev-api/controlledGenerationRoute.test.ts`
 - Existing: `apps/web/src/services/controlledGenerationClient.test.ts`
 - Existing: `apps/web/vite.config.ts`
@@ -344,6 +349,7 @@ Expected: PASS.
 ### Task 4: Manual Runtime Verification
 
 **Files:**
+
 - No source edits.
 
 - [ ] **Step 1: Confirm dev server**
@@ -381,6 +387,7 @@ Open `http://127.0.0.1:5173/`, switch to `自然语义生成`, enter:
 ```
 
 Expected:
+
 - The app calls `onLoadComponentSource` before the generation API.
 - The generation API payload contains only hydrated candidate components.
 - The generated component is added and opened in the editor.

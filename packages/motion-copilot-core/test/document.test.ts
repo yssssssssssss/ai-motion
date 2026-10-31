@@ -137,7 +137,9 @@ describe("Motion Copilot document", () => {
       delayMs: 60,
       easing: { type: "spring" }
     });
-    expect(generateCompositionDraft({ prompt: "做一个弹窗进场，标题先出现，按钮稍后轻弹", document })).toEqual(draft);
+    expect(
+      generateCompositionDraft({ prompt: "做一个弹窗进场，标题先出现，按钮稍后轻弹", document })
+    ).toEqual(draft);
   });
 
   it("explains skipped draft steps when they conflict with existing composition slots", () => {
@@ -165,20 +167,30 @@ describe("Motion Copilot document", () => {
     const toastExit = applyDocumentPatch(createDefaultDocument("toast"), {
       timeline: { direction: "exit-final", easing: createSpringEasing(), durationMs: 260 }
     });
-    expect(evaluateGuidelines(toastExit).map((suggestion) => suggestion.id)).toContain("toast-exit-no-spring");
+    expect(evaluateGuidelines(toastExit).map((suggestion) => suggestion.id)).toContain(
+      "toast-exit-no-spring"
+    );
 
     const opacityOnly = applyDocumentPatch(createDefaultDocument("modal"), {
-      element: { size: "medium", initial: { y: 0, scale: 1, opacity: 0 }, animate: { y: 0, scale: 1, opacity: 1 } },
+      element: {
+        size: "medium",
+        initial: { y: 0, scale: 1, opacity: 0 },
+        animate: { y: 0, scale: 1, opacity: 1 }
+      },
       timeline: { easing: createSpringEasing() }
     });
-    expect(evaluateGuidelines(opacityOnly).map((suggestion) => suggestion.id)).toContain("opacity-only-no-spring");
+    expect(evaluateGuidelines(opacityOnly).map((suggestion) => suggestion.id)).toContain(
+      "opacity-only-no-spring"
+    );
   });
 
   it("suggests spring feedback for classic button clicks", () => {
     const document = applyDocumentPatch(createDefaultDocument("button"), {
       timeline: { trigger: "click", easing: createClassicEasing("sharp") }
     });
-    expect(evaluateGuidelines(document).map((suggestion) => suggestion.id)).toContain("button-click-needs-spring");
+    expect(evaluateGuidelines(document).map((suggestion) => suggestion.id)).toContain(
+      "button-click-needs-spring"
+    );
   });
 
   it("applies mobile app motion presets with a tracked stack", () => {
@@ -269,7 +281,10 @@ describe("Motion Copilot document", () => {
     expect(withNextScene.presetResolutions).toEqual([
       expect.objectContaining({ action: "replaced", title: "已替换同类动效" })
     ]);
-    expect(withSequence.appliedPresets.map((preset) => preset.id)).toEqual(["horizontal-switch", "list-stagger"]);
+    expect(withSequence.appliedPresets.map((preset) => preset.id)).toEqual([
+      "horizontal-switch",
+      "list-stagger"
+    ]);
   });
 
   it("keeps skeleton loading opacity-only and non-spring", () => {

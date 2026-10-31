@@ -47,13 +47,17 @@ export function MotionRecipePanel({ manifest, targetComponents = [], onApplyToTa
     [targetComponents]
   );
   const [targetComponentId, setTargetComponentId] = useState(eligibleTargets[0]?.id ?? "");
-  const activeTarget = eligibleTargets.find((component) => component.id === targetComponentId) ?? eligibleTargets[0];
+  const activeTarget =
+    eligibleTargets.find((component) => component.id === targetComponentId) ?? eligibleTargets[0];
   const layers = activeTarget ? replaceableLayers(activeTarget) : [];
   const [targetLayerId, setTargetLayerId] = useState(layers[0]?.id ?? "");
-  const activeLayerId = layers.some((layer) => layer.id === targetLayerId) ? targetLayerId : (layers[0]?.id ?? "");
+  const activeLayerId = layers.some((layer) => layer.id === targetLayerId)
+    ? targetLayerId
+    : (layers[0]?.id ?? "");
   useEffect(() => {
     if (!eligibleTargets.length) return;
-    const nextTarget = eligibleTargets.find((component) => component.id === targetComponentId) ?? eligibleTargets[0];
+    const nextTarget =
+      eligibleTargets.find((component) => component.id === targetComponentId) ?? eligibleTargets[0];
     if (!nextTarget) return;
     if (nextTarget.id !== targetComponentId) setTargetComponentId(nextTarget.id);
     const nextLayers = replaceableLayers(nextTarget);
@@ -110,7 +114,9 @@ export function MotionRecipePanel({ manifest, targetComponents = [], onApplyToTa
                 const fallbackComponent = eligibleTargets[0];
                 setTargetComponentId(nextComponentId);
                 const selectedComponent = nextComponent ?? fallbackComponent;
-                setTargetLayerId(selectedComponent ? replaceableLayers(selectedComponent).at(0)?.id ?? "" : "");
+                setTargetLayerId(
+                  selectedComponent ? (replaceableLayers(selectedComponent).at(0)?.id ?? "") : ""
+                );
               }}
             >
               {eligibleTargets.map((component) => (

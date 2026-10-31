@@ -39,7 +39,11 @@ function stepEasing(step: CompositionStep): string {
   return easingCss(step.easing ?? createClassicEasing("decelerate"));
 }
 
-function numberValue(source: Record<string, number | undefined> | undefined, key: string, fallback: number): number {
+function numberValue(
+  source: Record<string, number | undefined> | undefined,
+  key: string,
+  fallback: number
+): number {
   const value = source?.[key];
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }

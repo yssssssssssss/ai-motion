@@ -65,7 +65,17 @@ const semanticIntentV2ResponseSchema = {
       properties: {
         kind: {
           type: "string",
-          enum: ["button", "card", "text", "badge", "loader", "page-transition", "mobile-page", "modal", "unknown"]
+          enum: [
+            "button",
+            "card",
+            "text",
+            "badge",
+            "loader",
+            "page-transition",
+            "mobile-page",
+            "modal",
+            "unknown"
+          ]
         },
         label: { type: ["string", "null"] }
       },
@@ -106,7 +116,18 @@ const semanticIntentV2ResponseSchema = {
         properties: {
           type: {
             type: "string",
-            enum: ["scale", "slide", "fade", "bounce", "elastic", "rotate", "pulse", "glow", "float", "transition"]
+            enum: [
+              "scale",
+              "slide",
+              "fade",
+              "bounce",
+              "elastic",
+              "rotate",
+              "pulse",
+              "glow",
+              "float",
+              "transition"
+            ]
           },
           target: {
             type: ["string", "null"],
@@ -436,10 +457,15 @@ export async function generateReferenceGuidedSourceDraft(
   return undefined;
 }
 
-export function createReferenceGuidedGenerationHandler(input: CreateReferenceGuidedGenerationHandlerInput = {}) {
+export function createReferenceGuidedGenerationHandler(
+  input: CreateReferenceGuidedGenerationHandlerInput = {}
+) {
   const maxBodyBytes = input.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
 
-  return async function referenceGuidedGenerationHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  return async function referenceGuidedGenerationHandler(
+    req: IncomingMessage,
+    res: ServerResponse
+  ): Promise<void> {
     if (req.method !== "POST") {
       writeJson(res, 405, { error: "Method not allowed" });
       return;
@@ -490,7 +516,11 @@ export function createReferenceGuidedGenerationHandler(input: CreateReferenceGui
           : { brief: parsed.brief, references: components, intentV2: semanticIntentV2 }
       );
 
-      writeJson(res, result.validation.valid ? 200 : 422, result.validation.valid ? result : { ...result, error: "生成未通过门禁" });
+      writeJson(
+        res,
+        result.validation.valid ? 200 : 422,
+        result.validation.valid ? result : { ...result, error: "生成未通过门禁" }
+      );
     } catch (error) {
       if (error instanceof Error && error.message.includes("too large")) {
         writeJson(res, 413, { error: error.message });

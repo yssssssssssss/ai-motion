@@ -85,8 +85,9 @@ function visibleTokenParamCount(component: MotionComponent): number {
   return (component.manifest.motionSkill?.tokens ?? []).reduce(
     (count, token) =>
       count +
-      [token.durationParamId, token.delayParamId, token.easingParamId, ...token.keyframeParamIds].filter(Boolean)
-        .length,
+      [token.durationParamId, token.delayParamId, token.easingParamId, ...token.keyframeParamIds].filter(
+        Boolean
+      ).length,
     0
   );
 }

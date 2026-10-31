@@ -5,3 +5,10 @@ apps/web/src/data/workeasyComponents.generated.ts
 pnpm-lock.yaml
 # 内置组件源代码（运行在 iframe 中），原样交付
 packages/components-builtin/*/source/**
+# motion:compile 的产物，格式由编译器决定
+motion-skills/*/manifest.json
+motion-skills/*/recipes.json
+motion-skills/*/tokens.json
+motion-skills/registry.json
+motion-skills/lock.json
+motion-skills/compile-report.md

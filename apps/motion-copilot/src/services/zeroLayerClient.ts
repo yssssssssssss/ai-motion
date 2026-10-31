@@ -1,6 +1,11 @@
 import { normalizeZeroLayerSnapshot, type ZeroLayerSnapshot } from "@motion-copilot/core";
 
-export type ZeroLayerSnapshotSource = "real-zero-mcp-http" | "fixture" | "zero-layer-bridge" | "custom-command" | "unknown";
+export type ZeroLayerSnapshotSource =
+  | "real-zero-mcp-http"
+  | "fixture"
+  | "zero-layer-bridge"
+  | "custom-command"
+  | "unknown";
 
 export type ZeroLayerSnapshotResult = {
   snapshot: ZeroLayerSnapshot;

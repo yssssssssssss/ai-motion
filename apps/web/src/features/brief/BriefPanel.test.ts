@@ -129,11 +129,7 @@ describe("BriefPanel", () => {
       createElement(BriefPanel, {
         ...baseProps,
         mode: "atomic",
-        atomicMotionPanel: createElement(
-          "section",
-          { "aria-label": "原子动效配置" },
-          "弹窗反馈 · 中型尺寸"
-        )
+        atomicMotionPanel: createElement("section", { "aria-label": "原子动效配置" }, "弹窗反馈 · 中型尺寸")
       })
     );
 

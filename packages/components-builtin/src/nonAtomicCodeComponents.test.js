@@ -14,9 +14,7 @@ const componentIds = [
 ];
 
 function readManifest(componentId) {
-  return JSON.parse(
-    readFileSync(resolve(currentDir, `../${componentId}/motion.manifest.json`), "utf8")
-  );
+  return JSON.parse(readFileSync(resolve(currentDir, `../${componentId}/motion.manifest.json`), "utf8"));
 }
 
 describe("non-atomic code motion components", () => {

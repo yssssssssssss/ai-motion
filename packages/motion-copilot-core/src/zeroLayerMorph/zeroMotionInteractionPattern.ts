@@ -29,7 +29,9 @@ export function classifyZeroMotionInteractionPattern(spec: ZeroMotionSpec): Zero
     spec.deltas.enterAreaRatio >= 0.28
   ) {
     reasons.push(`尾帧高度增加 ${Math.round(spec.deltas.stageHeightDelta)}px`);
-    reasons.push(`新增内容 ${spec.topology.enterCount} 个，面积占比 ${Math.round(spec.deltas.enterAreaRatio * 100)}%`);
+    reasons.push(
+      `新增内容 ${spec.topology.enterCount} 个，面积占比 ${Math.round(spec.deltas.enterAreaRatio * 100)}%`
+    );
     return {
       type: "dropdown-reveal",
       label: "下拉展开",
@@ -38,7 +40,10 @@ export function classifyZeroMotionInteractionPattern(spec: ZeroMotionSpec): Zero
     };
   }
 
-  if ((spec.scene.type === "modal-enter" || spec.scene.type === "card-enter") && spec.topology.enterCount >= 1) {
+  if (
+    (spec.scene.type === "modal-enter" || spec.scene.type === "card-enter") &&
+    spec.topology.enterCount >= 1
+  ) {
     reasons.push(`新增内容 ${spec.topology.enterCount} 个`);
     reasons.push("新增图层与触发区域存在浮层关系");
     return {
@@ -75,7 +80,9 @@ export function classifyZeroMotionInteractionPattern(spec: ZeroMotionSpec): Zero
     return {
       type: "cascade-items",
       label: "内容错峰",
-      confidence: clampConfidence(0.58 + Math.min((spec.deltas.yMotionCount + spec.topology.enterCount) / 20, 0.22)),
+      confidence: clampConfidence(
+        0.58 + Math.min((spec.deltas.yMotionCount + spec.topology.enterCount) / 20, 0.22)
+      ),
       reasons
     };
   }

@@ -32,6 +32,7 @@
 ## Task 1: Core Plus Control Tests
 
 **Files:**
+
 - Create: `packages/core/test/plusControls.test.ts`
 
 - [ ] **Step 1: Write failing tests for Plus control derivation and compilation**
@@ -57,7 +58,9 @@ const manifest: MotionManifest = {
       default: 620,
       constraints: { min: 220, max: 1400, step: 20, unit: "ms" },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }
+      ]
     },
     {
       id: "easing",
@@ -65,7 +68,9 @@ const manifest: MotionManifest = {
       type: "easing",
       default: "ease-out",
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }
+      ]
     },
     {
       id: "dimOpacity",
@@ -94,7 +99,9 @@ describe("derivePlusControls", () => {
     const controls = derivePlusControls(manifest);
 
     expect(controls.map((control) => control.id)).toEqual(["speed", "easing", "intensity"]);
-    expect(controls.find((control) => control.id === "speed")?.mappedParamIds).toEqual(["transitionDuration"]);
+    expect(controls.find((control) => control.id === "speed")?.mappedParamIds).toEqual([
+      "transitionDuration"
+    ]);
     expect(controls.find((control) => control.id === "easing")?.mappedParamIds).toEqual(["easing"]);
     expect(controls.find((control) => control.id === "intensity")?.mappedParamIds).toEqual(["dimOpacity"]);
   });
@@ -140,6 +147,7 @@ Expected: FAIL because `../src/orchestrator/plusControls` does not exist.
 ## Task 2: Core Plus Compiler
 
 **Files:**
+
 - Create: `packages/core/src/orchestrator/plusControls.ts`
 - Modify: `packages/core/src/index.ts`
 - Test: `packages/core/test/plusControls.test.ts`
@@ -233,7 +241,9 @@ function isEasingParam(param: MotionParam): boolean {
   const text = paramText(param);
   if (param.type === "easing") return true;
   if (param.type !== "select") return false;
-  return Boolean(param.constraints?.options?.some((option) => /ease|spring|bezier/.test(normalize(String(option.value)))));
+  return Boolean(
+    param.constraints?.options?.some((option) => /ease|spring|bezier/.test(normalize(String(option.value))))
+  );
 }
 
 function isIntensityParam(param: MotionParam): boolean {
@@ -267,8 +277,22 @@ function buildControl(
 export function derivePlusControls(manifest: MotionManifest): PlusControl[] {
   const params = confirmedParams(manifest);
   const controls = [
-    buildControl("speed", "速度", SPEED_OPTIONS, "速度感", params.filter(isSpeedParam).map((param) => param.id), 0.85),
-    buildControl("easing", "进出效果", EASING_OPTIONS, "曲线强度", params.filter(isEasingParam).map((param) => param.id), 0.85),
+    buildControl(
+      "speed",
+      "速度",
+      SPEED_OPTIONS,
+      "速度感",
+      params.filter(isSpeedParam).map((param) => param.id),
+      0.85
+    ),
+    buildControl(
+      "easing",
+      "进出效果",
+      EASING_OPTIONS,
+      "曲线强度",
+      params.filter(isEasingParam).map((param) => param.id),
+      0.85
+    ),
     buildControl(
       "intensity",
       "动效强度",
@@ -397,6 +421,7 @@ Expected: PASS.
 ## Task 3: Plus Panel UI Tests
 
 **Files:**
+
 - Create: `apps/web/src/features/editor/PlusControlPanel.test.tsx`
 
 - [ ] **Step 1: Write failing static rendering tests**
@@ -429,7 +454,12 @@ const controls: PlusControl[] = [
 describe("PlusControlPanel", () => {
   it("renders option and slider controls for plus mode", () => {
     const html = renderToStaticMarkup(
-      <PlusControlPanel controls={controls} values={{}} affectedParamIds={["transitionDuration"]} onChange={vi.fn()} />
+      <PlusControlPanel
+        controls={controls}
+        values={{}}
+        affectedParamIds={["transitionDuration"]}
+        onChange={vi.fn()}
+      />
     );
 
     expect(html).toContain("速度");
@@ -462,6 +492,7 @@ Expected: FAIL because `PlusControlPanel` does not exist.
 ## Task 4: Plus Panel UI Implementation
 
 **Files:**
+
 - Create: `apps/web/src/features/editor/PlusControlPanel.tsx`
 - Create: `apps/web/src/features/editor/ParameterModeTabs.tsx`
 - Modify: `apps/web/src/styles/editor.css`
@@ -687,6 +718,7 @@ Expected: PASS.
 ## Task 5: Wire Plus Mode Into EditorRoute
 
 **Files:**
+
 - Modify: `apps/web/src/routes/EditorRoute.tsx`
 - Test: `apps/web/src/features/editor/PlusControlPanel.test.tsx`, `apps/web/src/features/editor/ParameterPanel.test.ts`
 
@@ -696,7 +728,13 @@ Modify the imports at the top of `apps/web/src/routes/EditorRoute.tsx`:
 
 ```tsx
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { compilePlusPatch, derivePlusControls, type PlusControlKind, type PlusControlValue, type PlusPatchValues } from "@motion-tool/core";
+import {
+  compilePlusPatch,
+  derivePlusControls,
+  type PlusControlKind,
+  type PlusControlValue,
+  type PlusPatchValues
+} from "@motion-tool/core";
 import { ParameterPanel } from "../features/editor/ParameterPanel";
 import { ParameterModeTabs, type ParameterMode } from "../features/editor/ParameterModeTabs";
 import { PlusControlPanel } from "../features/editor/PlusControlPanel";
@@ -809,6 +847,7 @@ Expected: PASS.
 ## Task 6: Verification and Regression
 
 **Files:**
+
 - No new files.
 
 - [ ] **Step 1: Run focused core tests**
@@ -867,4 +906,3 @@ Open the local URL, select a component with `transitionDuration`, `easing`, or `
 - Changing “速度” updates the preview.
 - Switching to Pro shows changed underlying params.
 - Components without mapped controls land in Pro mode.
-

@@ -277,7 +277,14 @@ export type VisualCompositionReportCache = {
 
 // --- Frame Object Model ---
 
-export type FrameObjectKind = "button" | "status-pill" | "label-group" | "container" | "text" | "asset" | "unknown";
+export type FrameObjectKind =
+  | "button"
+  | "status-pill"
+  | "label-group"
+  | "container"
+  | "text"
+  | "asset"
+  | "unknown";
 
 export type FrameObject = {
   id: string;
