@@ -1,0 +1,57 @@
+scripts/verify-nutui-react-embed.mjs
+  s_18ce89beabec40::t_f3f7e6e4252ba7 140
+  s_18ce89beabec40::t_d2d8fa7366c0de 123-124,194,292,312,325,343-345
+packages/core/src/export/embedContent.test.ts
+  s_18ce89beabec40::t_9f53a090837d90 42
+scripts/verify-embed-package-e2e.mjs
+  s_18ce89beabec40::t_277690532451bd 172-174,177-180
+  s_18ce89beabec40::t_f2ad8e9c741358 664-666
+  s_18ce89beabec40::t_d40fa94536de8c 656-661
+apps/web/src/features/editor/PreviewFrame.test.tsx
+  s_18ce89beabec40::t_00459af50f3bcc 126-130,153-156
+apps/web/src/App.tsx
+  s_18ce89beabec40::t_2e8e0d14a087c6 264
+packages/core/src/export/exportPackage.ts
+  s_18ce89beabec40::t_2cf746d44b8262 344-345
+packages/core/test/exportPackage.test.ts
+  s_18ce89beabec40::t_a093f161e0f6ed 383-384
+packages/core/src/generation/sandbox.ts
+  s_18ce89beabec40::t_b4bd5515e2676d 55-64
+apps/web/src/styles/editor.css
+  s_18ce89beabec40::t_0cf4b238b0d7e0 39
+packages/core/src/generation/referenceGuidedGeneration.ts
+  s_18ce89beabec40::t_e3543bbadb6c28 901-904
+  s_18ce89beabec40::t_3aa83f30996e9c 2333-2336
+pnpm-lock.yaml
+  s_18ce89beabec40::t_00459af50f3bcc 143-145,1423-1426,3436
+apps/web/package.json
+  s_18ce89beabec40::t_939902499354f3 25
+packages/core/src/generation/motionRecipe.ts
+  s_18ce89beabec40::t_00459af50f3bcc 16,190-198,229-241,277-325,328-333,363-404,407-414,444-450,458-471,504-538,541-547,577-611,614-620,650-691,694-701,739-780,783-789,829-830,892-895,926-927,1019-1020,1031-1040,1054-1055,1057-1058,1110,1149-1151,1172-1176,1197,1207-1209,1238-1241,1288-1290,1320-1323,1397-1400,1413-1416,1423-1427,1458-1461,1472-1475,1484-1488,1494-1496,1513-1520,1541-1544,1548-1565,1570-1571,1602-1607,1616-1618,1635-1639
+CLAUDE.md
+  s_18ce89beabec40::t_73774aa253d55f 81
+  s_18ce89beabec40::t_8a9346573da718 50
+packages/core/src/generation/referenceGuidedGeneration.controls.test.ts
+  s_18ce89beabec40::t_5d58cd00c8eba1 116-117
+  s_18ce89beabec40::t_e26b90a9509c5e 223-226
+  s_18ce89beabec40::t_a1d9e42a9a2589 218-222,227-229
+AGENTS.md
+  s_18ce89beabec40::t_7895210ab757d2 81
+  s_18ce89beabec40::t_ccc3adf5870978 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "b2abe7bf66c6378c96dfef836eb57abeeb8e1a22",
+  "prompts": {},
+  "sessions": {
+    "s_18ce89beabec40": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99d0448e-d733-4470-8706-22971889d437",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "heyunshen <heyunshen@SZMAC-F7F7KPQ2.lan>"
+    }
+  }
+}
