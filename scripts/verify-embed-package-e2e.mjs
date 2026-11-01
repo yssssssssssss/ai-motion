@@ -669,7 +669,7 @@ async function main() {
     cdp?.close();
     server?.close();
     if (chrome) await stopChrome(chrome);
-    await rm(userDataDir, { recursive: true, force: true });
+    await rm(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 }
 

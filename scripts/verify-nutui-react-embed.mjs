@@ -353,7 +353,7 @@ async function verifyInChrome(url) {
     chrome.kill("SIGTERM");
     await delay(250);
     if (!chrome.killed) chrome.kill("SIGKILL");
-    await rm(userDataDir, { recursive: true, force: true });
+    await rm(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 }
 
