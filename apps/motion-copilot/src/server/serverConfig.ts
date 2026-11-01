@@ -81,6 +81,7 @@ export function buildCopilotServerConfig(
   const visualScript = join(scriptsDir, "zero-visual-snapshot-fixture.mjs");
   const layerScript = join(scriptsDir, "zero-layer-snapshot-fixture.mjs");
   const mcpLayerBridge = join(scriptsDir, "zero-mcp-layer-bridge.mjs");
+  const mcpVisualBridge = join(scriptsDir, "zero-mcp-visual-bridge.mjs");
 
   const zeroMcpHttpUrl = envValue(env, "ZERO_MCP_HTTP_URL");
   const zeroBridgeEnv = prefixedEnv(env, "ZERO_MCP_");
@@ -113,7 +114,7 @@ export function buildCopilotServerConfig(
     zeroVisualConfig: {
       visualCommand: envValue(env, "ZERO_MCP_VISUAL_COMMAND") ?? process.execPath,
       visualArgs: argsWithNodeId(splitArgs(envValue(env, "ZERO_MCP_VISUAL_ARGS")), [
-        visualScript,
+        zeroMcpHttpUrl ? mcpVisualBridge : visualScript,
         "--node-id",
         "{nodeId}"
       ]),

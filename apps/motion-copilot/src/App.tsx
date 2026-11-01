@@ -23,6 +23,7 @@ import {
   exportStandaloneHtml,
   layerById,
   layerIdFromNodeId,
+  layerMotionOffset,
   mergeRecompiledSteps,
   primaryElement,
   selectedLayer,
@@ -579,16 +580,20 @@ type LayerMotionCssProperties = React.CSSProperties & {
   "--mc-layer-opacity-from"?: number;
   "--mc-layer-opacity-to"?: number;
   "--mc-layer-scale-from"?: number;
+  "--mc-layer-x-from"?: string;
+  "--mc-layer-y-from"?: string;
 };
 
 function layerMotionStyle(layer: MotionLayer): LayerMotionCssProperties {
+  const offset = layerMotionOffset(layer.motion);
   return layer.motion
     ? {
         animationDuration: `${layer.motion.durationMs}ms`,
         animationDelay: `${layer.motion.delayMs}ms`,
         "--mc-layer-opacity-from": layer.motion.opacityFrom ?? 0,
         "--mc-layer-opacity-to": layer.motion.opacityTo ?? 1,
-        "--mc-layer-scale-from": layer.motion.scaleFrom ?? 0.92
+        "--mc-layer-scale-from": layer.motion.scaleFrom ?? 0.92,
+        ...(offset ? { "--mc-layer-x-from": `${offset.x}px`, "--mc-layer-y-from": `${offset.y}px` } : {})
       }
     : {};
 }
@@ -2681,6 +2686,7 @@ function Inspector({
 }) {
   const element = primaryElement(document);
   const layer = selectedLayer(document);
+  const layerOffset = layerMotionOffset(layer?.motion);
   const [frameWorkspaceMode, setFrameWorkspaceMode] = useState<FrameMotionWorkspaceMode>("zeroNative");
   const documentWithComposition = useMemo(
     () => ({ ...document, composition: compositionTrack }),
@@ -3632,6 +3638,7 @@ function Inspector({
                           <label className="field">
                             <span>入场方向</span>
                             <select
+                              disabled={!layerOffset}
                               value={layer.motion?.direction ?? ""}
                               onChange={(event) =>
                                 patchLayer({
@@ -3646,25 +3653,30 @@ function Inspector({
                               }
                             >
                               <option value="">默认</option>
-                              <option value="up">上</option>
-                              <option value="down">下</option>
-                              <option value="left">左</option>
-                              <option value="right">右</option>
+                              <option value="up">从上方进入</option>
+                              <option value="down">从下方进入</option>
+                              <option value="left">从左侧进入</option>
+                              <option value="right">从右侧进入</option>
                             </select>
                           </label>
                           <label className="field">
                             <span>位移距离</span>
                             <input
+                              disabled={!layerOffset}
                               type="number"
                               min="0"
                               step="2"
-                              value={layer.motion?.distance ?? 18}
+                              value={
+                                layer.motion?.distance ??
+                                (layerOffset ? Math.hypot(layerOffset.x, layerOffset.y) : 18)
+                              }
                               onChange={(event) =>
                                 patchLayer({ id: layer.id, motion: { distance: Number(event.target.value) } })
                               }
                             />
                           </label>
                         </div>
+                        {!layerOffset ? <small>当前动效不含位移</small> : null}
                         <div className="field-row">
                           <label className="field">
                             <span>缩放起始</span>

@@ -750,7 +750,13 @@ export function FrameMorphPanel({
       setPreviewMode("morph");
       setProgress(0);
       setIsPlaying(false);
-      onApplyComposition(composition);
+      onApplyComposition({
+        ...composition,
+        intent: {
+          ...composition.intent,
+          summary: `${from.name} → ${to.name} · ${composition.intent.summary}`
+        }
+      });
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Zero 首尾帧读取失败。");
     } finally {
@@ -1046,7 +1052,8 @@ export function FrameMorphPanel({
           {visualReadMeta ? (
             <div className="zero-visual-source-panel" aria-label="Zero 高保真读取状态">
               <p>
-                来源：<strong>{visualReadMeta.source}</strong>
+                来源：
+                <strong>{visualReadMeta.source === "fixture" ? "示例数据" : visualReadMeta.source}</strong>
               </p>
               <p>首帧：{visualFrameSummary(visualReadMeta.from)}</p>
               <p>尾帧：{visualFrameSummary(visualReadMeta.to)}</p>

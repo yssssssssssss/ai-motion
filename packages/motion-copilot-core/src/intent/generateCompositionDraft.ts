@@ -70,7 +70,7 @@ function selectedEditableLayer(document: MotionDocument, layers: MotionLayer[]):
 
 function presetStep(
   document: MotionDocument,
-  spec: DraftStepSpec,
+  spec: DraftStepSpec & { layer: MotionLayer },
   index: number,
   idPrefix: string
 ): CompositionStep {
@@ -83,7 +83,8 @@ function presetStep(
     presetId: preset.id,
     label: preset.label,
     target: "selected-layer",
-    ...(layer ? { layerId: layer.id, layerName: layer.name } : {}),
+    layerId: layer.id,
+    layerName: layer.name,
     timing: spec.timing,
     delayMs: spec.delayMs,
     durationMs: patch.timeline?.durationMs ?? 240,
@@ -276,11 +277,21 @@ export function assembleDraftFromSpecs(
   const idPrefix = `draft-${promptHash(input.prompt)}-${input.existingSteps?.length ?? 0}`;
   const existingKeys = new Set((input.existingSteps ?? []).map(conflictKey));
   const corrections: CompositionDraftCorrection[] = [];
-  const retainedSpecs = specs.filter((spec) => {
+  const warnings: string[] = [];
+  const layers = selectableLayers(input.document);
+  const fallbackLayer =
+    selectedEditableLayer(input.document, layers) ?? specsForPrompt(input.prompt, layers)[0]?.layer;
+  const resolvedSpecs = specs.flatMap<DraftStepSpec & { layer: MotionLayer }>((spec) => {
+    const layer = layers.find((item) => item.id === spec.layer?.id) ?? fallbackLayer;
+    if (layer) return [{ ...spec, layer }];
+    warnings.push(`已跳过「${getAppMotionPreset(spec.presetId).label}」：当前文档没有可用的可编辑图层。`);
+    return [];
+  });
+  const retainedSpecs = resolvedSpecs.filter((spec) => {
     const preset = getAppMotionPreset(spec.presetId);
     const key = conflictKey({
       target: "selected-layer",
-      ...(spec.layer ? { layerId: spec.layer.id } : {}),
+      layerId: spec.layer.id,
       slot: preset.slot
     });
     if (!existingKeys.has(key)) return true;
@@ -298,7 +309,10 @@ export function assembleDraftFromSpecs(
   return {
     steps,
     summary: steps.length > 0 ? `已生成 ${steps.length} 个结构化编排片段` : "没有新增编排片段",
-    warnings: steps.length > 0 ? [] : ["当前描述命中的动效都已存在于时间轴。"],
+    warnings: [
+      ...warnings,
+      ...(steps.length === 0 && corrections.length > 0 ? ["当前描述命中的动效都已存在于时间轴。"] : [])
+    ],
     explanations: steps.map((step, index) => {
       const spec = retainedSpecs[index]!;
       return {

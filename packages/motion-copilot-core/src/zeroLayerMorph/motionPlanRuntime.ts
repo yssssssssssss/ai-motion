@@ -152,7 +152,7 @@ export function sampleMotionPlan(value: MotionPlan | unknown, timeMs: number): S
 }
 
 /**
- * Bakes a MotionPlan into browser-neutral keyframes. Springs and polyline paths
+ * Bakes a MotionPlan into browser-neutral keyframes. Physics and polyline paths
  * are sampled so the preview, WAAPI player, and CSS fallback share one trajectory.
  */
 export function compileMotionPlanKeyframes(
@@ -163,7 +163,7 @@ export function compileMotionPlanKeyframes(
   const sampleCount = Math.max(2, Math.round(samplesPerTrack));
   return plan.tracks.map((track) => {
     const offsets = new Set(track.keyframes.map((frame) => frame.offset));
-    if (track.physics?.type === "spring" || track.path) {
+    if (track.physics || track.path || track.keyframes.some((frame) => frame.easing)) {
       for (let index = 0; index <= sampleCount; index += 1) offsets.add(index / sampleCount);
     }
     const keyframes = [...offsets]

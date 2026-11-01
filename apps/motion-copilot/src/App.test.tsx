@@ -1653,6 +1653,82 @@ describe("Motion Copilot app", () => {
     expect(title?.style.getPropertyValue("--mc-layer-opacity-to")).toBe("0");
   });
 
+  it.each([
+    ["up", "0px", "-42px"],
+    ["down", "0px", "42px"],
+    ["left", "-42px", "0px"],
+    ["right", "42px", "0px"]
+  ])("previews a user-edited %s layer offset", (direction, x, y) => {
+    seedSampleWorkspace();
+    const saved = JSON.parse(localStorage.getItem("motion-copilot-workspace")!);
+    const title = saved.document.layers.find((layer: { id: string }) => layer.id === "modal-title");
+    title.layout = { x: 0, y: 0, width: 100, height: 30 };
+    title.motion = { preset: "lift", durationMs: 220, delayMs: 0 };
+    localStorage.setItem("motion-copilot-workspace", JSON.stringify(saved));
+    renderApp();
+    selectLayer("标题");
+    clickButton("属性");
+    const directionInput = Array.from(document.querySelectorAll("label"))
+      .find((label) => label.querySelector("span")?.textContent === "入场方向")!
+      .querySelector("select")!;
+    const distanceInput = Array.from(document.querySelectorAll("label"))
+      .find((label) => label.querySelector("span")?.textContent === "位移距离")!
+      .querySelector("input")!;
+    act(() => {
+      directionInput.value = direction;
+      directionInput.dispatchEvent(new Event("change", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(distanceInput, "42");
+      distanceInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const preview = document.querySelector<HTMLElement>(".motion-lift");
+    expect(preview?.style.getPropertyValue("--mc-layer-x-from")).toBe(x);
+    expect(preview?.style.getPropertyValue("--mc-layer-y-from")).toBe(y);
+  });
+
+  it.each([
+    ["lift", "18"],
+    ["slide-left", "28"],
+    ["slide-right", "28"]
+  ])("shows the actual default distance for %s", (preset, distance) => {
+    seedSampleWorkspace();
+    const saved = JSON.parse(localStorage.getItem("motion-copilot-workspace")!);
+    const title = saved.document.layers.find((layer: { id: string }) => layer.id === "modal-title");
+    title.layout = { x: 0, y: 0, width: 100, height: 30 };
+    title.motion = { preset, durationMs: 220, delayMs: 0 };
+    localStorage.setItem("motion-copilot-workspace", JSON.stringify(saved));
+    renderApp();
+    selectLayer("标题");
+    clickButton("属性");
+    expect(
+      Array.from(document.querySelectorAll("label"))
+        .find((label) => label.querySelector("span")?.textContent === "位移距离")
+        ?.querySelector("input")?.value
+    ).toBe(distance);
+  });
+
+  it("disables translation controls with a hint for a fade layer", () => {
+    seedSampleWorkspace();
+    const saved = JSON.parse(localStorage.getItem("motion-copilot-workspace")!);
+    const title = saved.document.layers.find((layer: { id: string }) => layer.id === "modal-title");
+    title.layout = { x: 0, y: 0, width: 100, height: 30 };
+    title.motion = { preset: "fade", durationMs: 220, delayMs: 0 };
+    localStorage.setItem("motion-copilot-workspace", JSON.stringify(saved));
+    renderApp();
+    selectLayer("标题");
+    clickButton("属性");
+    expect(
+      Array.from(document.querySelectorAll("label"))
+        .find((label) => label.querySelector("span")?.textContent === "入场方向")
+        ?.querySelector("select")?.disabled
+    ).toBe(true);
+    expect(
+      Array.from(document.querySelectorAll("label"))
+        .find((label) => label.querySelector("span")?.textContent === "位移距离")
+        ?.querySelector("input")?.disabled
+    ).toBe(true);
+    expect(document.body.textContent).toContain("当前动效不含位移");
+  });
+
   it("does not load the sample card when applying motion before creating content", () => {
     const app = renderApp();
     clickButton("开始使用");
@@ -1686,7 +1762,9 @@ describe("Motion Copilot app", () => {
       vi.fn(async (_url: string, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body ?? "{}")) as { nodeId?: string };
         const fixture = body.nodeId === "28:19" ? "info-collapsed" : "info-expanded";
-        return new Response(JSON.stringify({ snapshot: JSON.parse(frameFixture(fixture)) }), { status: 200 });
+        const snapshot = JSON.parse(frameFixture(fixture));
+        snapshot.name = `示例数据 · ${snapshot.name}`;
+        return new Response(JSON.stringify({ snapshot }), { status: 200 });
       })
     );
     const app = renderApp();
@@ -1698,6 +1776,7 @@ describe("Motion Copilot app", () => {
     await clickButtonAsync("从 Zero 读取 legacy 低保真时间线");
 
     await waitFor(() => expect(app.textContent).toContain("帧间形变"));
+    expect(app.querySelector(".project-status")?.textContent).toContain("示例数据");
     expect(app.textContent).toContain("多图层时间轴");
     expect(app.textContent).toContain("继续指派");
     expect(app.textContent).toContain("编排片段参数");
@@ -1728,74 +1807,77 @@ describe("Motion Copilot app", () => {
     expect(enteringLayer?.style.display).not.toBe("none");
   });
 
-  it("reads Zero visual snapshots and renders high-fidelity iframe previews", async () => {
-    const fetchSpy = vi.fn(async (url: string, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body ?? "{}")) as { nodeId?: "28:19" | "28:2" };
-      if (!String(url).includes("/api/zero/visual-snapshot")) {
-        return new Response(JSON.stringify({ error: "unexpected endpoint" }), { status: 500 });
-      }
-      return new Response(
-        JSON.stringify({
-          snapshot: visualFixture(body.nodeId ?? "28:2"),
-          source: "real-zero-mcp-http",
-          bridge: "node scripts/zero-mcp-visual-bridge.mjs --node-id {nodeId}"
-        }),
-        {
-          status: 200
+  it.each(["real-zero-mcp-http", "fixture"])(
+    "reads %s Zero visual snapshots and renders high-fidelity iframe previews",
+    async (source) => {
+      const fetchSpy = vi.fn(async (url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { nodeId?: "28:19" | "28:2" };
+        if (!String(url).includes("/api/zero/visual-snapshot")) {
+          return new Response(JSON.stringify({ error: "unexpected endpoint" }), { status: 500 });
         }
+        return new Response(
+          JSON.stringify({
+            snapshot: visualFixture(body.nodeId ?? "28:2"),
+            source,
+            bridge: "node scripts/zero-mcp-visual-bridge.mjs --node-id {nodeId}"
+          }),
+          {
+            status: 200
+          }
+        );
+      });
+      vi.stubGlobal("fetch", fetchSpy);
+
+      const app = renderApp();
+      clickButton("开始使用");
+      clickButton("帧间动效");
+      clickButton("高保真预览");
+      stubFrameMorphFixtureIds();
+
+      await clickButtonAsync("从 Zero 读取并生成高保真时间线");
+
+      await waitFor(() => expect(app.textContent).toContain("当前节点：未选择"));
+      expect(app.textContent).toContain(`来源：${source === "fixture" ? "示例数据" : source}`);
+      expect(app.textContent).toContain("首帧：信息收起状态");
+      expect(app.textContent).toContain("尾帧：信息展开状态");
+      expect(app.textContent).toContain("matched");
+      expect(app.textContent).toContain("enter");
+      expect(app.textContent).toContain("unresolved");
+      expect(app.textContent).toContain("高保真形变");
+      expect(app.textContent).toContain("多图层时间轴");
+      expect(document.querySelectorAll(".composition-step").length).toBeGreaterThan(0);
+      const htmlDownload = document.querySelector<HTMLAnchorElement>(
+        'a[download="motion-composition-export.html"]'
       );
-    });
-    vi.stubGlobal("fetch", fetchSpy);
-
-    const app = renderApp();
-    clickButton("开始使用");
-    clickButton("帧间动效");
-    clickButton("高保真预览");
-    stubFrameMorphFixtureIds();
-
-    await clickButtonAsync("从 Zero 读取并生成高保真时间线");
-
-    await waitFor(() => expect(app.textContent).toContain("当前节点：未选择"));
-    expect(app.textContent).toContain("来源：real-zero-mcp-http");
-    expect(app.textContent).toContain("首帧：信息收起状态");
-    expect(app.textContent).toContain("尾帧：信息展开状态");
-    expect(app.textContent).toContain("matched");
-    expect(app.textContent).toContain("enter");
-    expect(app.textContent).toContain("unresolved");
-    expect(app.textContent).toContain("高保真形变");
-    expect(app.textContent).toContain("多图层时间轴");
-    expect(document.querySelectorAll(".composition-step").length).toBeGreaterThan(0);
-    const htmlDownload = document.querySelector<HTMLAnchorElement>(
-      'a[download="motion-composition-export.html"]'
-    );
-    const htmlHref = htmlDownload?.href ?? "";
-    const htmlText = decodeURIComponent(htmlHref.slice(htmlHref.indexOf(",") + 1));
-    expect(htmlText).toContain("mc-zero-stage");
-    expect(htmlText).toContain('data-node-id="28:32"');
-    expect(htmlText).not.toContain("mc-comp-target");
-    expect(document.querySelector(".zero-visual-main-stage iframe.visual-stage")).toBeTruthy();
-    clickButton("播放高保真预览");
-    expect(app.textContent).toContain("暂停高保真预览");
-    const iframe = document.querySelector<HTMLIFrameElement>("iframe.visual-stage");
-    expect(iframe).toBeTruthy();
-    expect(iframe?.title).toBe("信息收起状态");
-    expect(iframe?.srcdoc).toContain('data-node-id="28:32"');
-    act(() => {
-      window.dispatchEvent(
-        new MessageEvent("message", {
-          data: { type: "motion-copilot:zero-node-select", nodeId: "28:11" },
-          source: iframe?.contentWindow ?? window
-        })
+      const htmlHref = htmlDownload?.href ?? "";
+      const htmlText = decodeURIComponent(htmlHref.slice(htmlHref.indexOf(",") + 1));
+      expect(htmlText).toContain("mc-zero-stage");
+      expect(htmlText).toContain('data-node-id="28:32"');
+      expect(htmlText).not.toContain("mc-comp-target");
+      expect(document.querySelector(".zero-visual-main-stage iframe.visual-stage")).toBeTruthy();
+      clickButton("播放高保真预览");
+      expect(app.textContent).toContain("暂停高保真预览");
+      const iframe = document.querySelector<HTMLIFrameElement>("iframe.visual-stage");
+      expect(iframe).toBeTruthy();
+      expect(iframe?.title).toBe("信息收起状态");
+      expect(iframe?.srcdoc).toContain('data-node-id="28:32"');
+      act(() => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: { type: "motion-copilot:zero-node-select", nodeId: "28:11" },
+            source: iframe?.contentWindow ?? window
+          })
+        );
+      });
+      await waitFor(() => {
+        expect(savedWorkspace().document.selectedLayerId).toBe("zero-visual-28-32");
+      });
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "/api/zero/visual-snapshot",
+        expect.objectContaining({ method: "POST" })
       );
-    });
-    await waitFor(() => {
-      expect(savedWorkspace().document.selectedLayerId).toBe("zero-visual-28-32");
-    });
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "/api/zero/visual-snapshot",
-      expect.objectContaining({ method: "POST" })
-    );
-  });
+    }
+  );
 
   it("keeps Zero native generation empty until a first-tail frame pair is provided", async () => {
     const fetchSpy = vi.fn(

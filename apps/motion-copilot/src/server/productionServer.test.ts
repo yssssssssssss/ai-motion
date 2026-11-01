@@ -136,7 +136,8 @@ describe("motion-copilot production server", () => {
       distDir: await createDist(),
       zeroVisualConfig: {
         visualCommand: process.execPath,
-        visualArgs: [rootPath("scripts/zero-visual-snapshot-fixture.mjs"), "--node-id", "{nodeId}"]
+        visualArgs: [rootPath("scripts/zero-visual-snapshot-fixture.mjs"), "--node-id", "{nodeId}"],
+        commandEnv: { ZERO_MCP_HTTP_URL: "http://unused.test/mcp" }
       }
     });
     try {
@@ -149,6 +150,7 @@ describe("motion-copilot production server", () => {
       const body = await response.json();
 
       expect(response.status).toBe(200);
+      expect(body.source).toBe("fixture");
       expect(body.snapshot).toMatchObject({
         schemaVersion: "motion-copilot.zero-visual-snapshot.v1",
         frameId: "28:2",

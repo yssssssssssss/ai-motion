@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assembleMotionPlanFromDraft,
+  physicsFromPersonality,
   isMotionPlanDraftResponse,
   parseMotionPlanDraftResponse,
   selectDistinctMotionPlanDraft,
@@ -70,6 +71,36 @@ const equivalentDraft: MotionPlanDraft = {
 };
 
 describe("MotionPlan LLM draft contract", () => {
+  it.each([
+    [0, 0, 120, 26],
+    [1, 1, 300, 12],
+    [0.9, 0.7, 282, 16],
+    [0.375, 0.25, 188, 23]
+  ])(
+    "preserves generated spring physics for energy %s and bounce %s",
+    (energy, bounce, stiffness, damping) => {
+      const draft = structuredClone(distinctDraft);
+      draft.tracks[0]!.personality = { energy, bounce, sharpness: 0.5 };
+      const expected = { type: "spring", stiffness, damping };
+      expect(physicsFromPersonality("spring", draft.tracks[0]!.personality)).toEqual(expected);
+      expect(assembleMotionPlanFromDraft(fallback, draft).tracks[0]?.physics).toEqual(expected);
+    }
+  );
+
+  it.each([
+    [0, [0.35, 0, 0.25, 1]],
+    [0.5, [0.265, 0.43, 0.235, 1]],
+    [1, [0.18, 0.86, 0.22, 1]]
+  ])("maps sharpness %s between standard and decelerate", (sharpness, curve) => {
+    const physics = physicsFromPersonality("ease", {
+      energy: 0.5,
+      bounce: 0.3,
+      sharpness: Number(sharpness)
+    });
+    expect(physics.type).toBe("ease");
+    if (physics.type === "ease")
+      physics.curve.forEach((value, index) => expect(value).toBeCloseTo((curve as number[])[index]!));
+  });
   it("accepts only schema-shaped candidates without node or pixel fields", () => {
     expect(isMotionPlanDraftResponse({ candidates: [distinctDraft] })).toBe(true);
     expect(

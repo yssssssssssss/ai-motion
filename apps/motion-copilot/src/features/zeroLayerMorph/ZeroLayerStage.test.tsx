@@ -6,6 +6,7 @@ import {
   createClassicEasing,
   evaluateComposition,
   type CompositionStep,
+  type MotionPhysics,
   type ZeroLayerMotionBindingResult,
   type ZeroLayerSnapshot
 } from "@motion-copilot/core";
@@ -70,7 +71,8 @@ function renderMotionWithPlan(
   to: ZeroLayerSnapshot,
   bindingResult: ZeroLayerMotionBindingResult,
   progress: number,
-  isPlaying = false
+  isPlaying = false,
+  physics?: MotionPhysics
 ) {
   host = document.createElement("div");
   document.body.append(host);
@@ -92,6 +94,7 @@ function renderMotionWithPlan(
               nodeId: "box",
               kind: "morph",
               source: "user",
+              ...(physics ? { physics } : {}),
               timing: { delayMs: 0, durationMs: 400 },
               keyframes: [
                 { offset: 0, x: 0, y: 0, width: 40, opacity: 1 },
@@ -394,73 +397,86 @@ describe("ZeroLayerStage", () => {
     expect(layer?.style.opacity).toBe("0.75");
   });
 
-  it("plays persisted tracks through WAAPI and cancels the browser animation on cleanup", () => {
-    const from: ZeroLayerSnapshot = {
-      schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
-      frameId: "from",
-      nodeId: "from",
-      name: "首帧",
-      width: 180,
-      height: 40,
-      screenshotUrl: "",
-      assets: [],
-      layers: [
-        {
-          nodeId: "box",
-          name: "box",
-          kind: "rect",
-          bounds: { x: 0, y: 0, w: 40, h: 40 },
-          opacity: 1,
-          visible: true,
-          fills: [{ type: "solid", color: "#ffffff" }]
-        }
-      ]
-    };
-    const to: ZeroLayerSnapshot = {
-      ...from,
-      frameId: "to",
-      nodeId: "to",
-      name: "尾帧",
-      layers: [{ ...from.layers[0]!, bounds: { x: 100, y: 0, w: 80, h: 40 } }]
-    };
-    const bindingResult: ZeroLayerMotionBindingResult = {
-      bindings: [
-        {
-          layerId: "zero-layer-box",
-          nodeId: "box",
-          toNodeId: "box",
-          fromBounds: from.layers[0]!.bounds,
-          toBounds: to.layers[0]!.bounds,
-          confidence: 100,
-          reasons: ["same-node"]
-        }
-      ],
-      enter: [],
-      exit: [],
-      unresolved: []
-    };
-    const originalAnimate = Element.prototype.animate;
-    const cancel = vi.fn();
-    const animate = vi.fn<
-      (frames: Keyframe[], options: KeyframeAnimationOptions) => { currentTime: number; cancel: () => void }
-    >(() => ({ currentTime: 0, cancel }));
-    Object.defineProperty(Element.prototype, "animate", { configurable: true, value: animate });
+  it.each([
+    undefined,
+    { type: "spring", stiffness: 300, damping: 12 },
+    { type: "ease", curve: [0.18, 0.86, 0.22, 1] }
+  ] satisfies Array<MotionPhysics | undefined>)(
+    "plays persisted physics %j through WAAPI and cancels on cleanup",
+    (physics) => {
+      const from: ZeroLayerSnapshot = {
+        schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
+        frameId: "from",
+        nodeId: "from",
+        name: "首帧",
+        width: 180,
+        height: 40,
+        screenshotUrl: "",
+        assets: [],
+        layers: [
+          {
+            nodeId: "box",
+            name: "box",
+            kind: "rect",
+            bounds: { x: 0, y: 0, w: 40, h: 40 },
+            opacity: 1,
+            visible: true,
+            fills: [{ type: "solid", color: "#ffffff" }]
+          }
+        ]
+      };
+      const to: ZeroLayerSnapshot = {
+        ...from,
+        frameId: "to",
+        nodeId: "to",
+        name: "尾帧",
+        layers: [{ ...from.layers[0]!, bounds: { x: 100, y: 0, w: 80, h: 40 } }]
+      };
+      const bindingResult: ZeroLayerMotionBindingResult = {
+        bindings: [
+          {
+            layerId: "zero-layer-box",
+            nodeId: "box",
+            toNodeId: "box",
+            fromBounds: from.layers[0]!.bounds,
+            toBounds: to.layers[0]!.bounds,
+            confidence: 100,
+            reasons: ["same-node"]
+          }
+        ],
+        enter: [],
+        exit: [],
+        unresolved: []
+      };
+      const originalAnimate = Element.prototype.animate;
+      const cancel = vi.fn();
+      const animate = vi.fn<
+        (frames: Keyframe[], options: KeyframeAnimationOptions) => { currentTime: number; cancel: () => void }
+      >(() => ({ currentTime: 0, cancel }));
+      Object.defineProperty(Element.prototype, "animate", { configurable: true, value: animate });
 
-    try {
-      renderMotionWithPlan(from, to, bindingResult, 0, true);
-      expect(animate).toHaveBeenCalledTimes(1);
-      const frames = animate.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
-      expect(frames[0]).toMatchObject({ offset: 0, transform: "translate(0px,0px) scale(1) rotate(0deg)" });
-      expect(frames.at(-1)).toMatchObject({
-        offset: 1,
-        transform: "translate(100px,0px) scale(1) rotate(0deg)"
-      });
-    } finally {
-      act(() => root?.unmount());
-      Object.defineProperty(Element.prototype, "animate", { configurable: true, value: originalAnimate });
+      try {
+        renderMotionWithPlan(from, to, bindingResult, 0, true, physics);
+        expect(animate).toHaveBeenCalledTimes(1);
+        const frames = animate.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
+        expect(frames[0]).toMatchObject({ offset: 0, transform: "translate(0px,0px) scale(1) rotate(0deg)" });
+        expect(frames.at(-1)).toMatchObject({
+          offset: 1,
+          transform: "translate(100px,0px) scale(1) rotate(0deg)"
+        });
+        if (physics) {
+          expect(frames).toHaveLength(25);
+          expect(frames.find((frame) => frame.offset === 0.5)?.transform).not.toBe(
+            "translate(50px,0px) scale(1) rotate(0deg)"
+          );
+        }
+      } finally {
+        act(() => root?.unmount());
+        Object.defineProperty(Element.prototype, "animate", { configurable: true, value: originalAnimate });
+      }
+      expect(cancel).toHaveBeenCalledTimes(1);
     }
-    expect(cancel).toHaveBeenCalledTimes(1);
-  });
+  );
 
   it("renders the exact Zero tail frame at the final progress even when a recipe uses scale", () => {
     const from: ZeroLayerSnapshot = {

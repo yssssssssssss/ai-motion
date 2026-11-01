@@ -372,7 +372,7 @@ function mergeLayerMotion(
   base: MotionLayerMotion | undefined,
   patch: Partial<MotionLayerMotion>
 ): MotionLayerMotion {
-  const direction = patch.direction ?? base?.direction;
+  const direction = "direction" in patch ? patch.direction : base?.direction;
   const distance = patch.distance ?? base?.distance;
   const scaleFrom = patch.scaleFrom ?? base?.scaleFrom;
   const opacityFrom = patch.opacityFrom ?? base?.opacityFrom;

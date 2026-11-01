@@ -62,6 +62,7 @@ export * from "./zeroLayerMorph/zeroMotionSceneClassifier";
 export * from "./zeroLayerMorph/zeroMotionSpec";
 export * from "./zeroLayerMorph/zeroMotionInteractionPattern";
 export * from "./runtime/progress";
+export * from "./runtime/layerMotion";
 export * from "./preset/appMotionPresets";
 
 export * from "./composition/mergeRecompiledSteps";

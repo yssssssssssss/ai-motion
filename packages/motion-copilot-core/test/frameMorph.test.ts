@@ -1201,7 +1201,7 @@ describe("Frame morph compilation", () => {
     const snapshot = normalizeFrameSnapshot(JSON.parse(output) as unknown);
     expect(snapshot).toMatchObject({
       frameId: "28:19",
-      name: "信息收起状态"
+      name: "示例数据 · 信息收起状态"
     });
   });
 

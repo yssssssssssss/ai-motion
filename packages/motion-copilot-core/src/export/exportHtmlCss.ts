@@ -12,6 +12,7 @@ import {
 } from "../schema/document";
 import { exportVisualCompositionHtml } from "../composition/exportVisualCompositionHtml";
 import { exportFrameMorphCompositionHtml } from "../composition/exportFrameMorphCompositionHtml";
+import { layerMotionOffset } from "../runtime/layerMotion";
 
 function numeric(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -110,6 +111,7 @@ function layerMotionName(preset: LayerMotionPreset | undefined): string {
 }
 
 function layerMotionDeclarations(layer: MotionLayer): string[] {
+  const offset = layerMotionOffset(layer.motion);
   const name = layerMotionName(layer.motion?.preset);
   if (!name) return [];
   const easing: EasingSpec = layer.motion?.easing ?? {
@@ -121,6 +123,7 @@ function layerMotionDeclarations(layer: MotionLayer): string[] {
     `--mc-layer-opacity-from:${Math.min(1, Math.max(0, layer.motion?.opacityFrom ?? 0))}`,
     `--mc-layer-opacity-to:${Math.min(1, Math.max(0, layer.motion?.opacityTo ?? 1))}`,
     `--mc-layer-scale-from:${Math.max(0, layer.motion?.scaleFrom ?? 0.92)}`,
+    ...(offset ? [`--mc-layer-x-from:${offset.x}px`, `--mc-layer-y-from:${offset.y}px`] : []),
     `animation:${name} ${safeMs(layer.motion?.durationMs, 220)}ms ${easingCss(easing)} ${safeMs(layer.motion?.delayMs, 0)}ms both`
   ];
 }
@@ -268,9 +271,9 @@ export function exportHtmlCss(document: MotionDocument): { html: string; css: st
 .mc-button { min-width: 172px; height: 54px; border-radius: 14px; border: 0; display: grid; place-items: center; color: white; background: #0f5c8a; }
 ${keyframes(document)}
 @keyframes mc-free-fade { from { opacity: var(--mc-layer-opacity-from, 0); } to { opacity: var(--mc-layer-opacity-to, 1); } }
-@keyframes mc-free-lift { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes mc-free-slide-left { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes mc-free-slide-right { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes mc-free-lift { from { opacity: 0; transform: translate(var(--mc-layer-x-from, 0px), var(--mc-layer-y-from, 18px)); } to { opacity: 1; transform: translate(0, 0); } }
+@keyframes mc-free-slide-left { from { opacity: 0; transform: translate(var(--mc-layer-x-from, -28px), var(--mc-layer-y-from, 0px)); } to { opacity: 1; transform: translate(0, 0); } }
+@keyframes mc-free-slide-right { from { opacity: 0; transform: translate(var(--mc-layer-x-from, 28px), var(--mc-layer-y-from, 0px)); } to { opacity: 1; transform: translate(0, 0); } }
 @keyframes mc-free-zoom { from { opacity: var(--mc-layer-opacity-from, 0); transform: scale(var(--mc-layer-scale-from, 0.92)); } to { opacity: var(--mc-layer-opacity-to, 1); transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .mc-target, .mc-layer { animation: none; transform: none; opacity: 1; filter: none; } }`;
   return { html, css };

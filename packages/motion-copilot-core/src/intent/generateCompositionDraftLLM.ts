@@ -83,7 +83,7 @@ export function parseLLMDraftPlan(text: string): LLMDraftPlan | null {
   }
 }
 
-// 把模型给出的图层 id 解析为当前文档里真实可编辑的图层;找不到则降级为主图层(undefined)。
+// 只提取真实可编辑图层；未确定的目标统一交给 assembleDraftFromSpecs 解析。
 export function draftSpecsFromLLM(document: MotionDocument, plan: LLMDraftPlan): DraftStepSpec[] {
   const layers = selectableLayers(document);
   const byId = new Map<string, MotionLayer>(layers.map((layer) => [layer.id, layer]));

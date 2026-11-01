@@ -21,6 +21,14 @@ const plan = {
 };
 
 describe("MotionPlan runtime helpers", () => {
+  it("bakes ease physics into playback and CSS instead of playing only linear endpoints", () => {
+    const eased = structuredClone(plan);
+    eased.tracks[0]!.physics.curve = [0.18, 0.86, 0.22, 1];
+    const midpoint = compileMotionPlanKeyframes(eased)[0]?.keyframes.find((frame) => frame.offset === 0.5);
+    expect(midpoint?.x).toBeGreaterThan(70);
+    expect(midpoint?.x).toBeCloseTo(sampleMotionPlan(eased, 140)[0]!.state.x!, 5);
+    expect(compileMotionPlanCss(eased)).not.toBe(compileMotionPlanCss(plan));
+  });
   it("samples track state before, during, and after its time window", () => {
     expect(sampleMotionPlan(plan, 0)[0]).toMatchObject({
       active: false,

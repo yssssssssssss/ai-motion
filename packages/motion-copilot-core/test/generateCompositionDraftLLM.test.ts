@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   appMotionPresets,
+  assembleDraftFromSpecs,
   buildDraftPromptContext,
   createDefaultDocument,
   draftPlanSchema,
   draftSpecsFromLLM,
   generateCompositionDraftFromLLM,
+  generateCompositionDraft,
   isLLMDraftPlan,
   parseLLMDraftPlan,
   type LLMDraftPlan
@@ -153,6 +155,97 @@ describe("draftSpecsFromLLM", () => {
 });
 
 describe("generateCompositionDraftFromLLM", () => {
+  it.each([null, "ghost-layer"])("resolves %s to the selected editable layer", (layerId) => {
+    const document = createDefaultDocument("modal");
+    document.selectedLayerId = "modal-body";
+    const result = generateCompositionDraftFromLLM(
+      { prompt: "按钮反馈", document },
+      plan([{ presetId: "like-bounce", layerId, timing: "sequential", delayMs: 0, reason: "反馈" }])
+    );
+    expect(result.steps[0]).toMatchObject({
+      target: "selected-layer",
+      layerId: "modal-body",
+      layerName: "正文"
+    });
+    expect(result.warnings).toEqual([]);
+  });
+
+  it.each([null, "ghost-layer"])("resolves %s to the only selectable layer", (layerId) => {
+    const document = createDefaultDocument("modal");
+    document.selectedLayerId = "modal-image";
+    document.layers = document.layers.map((layer) => ({ ...layer, locked: layer.id !== "modal-title" }));
+    const result = generateCompositionDraftFromLLM(
+      { prompt: "进场", document },
+      plan([{ presetId: "enter-screen", layerId, timing: "sequential", delayMs: 0, reason: "进场" }])
+    );
+    expect(result.steps[0]?.layerId).toBe("modal-title");
+  });
+
+  it.each([null, "ghost-layer"])(
+    "uses the existing button heuristic for %s with multiple unselected layers",
+    (layerId) => {
+      const document = createDefaultDocument("modal");
+      delete document.selectedLayerId;
+      const result = generateCompositionDraftFromLLM(
+        { prompt: "按钮点击反馈", document },
+        plan([{ presetId: "like-bounce", layerId, timing: "sequential", delayMs: 0, reason: "点击" }])
+      );
+      expect(result.steps[0]?.layerId).toBe("modal-secondary");
+    }
+  );
+
+  it("keeps a valid explicit layer even when another layer is selected", () => {
+    const document = createDefaultDocument("modal");
+    document.selectedLayerId = "modal-title";
+    const result = generateCompositionDraftFromLLM(
+      { prompt: "按钮", document },
+      plan([
+        {
+          presetId: "modal-feedback",
+          layerId: "modal-image",
+          timing: "parallel",
+          delayMs: 80,
+          reason: "主体"
+        }
+      ])
+    );
+    expect(result.steps[0]).toMatchObject({ layerId: "modal-image", timing: "parallel", delayMs: 80 });
+  });
+
+  it.each([null, "ghost-layer"])(
+    "drops %s with a Chinese warning when there are no editable targets",
+    (layerId) => {
+      const document = createDefaultDocument("modal");
+      document.layers = [];
+      const result = generateCompositionDraftFromLLM(
+        { prompt: "进场", document },
+        plan([{ presetId: "enter-screen", layerId, timing: "sequential", delayMs: 0, reason: "进场" }])
+      );
+      expect(result.steps).toEqual([]);
+      expect(result.explanations).toEqual([]);
+      expect(result.warnings.join(" ")).toContain("已跳过「进入屏幕」：当前文档没有可用的可编辑图层");
+    }
+  );
+
+  it("resolves targets in shared deterministic assembly and preserves already-bound fallback steps", () => {
+    const document = createDefaultDocument("modal");
+    document.selectedLayerId = "modal-title";
+    const input = { prompt: "进场", document };
+    const spec = {
+      presetId: "enter-screen" as const,
+      timing: "sequential" as const,
+      delayMs: 0,
+      reason: "默认使用进入屏幕动效，先保证内容出现节奏清晰。"
+    };
+    const assembled = assembleDraftFromSpecs(input, [spec]);
+    expect(assembled.steps[0]?.layerId).toBe("modal-title");
+    expect(assembled).toEqual(
+      assembleDraftFromSpecs(input, [
+        { ...spec, layer: document.layers.find((layer) => layer.id === "modal-title")! }
+      ])
+    );
+    expect(generateCompositionDraft(input)).toEqual(assembled);
+  });
   it("assembles composition steps from a model plan", () => {
     const document = createDefaultDocument("modal");
     const result = generateCompositionDraftFromLLM(
