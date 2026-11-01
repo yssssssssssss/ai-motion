@@ -12,8 +12,17 @@ import { exportVisualCompositionHtml } from "./exportVisualCompositionHtml";
 import { exportZeroLayerCompositionHtml } from "../zeroLayerMorph/exportZeroLayerCompositionHtml";
 import { exportFrameMorphCompositionHtml } from "./exportFrameMorphCompositionHtml";
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function presetKeyframeName(step: CompositionStep, index: number): string {
-  return `mc-comp-${index}-${step.presetId}`;
+  return `mc-comp-${index}-${step.presetId.replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 }
 
 function stepEasing(step: CompositionStep): string {
@@ -128,9 +137,9 @@ export function exportCompositionHtml(track: CompositionTrack, document?: Motion
   const stepsHtml = track.steps
     .map((step, i) => {
       const targetLabel = step.target === "selected-layer" ? (step.layerName ?? "图层") : "未绑定图层";
-      return `    <div class="mc-comp-step" data-step="${i + 1}" data-preset="${step.presetId}">
-      <span class="mc-comp-label">${step.label}</span>
-      <span class="mc-comp-target">${targetLabel}</span>
+      return `    <div class="mc-comp-step" data-step="${i + 1}" data-preset="${escapeHtml(step.presetId)}">
+      <span class="mc-comp-label">${escapeHtml(step.label)}</span>
+      <span class="mc-comp-target">${escapeHtml(targetLabel)}</span>
     </div>`;
     })
     .join("\n");

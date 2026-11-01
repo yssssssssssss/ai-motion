@@ -92,11 +92,16 @@ for pid_dir in /proc/[0-9]*; do
   fi
 done
 
+if ! command -v ss >/dev/null 2>&1 && ! command -v netstat >/dev/null 2>&1; then
+  echo "Cannot inspect listening ports: neither ss nor netstat is available" >&2
+  exit 1
+fi
+
 for target_port in ${port} ${motionLensPort}; do
   for attempt in 1 2 3 4 5; do
     listeners=$(
       if command -v ss >/dev/null 2>&1; then
-        ss -ltnp "sport = :$target_port" 2>/dev/null || true
+        ss -H -ltnp "sport = :$target_port"
       else
         netstat -ltnp 2>/dev/null | grep ":$target_port " || true
       fi
@@ -108,13 +113,32 @@ for target_port in ${port} ${motionLensPort}; do
 
   listeners=$(
     if command -v ss >/dev/null 2>&1; then
-      ss -ltnp "sport = :$target_port" 2>/dev/null || true
+      ss -H -ltnp "sport = :$target_port"
     else
       netstat -ltnp 2>/dev/null | grep ":$target_port " || true
     fi
   )
   if [ -n "$listeners" ]; then
-    echo "$listeners" | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u | xargs -r kill -9
+    echo "$listeners" | while IFS= read -r listener; do
+      if command -v ss >/dev/null 2>&1; then
+        pids=$(echo "$listener" | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
+      else
+        pids=$(echo "$listener" | awk '{ split($7, process, "/"); if (process[1] ~ /^[0-9]+$/) print process[1] }' | sort -u)
+      fi
+      if [ -z "$pids" ]; then
+        echo "Cannot identify listener pid on port $target_port; refusing to restart" >&2
+        exit 1
+      fi
+      for pid in $pids; do
+        cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || true)
+        if [ "$cwd" = "${remoteDir}/apps/web" ] || [ "$cwd" = "${remoteDir}/apps/motion-lens" ]; then
+          kill -9 "$pid"
+        else
+          echo "Refusing to kill listener pid=$pid cwd=$cwd port=$target_port" >&2
+          exit 1
+        fi
+      done
+    done
     sleep 1
   fi
 done

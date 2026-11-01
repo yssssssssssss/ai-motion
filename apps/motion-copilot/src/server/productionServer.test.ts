@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, get } from "node:http";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -17,13 +17,17 @@ async function createDist() {
 }
 
 async function listen(server: ReturnType<typeof createMotionCopilotProductionServer>) {
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("no port");
   return `http://127.0.0.1:${address.port}`;
 }
 
 async function close(server: ReturnType<typeof createMotionCopilotProductionServer>) {
+  if (!server.listening) return;
   await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
 }
 
@@ -40,6 +44,31 @@ afterEach(async () => {
 });
 
 describe("motion-copilot production server", () => {
+  it("rejects malformed URLs and keeps serving valid requests", async () => {
+    const server = createMotionCopilotProductionServer({ distDir: await createDist() });
+    try {
+      const baseUrl = await listen(server);
+      const response = await new Promise<{ status: number | undefined; body: string }>((resolve, reject) => {
+        const request = get(baseUrl, { path: "/%" }, (res) => {
+          let body = "";
+          res.setEncoding("utf8");
+          res.on("data", (chunk) => (body += chunk));
+          res.on("end", () => resolve({ status: res.statusCode, body }));
+          res.on("error", reject);
+        });
+        request.on("error", reject);
+        request.setTimeout(1000, () => request.destroy(new Error("request timed out")));
+      });
+      expect(response.status).toBe(400);
+      expect(JSON.parse(response.body)).toEqual({ error: "请求路径无效" });
+      const validResponse = await fetch(`${baseUrl}/`);
+      expect(validResponse.status).toBe(200);
+      await expect(validResponse.text()).resolves.toContain("copilot");
+    } finally {
+      await close(server);
+    }
+  });
+
   it("serves the built app and falls back to index for SPA routes", async () => {
     const server = createMotionCopilotProductionServer({ distDir: await createDist() });
     try {

@@ -127,7 +127,7 @@ function layerMotionDeclarations(layer: MotionLayer): string[] {
 
 function inlineStyle(layer: MotionLayer | undefined): string {
   const styles = layer ? [...layerMotionDeclarations(layer), ...styleDeclarations(layer)] : [];
-  return styles.length > 0 ? ` style="${styles.join(";")}"` : "";
+  return styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "";
 }
 
 function freeLayerStyle(document: MotionDocument, layer: MotionLayer): string {
@@ -144,7 +144,7 @@ function freeLayerStyle(document: MotionDocument, layer: MotionLayer): string {
     ...layerMotionDeclarations(layer),
     ...styleDeclarations(layer)
   ];
-  return ` style="${styles.join(";")}"`;
+  return ` style="${escapeHtml(styles.join(";"))}"`;
 }
 
 function renderImage(layer: MotionLayer | undefined): string {
@@ -157,7 +157,7 @@ function renderImage(layer: MotionLayer | undefined): string {
     ...(layer ? layerMotionDeclarations(layer) : []),
     ...styleDeclarations(layer)
   ];
-  return `<img class="mc-modal-image" src="${src}" alt="${escapeHtml(layer?.content?.alt ?? "")}" style="${styles.join(";")}" />`;
+  return `<img class="mc-modal-image" src="${escapeHtml(src)}" alt="${escapeHtml(layer?.content?.alt ?? "")}" style="${escapeHtml(styles.join(";"))}" />`;
 }
 
 function roleMarkup(document: MotionDocument): string {
@@ -188,7 +188,7 @@ function roleMarkup(document: MotionDocument): string {
 function stageBackground(document: MotionDocument): string {
   const src = safeImageSrc(document.stage.backgroundImage);
   if (!src) return "";
-  return `<img class="mc-stage-background" src="${src}" alt="${escapeHtml(document.stage.backgroundAlt ?? "")}" />`;
+  return `<img class="mc-stage-background" src="${escapeHtml(src)}" alt="${escapeHtml(document.stage.backgroundAlt ?? "")}" />`;
 }
 
 function freeLayerMarkup(document: MotionDocument): string {
@@ -200,7 +200,7 @@ function freeLayerMarkup(document: MotionDocument): string {
       if (layer.kind === "image") {
         const src = safeImageSrc(layer.content?.src);
         content = src
-          ? `<img src="${src}" alt="${escapeHtml(layer.content?.alt ?? "")}" style="object-fit:${safeImageFit(layer.style?.fit)};object-position:${safeImagePosition(layer.style?.position)}" />`
+          ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(layer.content?.alt ?? "")}" style="object-fit:${safeImageFit(layer.style?.fit)};object-position:${safeImagePosition(layer.style?.position)}" />`
           : "<span>图片</span>";
       } else if (layer.kind === "text") content = layerText(layer, "自定义文本");
       else if (layer.kind === "button") content = layerText(layer, "立即行动");

@@ -471,7 +471,7 @@ export function exportZeroLayerCompositionHtml(document: MotionDocument, track: 
     .mc-zero-layer-frame{position:absolute;left:0;top:0;width:${px(width)};height:${px(height)};}
     [data-zero-layer-id] > img{display:block;width:100%;height:100%;object-fit:contain;}
     [data-zero-layer-kind="text"] span{display:block;width:100%;overflow:hidden;text-overflow:clip;white-space:pre;}
-    ${source.motionPlan?.tracks.length ? motionPlanCss(source, track) : motionCss(source, track)}
+    ${(source.motionPlan?.tracks.length ? motionPlanCss(source, track) : motionCss(source, track)).replaceAll("</", "\\3c /")}
     @media (prefers-reduced-motion: reduce){.mc-zero-layer-from{display:none!important;}[data-zero-layer-id]{animation:none!important;}}
   </style>
 </head>

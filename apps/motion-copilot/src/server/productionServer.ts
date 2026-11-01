@@ -77,7 +77,15 @@ export function createMotionCopilotProductionServer(input: ProductionServerInput
   const zeroAssetHandler = createZeroAssetProxyHandler(input.zeroAssetConfig);
 
   return createServer((req, res) => {
-    const pathName = requestPath(req);
+    let pathName: string;
+    try {
+      pathName = requestPath(req);
+    } catch {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "请求路径无效" }));
+      return;
+    }
 
     if (pathName === "/api/copilot/config") {
       configHandler(req, res);

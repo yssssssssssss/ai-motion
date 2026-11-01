@@ -105,6 +105,44 @@ const blueprint: MotionBlueprint = {
 };
 
 describe("MotionLens review report", () => {
+  it("escapes imported image attributes and opportunity text", () => {
+    const hostile = structuredClone(blueprint);
+    const payload = '<img src=x onerror="alert(1)"> & <';
+    hostile.source.name = payload;
+    hostile.context.pageType = payload;
+    hostile.context.goalText = payload;
+    hostile.elements[0]!.label = payload;
+    Object.assign(hostile.elements[0]!.bounds, { x: '0" onerror="alert(1)' });
+    const opportunity = hostile.opportunities[0]!;
+    Object.assign(opportunity, { patternName: payload, reason: payload, priority: payload, score: payload });
+    opportunity.risks = [payload];
+    opportunity.recommendedParams.transform = payload;
+    opportunity.reviewEvidence = {
+      whyThisMotion: payload,
+      whyNotAlternatives: payload,
+      noMotionAssessment: payload,
+      differentiation: payload,
+      trigger: payload
+    };
+    opportunity.knowledgeRefs![0]!.title = payload;
+    opportunity.knowledgeRefs![0]!.pageRange = payload;
+    opportunity.alternativeRecommendations![0]!.patternName = payload;
+    opportunity.alternativeRecommendations![0]!.reason = payload;
+    hostile.diagnostics.warnings = [payload];
+    hostile.diagnostics.noMotionSuggestions[0]!.label = payload;
+    hostile.diagnostics.noMotionSuggestions[0]!.reason = payload;
+    const html = reviewReportHtml(hostile, {
+      source: { name: payload },
+      dataUrl: 'x" onerror="alert(1)'
+    });
+    expect(html).toContain('src="x&quot; onerror=&quot;alert(1)"');
+    expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &lt;");
+    expect(html).toContain("left:NaN%");
+    expect(html).not.toContain("<img src=x");
+    expect(html).not.toContain(' onerror="');
+    expect(html).not.toContain("&amp;lt;");
+  });
+
   it("exports summary, markers, risk groups, no-motion suggestions and print styles", () => {
     const html = reviewReportHtml(blueprint, {
       source: { name: "设计稿.png" },
@@ -112,6 +150,9 @@ describe("MotionLens review report", () => {
     });
 
     expect(html).toContain("机会点明细");
+    expect(html).toContain('src="data:image/png;base64,abc"');
+    expect(html).toContain('alt="设计稿.png"');
+    expect(html).toContain("CTA 一次性强调");
     expect(html).toContain("AI 原生推荐");
     expect(html).toContain("风险汇总");
     expect(html).toContain("不建议动效区域");

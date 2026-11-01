@@ -27,6 +27,36 @@ function assertBlueprint(value: unknown): MotionBlueprint {
   if (!isObject(value.context)) throw new Error("Blueprint context 无效。");
   if (!Array.isArray(value.elements)) throw new Error("Blueprint elements 无效。");
   if (!Array.isArray(value.opportunities)) throw new Error("Blueprint opportunities 无效。");
+  for (const opportunity of value.opportunities) {
+    if (
+      !isObject(opportunity) ||
+      ![
+        "id",
+        "elementId",
+        "priority",
+        "businessGoal",
+        "decisionStage",
+        "friction",
+        "strategy",
+        "patternId",
+        "patternName",
+        "reason"
+      ].every((field) => typeof opportunity[field] === "string") ||
+      typeof opportunity.score !== "number" ||
+      !Number.isFinite(opportunity.score) ||
+      typeof opportunity.confidence !== "number" ||
+      !Number.isFinite(opportunity.confidence) ||
+      !Array.isArray(opportunity.risks) ||
+      !opportunity.risks.every((risk) => typeof risk === "string") ||
+      !isObject(opportunity.recommendedParams) ||
+      typeof opportunity.recommendedParams.durationMs !== "number" ||
+      !Number.isFinite(opportunity.recommendedParams.durationMs) ||
+      typeof opportunity.recommendedParams.easing !== "string" ||
+      typeof opportunity.recommendedParams.repeat !== "string"
+    ) {
+      throw new Error("Blueprint 机会点无效。");
+    }
+  }
   const blueprint = value as MotionBlueprint;
   return {
     ...blueprint,
@@ -58,7 +88,9 @@ export function parseMotionDocument(raw: unknown): MotionDocument {
       kind: "motionlens-review",
       generatedAt: typeof raw.generatedAt === "string" ? raw.generatedAt : new Date().toISOString(),
       blueprint,
-      ...(typeof assets?.imageDataUrl === "string" ? { assets: { imageDataUrl: assets.imageDataUrl } } : {})
+      ...(typeof assets?.imageDataUrl === "string" && assets.imageDataUrl.startsWith("data:image/")
+        ? { assets: { imageDataUrl: assets.imageDataUrl } }
+        : {})
     };
   }
 
@@ -69,7 +101,7 @@ export function parseMotionDocument(raw: unknown): MotionDocument {
     kind: "motionlens-review",
     generatedAt: new Date().toISOString(),
     blueprint: assertBlueprint(legacyBlueprint),
-    ...(typeof legacyAssets?.imageDataUrl === "string"
+    ...(typeof legacyAssets?.imageDataUrl === "string" && legacyAssets.imageDataUrl.startsWith("data:image/")
       ? { assets: { imageDataUrl: legacyAssets.imageDataUrl } }
       : {})
   };

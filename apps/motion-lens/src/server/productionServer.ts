@@ -54,7 +54,15 @@ export function createMotionLensProductionServer(input: ProductionServerInput) {
   const analyzeHandler = createMotionLensAnalyzeHandler(input.modelConfig);
 
   return createServer((req, res) => {
-    const pathName = requestPath(req);
+    let pathName: string;
+    try {
+      pathName = requestPath(req);
+    } catch {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "请求路径无效" }));
+      return;
+    }
 
     if (pathName === "/api/motion-lens/config") {
       configHandler(req, res);

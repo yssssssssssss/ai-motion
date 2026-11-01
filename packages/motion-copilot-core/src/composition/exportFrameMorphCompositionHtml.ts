@@ -7,6 +7,15 @@ import {
 } from "../schema/document";
 import { computeCompositionStepWindows } from "./evaluateComposition";
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function layerCss(layer: MotionLayer): string {
   const parts: string[] = [];
   const layout = layer.layout;
@@ -39,10 +48,10 @@ function layerCss(layer: MotionLayer): string {
 
 function layerContent(layer: MotionLayer): string {
   if (layer.content?.src) {
-    return `<img src="${layer.content.src}" alt="${layer.content.alt ?? ""}" style="width:100%;height:100%;object-fit:${layer.style?.fit ?? "cover"};object-position:${layer.style?.position ?? "center"}" />`;
+    return `<img src="${escapeHtml(layer.content.src)}" alt="${escapeHtml(layer.content.alt ?? "")}" style="width:100%;height:100%;object-fit:${escapeHtml(layer.style?.fit ?? "cover")};object-position:${escapeHtml(layer.style?.position ?? "center")}" />`;
   }
   if (layer.content?.text) {
-    return layer.content.text;
+    return escapeHtml(layer.content.text);
   }
   return "";
 }
@@ -125,7 +134,7 @@ export function exportFrameMorphCompositionHtml(document: MotionDocument, track:
     const animStyle = animations ? `animation:${animations.join(",")};will-change:transform,opacity` : "";
     const inlineStyle = layerCss(layer) + (animStyle ? ";" + animStyle : "");
     layerHtmlParts.push(
-      `    <div class="fm-layer" data-layer-id="${layer.id}" style="${inlineStyle}">${layerContent(layer)}</div>`
+      `    <div class="fm-layer" data-layer-id="${escapeHtml(layer.id)}" style="${escapeHtml(inlineStyle)}">${layerContent(layer)}</div>`
     );
   }
 
@@ -138,7 +147,7 @@ export function exportFrameMorphCompositionHtml(document: MotionDocument, track:
 <style>
 *{margin:0;padding:0}
 body{min-height:100vh;display:grid;place-items:center;background:#f0f2f5;font-family:system-ui,-apple-system,sans-serif}
-.fm-stage{position:relative;width:${stageW}px;height:${stageH}px;background:${stageBg};overflow:hidden;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+.fm-stage{position:relative;width:${stageW}px;height:${stageH}px;background:${stageBg.replaceAll("</", "\\3c /")};overflow:hidden;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
 .fm-layer{display:flex;align-items:center;justify-content:center}
 .fm-replay{position:fixed;right:16px;bottom:16px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(0,0,0,0.7);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:background 0.2s}
 .fm-replay:hover{background:rgba(0,0,0,0.85)}

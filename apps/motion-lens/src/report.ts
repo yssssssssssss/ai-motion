@@ -15,7 +15,7 @@ export function reviewReportHtml(
   const rows = blueprint.opportunities.map(opportunityRow(blueprint)).join("");
   const markers = blueprint.opportunities.map(opportunityMarker(blueprint)).join("");
   const imageBlock = uploadedImage
-    ? `<section class="section"><h2>标注稿件</h2><div class="image-wrap"><img src="${uploadedImage.dataUrl}" alt="${escapeHtml(uploadedImage.source.name)}">${markers}</div></section>`
+    ? `<section class="section"><h2>标注稿件</h2><div class="image-wrap"><img src="${escapeHtml(uploadedImage.dataUrl)}" alt="${escapeHtml(uploadedImage.source.name)}">${markers}</div></section>`
     : "";
   const riskItems = riskSummary(blueprint)
     .map(
@@ -73,7 +73,7 @@ export function reviewReportHtml(
     <div><strong>${blueprint.elements.length}</strong><span>识别元素</span></div>
     <div><strong>${blueprint.opportunities.length}</strong><span>机会点</span></div>
     <div><strong>${blueprint.diagnostics.noMotionSuggestions.length}</strong><span>不建议动效</span></div>
-    <div><strong>${blueprint.opportunities[0]?.score ?? "-"}</strong><span>最高适配</span></div>
+    <div><strong>${escapeHtml(String(blueprint.opportunities[0]?.score ?? "-"))}</strong><span>最高适配</span></div>
   </div>
   ${imageBlock}
   <section class="section">
