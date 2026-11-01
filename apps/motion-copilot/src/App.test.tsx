@@ -17,6 +17,7 @@ import {
   type ZeroLayerSnapshot
 } from "@motion-copilot/core";
 import { App } from "./App";
+import * as draftClient from "./services/generateDraftClient";
 import { ZeroLayerMotionStage } from "./features/zeroLayerMorph/ZeroLayerStage";
 
 declare global {
@@ -1050,6 +1051,258 @@ describe("Motion Copilot app", () => {
     expect(laneText).toContain("图片位");
   });
 
+  it("shows the example and starts the first project while generation is pending, then applies draft steps", async () => {
+    let resolveRequest!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRequest = resolve;
+          })
+      )
+    );
+    const app = renderApp();
+    clickButton("开始使用");
+    setPromptInput("做一个中型弹窗，弹性一点出现，first-run-deferred");
+    clickButton("生成动效");
+
+    expect(app.textContent).toContain("生成中…");
+    expect(app.textContent).toContain("modal / medium / 280ms");
+    expect(app.querySelector(".modal-title")?.textContent).toBe("新品上线提醒");
+    expect(document.querySelectorAll(".composition-step")).toHaveLength(0);
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("motion-copilot-workspace")!)).toMatchObject({
+        hasStarted: true,
+        compositionSteps: []
+      });
+    });
+    const { composition: _composition, ...pendingDocument } = savedWorkspace().document;
+
+    await act(async () => {
+      resolveRequest(
+        new Response(
+          JSON.stringify({
+            mode: "llm",
+            plan: {
+              steps: [
+                {
+                  presetId: "enter-screen",
+                  layerId: "modal-title",
+                  timing: "sequential",
+                  delayMs: 0,
+                  reason: "标题进场"
+                }
+              ]
+            }
+          })
+        )
+      );
+    });
+
+    expect(app.textContent).not.toContain("生成中…");
+    expect(document.querySelectorAll(".composition-step")).toHaveLength(1);
+    await waitFor(() => {
+      expect(savedWorkspace().compositionSteps).toEqual([
+        expect.objectContaining({ presetId: "enter-screen", layerId: "modal-title" })
+      ]);
+    });
+    expect(savedWorkspace().document).toMatchObject(pendingDocument);
+  });
+
+  it("keeps a started project's user layers and appends generated steps", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    seedSampleWorkspace();
+    const document = createDefaultDocument("background");
+    document.layers = [
+      { id: "user-text", name: "我的文字", kind: "text", editable: true, content: { text: "保留我的内容" } }
+    ];
+    document.selectedLayerId = "user-text";
+    document.stage.background = "#123456";
+    const step: CompositionStep = {
+      id: "existing-step",
+      presetId: "like-bounce",
+      label: "已有片段",
+      target: "selected-layer",
+      layerId: "user-text",
+      timing: "sequential",
+      delayMs: 0,
+      durationMs: 543,
+      slot: "feedback"
+    };
+    localStorage.setItem(
+      "motion-copilot-workspace",
+      JSON.stringify({
+        schemaVersion: "0.2",
+        document,
+        compositionSteps: [step],
+        hasStarted: true,
+        prompt: "让这段文字淡入"
+      })
+    );
+    const app = renderApp();
+    await clickButtonAsync("生成动效");
+    await waitFor(() => {
+      const saved = savedWorkspace();
+      expect(saved.document.layers).toEqual(document.layers);
+      expect(saved.document.stage).toEqual(document.stage);
+      expect(saved.compositionSteps?.[0]).toEqual(step);
+      expect(saved.compositionSteps!.length).toBeGreaterThan(1);
+    });
+    expect(app.textContent).toContain("我的文字");
+  });
+
+  it("discards a deferred draft after loading a project file", async () => {
+    let resolveRequest!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRequest = resolve;
+          })
+      )
+    );
+    seedSampleWorkspace();
+    const app = renderApp();
+    setPromptInput("让标题淡入，race-load");
+    clickButton("生成动效");
+    expect(app.textContent).toContain("生成中…");
+    const loaded = createDefaultDocument("button");
+    loaded.layers[0]!.content = { text: "导入的项目" };
+    const input = document.querySelector<HTMLInputElement>(
+      'input[type="file"][accept="application/json,.json"]'
+    )!;
+    await act(async () => {
+      Object.defineProperty(input, "files", {
+        configurable: true,
+        value: [new File([JSON.stringify(loaded)], "project.json", { type: "application/json" })]
+      });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    await waitFor(() => expect(app.textContent).toContain("已导入项目文件"));
+    await act(async () => {
+      resolveRequest(new Response("{}"));
+    });
+    await waitFor(() => {
+      expect(savedWorkspace().document.layers[0]?.content?.text).toBe("导入的项目");
+      expect(savedWorkspace().compositionSteps).toEqual([]);
+    });
+    expect(app.textContent).toContain("已导入项目文件");
+    expect(app.textContent).not.toContain("本次编排解释");
+  });
+
+  it("does not let an old generation clear a newer project's generating state", async () => {
+    const requests: Array<(response: Response) => void> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            requests.push(resolve);
+          })
+      )
+    );
+    seedSampleWorkspace();
+    const app = renderApp();
+    setPromptInput("让标题淡入，race-old");
+    clickButton("生成动效");
+    clickButton("新建空白");
+    setPromptInput("让文字淡入，race-new");
+    clickButton("生成动效");
+    expect(requests).toHaveLength(2);
+    await act(async () => {
+      requests[0]!(new Response("{}"));
+    });
+    const button = Array.from(document.querySelectorAll("button")).find(
+      (item) => item.textContent === "生成中…"
+    );
+    expect(button?.disabled).toBe(true);
+    expect(app.textContent).not.toContain("本次编排解释");
+    await act(async () => {
+      requests[1]!(new Response("{}"));
+    });
+    expect(app.textContent).not.toContain("生成中…");
+  });
+
+  it.each(["last step", "last animated layer", "apply composition"])(
+    "discards a pending draft after replacing or clearing via %s",
+    async (path) => {
+      let resolveRequest!: (response: Response) => void;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveRequest = resolve;
+            })
+        )
+      );
+      seedSampleWorkspace();
+      const app = renderApp();
+      addPresetToComposition("进入屏幕");
+      setPromptInput(`按钮点击反馈 ${path}`);
+      clickButton("生成动效");
+      if (path === "last step") clickByLabel("删除片段 进入屏幕");
+      else if (path === "last animated layer") clickByLabel("删除图层 标题");
+      else clickButton("应用到文档");
+      const steps = path === "apply composition" ? 1 : 0;
+      await act(async () => {
+        resolveRequest(new Response("{}"));
+      });
+      expect(document.querySelectorAll(".composition-step")).toHaveLength(steps);
+      await waitFor(() => expect(savedWorkspace().compositionSteps).toHaveLength(steps));
+      expect(app.textContent).not.toContain("本次编排解释");
+    }
+  );
+
+  it("does not announce a draft when replacement and completion are batched", async () => {
+    let resolveRequest!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRequest = resolve;
+          })
+      )
+    );
+    seedSampleWorkspace();
+    const app = renderApp();
+    addPresetToComposition("进入屏幕");
+    setPromptInput("按钮点击反馈 batched-replacement");
+    clickButton("生成动效");
+    const clear = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent === "清空轨道"
+    )!;
+    await act(async () => {
+      clear.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      resolveRequest(new Response("{}"));
+    });
+    expect(document.querySelectorAll(".composition-step")).toHaveLength(0);
+    expect(app.textContent).not.toContain("已生成 1 个结构化编排片段");
+    expect(app.textContent).not.toContain("本次编排解释");
+  });
+
+  it("keeps the document intact and reports an unexpected generation rejection", async () => {
+    seedSampleWorkspace();
+    const app = renderApp();
+    const before = sampleWorkspaceDocument();
+    const client = vi
+      .spyOn(draftClient, "generateDraftViaService")
+      .mockRejectedValueOnce(new Error("assembly failed"));
+    try {
+      await clickButtonAsync("生成动效");
+      expect(app.textContent).toContain("生成失败，项目内容已保留，请重试。");
+      expect(app.textContent).not.toContain("生成中…");
+      await waitFor(() => expect(savedWorkspace().document.layers).toEqual(before.layers));
+      expect(savedWorkspace().compositionSteps).toEqual([]);
+    } finally {
+      client.mockRestore();
+    }
+  });
+
   it("generates editable composition draft steps from the prompt", async () => {
     // 生成入口走 LLM client;无 server 时降级到确定性本地 mock。
     vi.stubGlobal(
@@ -1274,6 +1527,72 @@ describe("Motion Copilot app", () => {
     expect(summary?.querySelector("strong")?.textContent?.trim()).toBeTruthy();
     expect(summary?.querySelector(".guideline-scene-tag")?.textContent?.trim()).toBeTruthy();
     expect(firstGuideline?.querySelector(".guideline-card-body")?.textContent).toContain("规范定义");
+  });
+
+  it.each([
+    ["corrupt JSON", "{unreadable workspace"],
+    [
+      "a different schema version",
+      JSON.stringify({
+        schemaVersion: "0.3",
+        document: sampleWorkspaceDocument(),
+        compositionSteps: [],
+        hasStarted: true
+      })
+    ]
+  ])("preserves saved workspace data with %s until the user starts a new project", async (_kind, value) => {
+    localStorage.setItem("motion-copilot-workspace", value);
+    renderApp();
+
+    expect(localStorage.getItem("motion-copilot-workspace")).toBe(value);
+    clickButton("开始使用");
+    setPromptInput("编辑描述还没有开始项目");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    expect(localStorage.getItem("motion-copilot-workspace")).toBe(value);
+
+    clickButton("新建空白");
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("motion-copilot-workspace")!)).toMatchObject({
+        schemaVersion: "0.2",
+        hasStarted: true,
+        document: { layers: [] }
+      });
+    });
+    clickButton("清除自动保存");
+    expect(localStorage.getItem("motion-copilot-workspace")).toBeNull();
+  });
+
+  it("keeps a persistent accessible autosave failure alert while editing and clears it after a save", async () => {
+    seedSampleWorkspace();
+    const app = renderApp();
+    const save = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    try {
+      await waitFor(() => expect(app.querySelector('[role="alert"]')?.textContent).toContain("自动保存失败"));
+      const alert = app.querySelector('[role="alert"]');
+      expect(alert?.textContent).toContain("导出项目");
+      expect(alert?.textContent).toContain("丢失");
+      setPromptInput("保存失败时仍然可以编辑");
+      expect(document.querySelector<HTMLTextAreaElement>(".prompt-input")?.value).toBe(
+        "保存失败时仍然可以编辑"
+      );
+      clickButton("清除自动保存");
+      expect(app.textContent).toContain("已清除本地自动保存");
+      expect(app.querySelector('[role="alert"]')).toBe(alert);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      });
+      expect(app.querySelector('[role="alert"]')).toBe(alert);
+      save.mockRestore();
+      setPromptInput("保存恢复");
+      await waitFor(() => expect(app.querySelector('[role="alert"]')).toBeNull());
+      expect(JSON.parse(localStorage.getItem("motion-copilot-workspace")!).prompt).toBe("保存恢复");
+    } finally {
+      save.mockRestore();
+    }
   });
 
   it("shows local project save status controls", () => {
@@ -2255,6 +2574,85 @@ describe("Motion Copilot app", () => {
     expect(restored.textContent).toContain("已恢复上次自动保存的项目");
     expect(restored.textContent).toContain("质量门禁");
     expect(restored.textContent).toContain("降级生成");
+  });
+
+  it("keeps edited timeline values through node geometry edits, report refresh and binding overrides", async () => {
+    await importVisualFrameMorphFixture();
+    selectCompositionStep("高保真形变");
+    clickButton("属性");
+    const duration = Array.from(document.querySelectorAll("label"))
+      .find((label) => label.textContent?.includes("片段时长 ms"))
+      ?.querySelector("input");
+    if (!duration) throw new Error("Step duration input missing");
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(duration, "777");
+      duration.dispatchEvent(new Event("input", { bubbles: true }));
+      duration.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await waitFor(() => expect(savedWorkspace().compositionSteps?.[0]?.durationMs).toBe(777));
+    const editedSteps = savedWorkspace().compositionSteps;
+    clickButton("帧间动效");
+    const binding = Array.from(document.querySelectorAll<HTMLButtonElement>(".binding-main")).find((button) =>
+      button.textContent?.includes("28:32")
+    )!;
+    act(() => {
+      binding.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    changeInputByLabel("高保真节点宽度", "144");
+    await waitFor(() => {
+      expect(savedWorkspace().compositionSteps).toEqual(editedSteps);
+      const source = savedWorkspace().document.visualSource;
+      expect(
+        source?.kind === "zero-visual-morph" &&
+          source.nodeOverrides?.some((override) => override.nodeId === "28:32" && override.width === 144)
+      ).toBe(true);
+    });
+    clickButton("重新计算报告");
+    await waitFor(() => {
+      expect(savedWorkspace().compositionSteps).toEqual(editedSteps);
+      const source = savedWorkspace().document.visualSource;
+      expect(source?.kind === "zero-visual-morph" && source.restorationReportCache).toBeTruthy();
+    });
+    // Reclassifying a binding keeps the editable values of its existing layer step.
+    const row = binding.closest(".binding-row") ?? binding.parentElement!;
+    const ignore = row.querySelector<HTMLButtonElement>('button[title="设为 exit"]');
+    if (!ignore) throw new Error("Ignore binding button missing");
+    act(() => {
+      ignore.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitFor(() => expect(savedWorkspace().compositionSteps?.[0]?.durationMs).toBe(777));
+  });
+
+  it("keeps an in-flight draft through in-place geometry and report edits", async () => {
+    const app = await importVisualFrameMorphFixture();
+    let resolveRequest!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRequest = resolve;
+          })
+      )
+    );
+    setPromptInput("按钮点击反馈，geometry-pending");
+    clickButton("生成动效");
+    const binding = document.querySelector<HTMLButtonElement>(".binding-main")!;
+    act(() => {
+      binding.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    changeInputByLabel("高保真节点宽度", "155");
+    clickButton("重新计算报告");
+    expect(app.textContent).toContain("生成中…");
+    await act(async () => {
+      resolveRequest(new Response("{}"));
+    });
+    expect(app.textContent).toContain("本次编排解释");
+    await waitFor(() => {
+      expect(savedWorkspace().compositionSteps!.length).toBeGreaterThan(1);
+      const source = savedWorkspace().document.visualSource;
+      expect(source?.kind === "zero-visual-morph" && source.nodeOverrides?.[0]?.width).toBe(155);
+    });
   });
 
   it("edits selected high-fidelity Zero node geometry through node overrides", async () => {

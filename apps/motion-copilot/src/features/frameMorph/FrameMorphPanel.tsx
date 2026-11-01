@@ -18,6 +18,8 @@ import {
   inlineZeroVisualAssets,
   matchFrameElements,
   normalizeFrameSnapshot,
+  type CompositionTrack,
+  type VisualCompositionReportCache,
   type EasingSpec,
   type FrameElement,
   type FrameElementMatch,
@@ -50,6 +52,9 @@ type PairSelection = { fromKey?: string; toKey?: string };
 type FrameMorphPanelProps = {
   onApplyComposition: (result: FrameMorphCompositionResult) => void;
   onApplyVisualComposition: (result: VisualMotionCompositionResult) => void;
+  onUpdateVisualComposition: (result: VisualMotionCompositionResult) => void;
+  onUpdateRestorationReport: (cache: VisualCompositionReportCache) => void;
+  compositionTrack: CompositionTrack;
   savedVisualSource?: VisualCompositionSource;
   onConvertToLayer?: (layer: {
     name: string;
@@ -486,6 +491,9 @@ function overrideNumberValue(value: string, fallback: number): number {
 export function FrameMorphPanel({
   onApplyComposition,
   onApplyVisualComposition,
+  onUpdateVisualComposition,
+  onUpdateRestorationReport,
+  compositionTrack,
   savedVisualSource,
   onConvertToLayer,
   mode = "all"
@@ -632,8 +640,16 @@ export function FrameMorphPanel({
         };
       }
     }
-    return exportVisualCompositionHtml(result.document, result.document.composition!);
-  }, [fromVisualFrame, toVisualFrame, visualBindingResult, motionPrompt, nodeOverrides, restorationReport]);
+    return exportVisualCompositionHtml(result.document, compositionTrack);
+  }, [
+    fromVisualFrame,
+    toVisualFrame,
+    visualBindingResult,
+    motionPrompt,
+    nodeOverrides,
+    restorationReport,
+    compositionTrack
+  ]);
 
   useEffect(() => {
     if (!isPlaying) return undefined;
@@ -767,7 +783,7 @@ export function FrameMorphPanel({
       visualComposition.document.visualSource.userBindingOverrides = next;
       if (nodeOverrides.length > 0) visualComposition.document.visualSource.nodeOverrides = nodeOverrides;
     }
-    onApplyVisualComposition(visualComposition);
+    onUpdateVisualComposition(visualComposition);
   }
 
   function refreshRestorationReport() {
@@ -780,28 +796,12 @@ export function FrameMorphPanel({
     });
     setRestorationReport(fresh);
     setReportStale(false);
-    const intent = compileVisualMotionIntent(motionPrompt);
-    const visualComposition = compileVisualMotionComposition({
-      from: fromVisualFrame,
-      to: toVisualFrame,
-      bindingResult: visualBindingResult,
-      intent
+    onUpdateRestorationReport({
+      report: fresh,
+      inputHash: fresh.inputHash,
+      bindingHash: fresh.bindingHash,
+      generatedAt: fresh.generatedAt
     });
-    if (visualComposition.document.visualSource?.kind === "zero-visual-morph") {
-      visualComposition.document.visualSource.restorationReportCache = {
-        report: fresh,
-        inputHash: fresh.inputHash,
-        bindingHash: fresh.bindingHash,
-        generatedAt: fresh.generatedAt
-      };
-      if (userOverrides.length > 0) {
-        visualComposition.document.visualSource.userBindingOverrides = userOverrides;
-      }
-      if (nodeOverrides.length > 0) {
-        visualComposition.document.visualSource.nodeOverrides = nodeOverrides;
-      }
-    }
-    onApplyVisualComposition(visualComposition);
   }
 
   function updateSelectedNodeOverride(patch: Partial<ZeroVisualNodeOverride>): void {
@@ -825,7 +825,7 @@ export function FrameMorphPanel({
       }
       visualComposition.document.visualSource.nodeOverrides = nextOverrides;
     }
-    onApplyVisualComposition(visualComposition);
+    onUpdateVisualComposition(visualComposition);
   }
 
   async function readZeroVisualFrames() {
