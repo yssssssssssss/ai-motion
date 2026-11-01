@@ -150,7 +150,9 @@ async function evaluate(cdp, expression) {
 function chromeBinary() {
   const candidates = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Chromium.app/Contents/MacOS/Chromium"
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium"
   ];
   const found = candidates.find((candidate) => existsSync(candidate));
   if (!found) throw new Error("Chrome/Chromium not found for Zero visual export verification.");
@@ -306,6 +308,8 @@ async function main() {
       "--disable-gpu",
       "--no-first-run",
       "--no-default-browser-check",
+      // CI 的 Linux runner 不支持 Chrome 沙箱
+      ...(process.platform === "linux" ? ["--no-sandbox"] : []),
       "about:blank"
     ],
     { stdio: "ignore" }
