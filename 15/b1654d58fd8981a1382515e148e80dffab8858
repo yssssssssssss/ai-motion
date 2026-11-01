@@ -1,0 +1,21 @@
+scripts/verify-nutui-react-embed.mjs
+  s_18ce89beabec40::t_8c586e8d39bb8e 356
+scripts/verify-embed-package-e2e.mjs
+  s_18ce89beabec40::t_a21c88d7ceae17 672
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "15b1654d58fd8981a1382515e148e80dffab8858",
+  "prompts": {},
+  "sessions": {
+    "s_18ce89beabec40": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99d0448e-d733-4470-8706-22971889d437",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "heyunshen <heyunshen@SZMAC-F7F7KPQ2.lan>"
+    }
+  }
+}
