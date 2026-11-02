@@ -47,19 +47,19 @@ function projectDevPids() {
 function status() {
   const servers = projectDevPids();
   if (servers.length === 0) {
-    console.log("ai-motion dev server is stopped.");
+    console.log("ai-motion-web dev server is stopped.");
     return;
   }
 
   for (const server of servers) {
-    console.log(`ai-motion dev server is running: http://127.0.0.1:${server.port} pid=${server.pid}`);
+    console.log(`ai-motion-web dev server is running: http://127.0.0.1:${server.port} pid=${server.pid}`);
   }
 }
 
 function stop() {
   const servers = projectDevPids();
   if (servers.length === 0) {
-    console.log("ai-motion dev server is already stopped.");
+    console.log("ai-motion-web dev server is already stopped.");
     return;
   }
 
@@ -71,7 +71,7 @@ function stop() {
 
 function start() {
   if (projectDevPids().length > 0) {
-    console.error("ai-motion dev server is already running. Use `pnpm dev:restart` to restart it.");
+    console.error("ai-motion-web dev server is already running. Use `pnpm dev:restart` to restart it.");
     process.exit(1);
   }
 

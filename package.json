@@ -1,5 +1,5 @@
 {
-  "name": "ai-motion-tool",
+  "name": "ai-motion-web",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.12.1",
@@ -14,10 +14,6 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
-    "motion-lens:dev": "pnpm --filter @motion-lens/app dev",
-    "motion-lens:test": "pnpm --filter @motion-lens/app test && pnpm --filter @motion-lens/core test && pnpm --filter @motion-knowledge/base test",
-    "motion-lens:typecheck": "pnpm --filter @motion-lens/app typecheck && pnpm --filter @motion-lens/core typecheck && pnpm --filter @motion-knowledge/base typecheck",
-    "motion-lens:build": "pnpm --filter @motion-lens/app build",
     "motion-copilot:dev": "pnpm --filter @motion-copilot/app dev",
     "motion-copilot:test": "pnpm --filter @motion-copilot/core test && pnpm --filter @motion-copilot/app test",
     "motion-copilot:typecheck": "pnpm --filter @motion-copilot/app typecheck && pnpm --filter @motion-copilot/core typecheck",
@@ -38,7 +34,9 @@
     "verify:zero-visual-export": "node scripts/verify-zero-visual-export.mjs",
     "verify:zero-motion": "node scripts/zero-layer-diagnose.mjs --fixture --from 28:19 --to 28:2 --emit-spec --recommend-recipes --emit-salience --emit-repair-advice --pretty && node scripts/zero-layer-diagnose.mjs --fixture --from 28:19 --to 28:2 --recipe-samples --pretty",
     "deploy:cloud": "node scripts/deploy-cloud.mjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "start": "pnpm --filter @motion-tool/web start",
+    "prepare:joyapp": "node scripts/prepare-web-joyapp.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
