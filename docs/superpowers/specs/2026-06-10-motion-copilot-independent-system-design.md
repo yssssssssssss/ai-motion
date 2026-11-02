@@ -343,10 +343,7 @@ export function evaluateGuidelines(document: MotionDocument): GuidelineSuggestio
 第一版只做确定性语义映射，不做自由模型生成。
 
 ```ts
-export function compileIntent(input: {
-  prompt: string;
-  base?: MotionDocument;
-}): MotionDocumentPatch;
+export function compileIntent(input: { prompt: string; base?: MotionDocument }): MotionDocumentPatch;
 ```
 
 关键词映射：
@@ -499,4 +496,3 @@ Web tests：
 - React 片段导出。
 - 动效 token JSON 导出。
 - 可选团队规范包。
-

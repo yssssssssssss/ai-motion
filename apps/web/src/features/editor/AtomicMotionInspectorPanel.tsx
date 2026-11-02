@@ -519,7 +519,9 @@ function AtomicTokenFields({
                   onChange={onChange}
                 />
               ) : null}
-              {token.keyframeParamIds.length > 0 ? fieldForKeyframe({ token, manifest, patch, onChange }) : null}
+              {token.keyframeParamIds.length > 0
+                ? fieldForKeyframe({ token, manifest, patch, onChange })
+                : null}
             </div>
           </article>
         );
@@ -551,9 +553,7 @@ export function AtomicMotionInspectorPanel({ manifest, patch, onChange, onReset,
         </div>
       ) : null}
 
-      {showParams ? (
-        <AtomicTokenFields manifest={manifest} patch={patch} onChange={onChange} />
-      ) : null}
+      {showParams ? <AtomicTokenFields manifest={manifest} patch={patch} onChange={onChange} /> : null}
     </section>
   );
 }

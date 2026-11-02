@@ -157,7 +157,9 @@ describe("generated component sandbox", () => {
     });
 
     expect(result.valid).toBe(false);
-    expect(result.checks.some((check) => check.id === "source-whitelist" && check.status === "fail")).toBe(true);
+    expect(result.checks.some((check) => check.id === "source-whitelist" && check.status === "fail")).toBe(
+      true
+    );
   });
 
   it("defines minimal conversion protocols for supported upload types", () => {

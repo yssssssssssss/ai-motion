@@ -21,9 +21,9 @@ describe("jd front back entry transition component", () => {
     expect(script).not.toContain("HTMLVideoElement");
     expect(html).toContain("data-motion-root");
     expect(html).toContain("screen-window");
-    expect(assets).toContain("--shell-frame: url(\"data:image/webp;base64,");
-    expect(assets).toContain("--mine-content: url(\"data:image/webp;base64,");
-    expect(assets).toContain("--orders-content: url(\"data:image/webp;base64,");
+    expect(assets).toContain('--shell-frame: url("data:image/webp;base64,');
+    expect(assets).toContain('--mine-content: url("data:image/webp;base64,');
+    expect(assets).toContain('--orders-content: url("data:image/webp;base64,');
     expect(assets).toContain("shell-frame-source: frame_0001_shell_window_213_222_1118_2417");
     expect(assets).toContain("mine-content-source: frame_0001_crop_213_222_1118_2417");
     expect(assets).toContain("orders-content-source: frame_0066_crop_213_222_1118_2417");

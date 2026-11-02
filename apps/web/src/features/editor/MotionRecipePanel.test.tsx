@@ -10,7 +10,14 @@ const manifest: MotionManifest = {
   sourceKind: "builtin-component",
   runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
   params: [
-    { id: "floatDuration", label: "漂浮周期", type: "duration", default: 3200, status: "confirmed", targets: [] }
+    {
+      id: "floatDuration",
+      label: "漂浮周期",
+      type: "duration",
+      default: 3200,
+      status: "confirmed",
+      targets: []
+    }
   ],
   layers: [
     {
@@ -18,7 +25,14 @@ const manifest: MotionManifest = {
       label: "背景图层",
       kind: "structure",
       replaceable: true,
-      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=backgroundLayer]", attribute: "class" }]
+      targets: [
+        {
+          kind: "html-attribute",
+          file: "source/index.html",
+          selector: "[data-motion=backgroundLayer]",
+          attribute: "class"
+        }
+      ]
     }
   ],
   motionRecipes: [
@@ -55,7 +69,14 @@ const targetComponent: MotionComponent = {
         label: "卡片层",
         kind: "structure",
         replaceable: true,
-        targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=cardRoot]", attribute: "class" }]
+        targets: [
+          {
+            kind: "html-attribute",
+            file: "source/index.html",
+            selector: "[data-motion=cardRoot]",
+            attribute: "class"
+          }
+        ]
       }
     ]
   },
@@ -64,7 +85,13 @@ const targetComponent: MotionComponent = {
     origin: "builtin",
     kind: "builtin-component",
     entry: "source/index.html",
-    files: [{ path: "source/index.html", kind: "html", content: '<main data-motion-root><article data-motion="cardRoot"></article></main>' }]
+    files: [
+      {
+        path: "source/index.html",
+        kind: "html",
+        content: '<main data-motion-root><article data-motion="cardRoot"></article></main>'
+      }
+    ]
   }
 };
 
@@ -102,11 +129,7 @@ describe("MotionRecipePanel", () => {
 
   it("renders a real apply-to-component entry when target components exist", () => {
     const html = renderToStaticMarkup(
-      <MotionRecipePanel
-        manifest={manifest}
-        targetComponents={[targetComponent]}
-        onApplyToTarget={vi.fn()}
-      />
+      <MotionRecipePanel manifest={manifest} targetComponents={[targetComponent]} onApplyToTarget={vi.fn()} />
     );
 
     expect(html).toContain("将此动效应用到其他组件");
@@ -129,6 +152,8 @@ describe("MotionRecipePanel", () => {
   });
 
   it("renders nothing when no recipe binding exists", () => {
-    expect(renderToStaticMarkup(<MotionRecipePanel manifest={{ ...manifest, motionRecipes: [] }} />)).toBe("");
+    expect(renderToStaticMarkup(<MotionRecipePanel manifest={{ ...manifest, motionRecipes: [] }} />)).toBe(
+      ""
+    );
   });
 });

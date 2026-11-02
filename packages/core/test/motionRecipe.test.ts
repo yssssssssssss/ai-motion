@@ -48,7 +48,11 @@ describe("motion recipe", () => {
           content:
             ".is-playing [data-motion=frontPage] { animation: mine-exit 2s linear infinite; } .is-playing [data-motion=backPage] { animation: orders-enter 2s linear infinite; } @keyframes mine-exit { to { opacity: 0; } } @keyframes orders-enter { to { opacity: 1; } } @keyframes transition-wash { 50% { opacity: 1; } }"
         },
-        { path: "source/script.js", kind: "js" as const, content: "window.motionReplay = function motionReplay() {};" }
+        {
+          path: "source/script.js",
+          kind: "js" as const,
+          content: "window.motionReplay = function motionReplay() {};"
+        }
       ]
     }
   };
@@ -59,7 +63,10 @@ describe("motion recipe", () => {
 
       expect(result.valid, recipe.id).toBe(true);
       expect(recipe.targets.length, recipe.id).toBeGreaterThan(0);
-      expect(recipe.targets.every((target) => target.replaceable), recipe.id).toBe(true);
+      expect(
+        recipe.targets.every((target) => target.replaceable),
+        recipe.id
+      ).toBe(true);
       expect(recipe.bindings.replay, recipe.id).toBe(true);
     }
   });
@@ -74,7 +81,9 @@ describe("motion recipe", () => {
     const transition = motionRecipeRequestFromSemanticIntent(
       parseSemanticIntentV2Fallback("不要按钮，我要一个页面前后切换的进场动效")
     );
-    const float = motionRecipeRequestFromSemanticIntent(parseSemanticIntentV2Fallback("做一个背景层缓慢漂浮的页面"));
+    const float = motionRecipeRequestFromSemanticIntent(
+      parseSemanticIntentV2Fallback("做一个背景层缓慢漂浮的页面")
+    );
     const pulse = motionRecipeRequestFromSemanticIntent(parseSemanticIntentV2Fallback("做一个循环脉冲标签"));
 
     expect(scale).toMatchObject({ recipeId: "scale-entrance", trigger: "load" });
@@ -146,7 +155,9 @@ describe("motion recipe", () => {
   });
 
   it("applies a recipe to HTML/CSS/JS source files", () => {
-    const request = motionRecipeRequestFromSemanticIntent(parseSemanticIntentV2Fallback("做一个背景层缓慢漂浮的页面"));
+    const request = motionRecipeRequestFromSemanticIntent(
+      parseSemanticIntentV2Fallback("做一个背景层缓慢漂浮的页面")
+    );
     const recipe = resolveMotionRecipe(request);
     const applied = applyMotionRecipe({
       recipe,
@@ -207,7 +218,14 @@ describe("motion recipe", () => {
             type: "duration" as const,
             default: 3120,
             status: "confirmed" as const,
-            targets: [{ kind: "css-variable" as const, file: "source/style.css", selector: ":root", name: "--cycle-duration" }]
+            targets: [
+              {
+                kind: "css-variable" as const,
+                file: "source/style.css",
+                selector: ":root",
+                name: "--cycle-duration"
+              }
+            ]
           }
         ],
         layers: [
@@ -216,14 +234,28 @@ describe("motion recipe", () => {
             label: "前页",
             kind: "structure" as const,
             replaceable: true,
-            targets: [{ kind: "html-attribute" as const, file: "source/index.html", selector: ".mine-content", attribute: "class" }]
+            targets: [
+              {
+                kind: "html-attribute" as const,
+                file: "source/index.html",
+                selector: ".mine-content",
+                attribute: "class"
+              }
+            ]
           },
           {
             id: "backPage",
             label: "后页",
             kind: "structure" as const,
             replaceable: true,
-            targets: [{ kind: "html-attribute" as const, file: "source/index.html", selector: ".orders-content", attribute: "class" }]
+            targets: [
+              {
+                kind: "html-attribute" as const,
+                file: "source/index.html",
+                selector: ".orders-content",
+                attribute: "class"
+              }
+            ]
           }
         ]
       },
@@ -245,7 +277,11 @@ describe("motion recipe", () => {
             content:
               ":root { --cycle-duration: 3s; --enter-distance: 430px; --exit-distance: -430px; --transition-opacity: 0.42; --window-radius: 64px; --motion-easing: ease-in-out; } .is-playing .mine-content { animation: mine-exit var(--cycle-duration) var(--motion-easing) infinite; } .is-playing .orders-content { animation: orders-enter var(--cycle-duration) var(--motion-easing) infinite; } .is-playing .screen-wash { animation: transition-wash var(--cycle-duration) linear infinite; } @keyframes mine-exit { to { opacity: 0; } } @keyframes orders-enter { to { opacity: 1; } } @keyframes transition-wash { 50% { opacity: var(--transition-opacity); } }"
           },
-          { path: "source/script.js", kind: "js" as const, content: "window.motionReplay = function motionReplay() {};" }
+          {
+            path: "source/script.js",
+            kind: "js" as const,
+            content: "window.motionReplay = function motionReplay() {};"
+          }
         ]
       }
     };
@@ -254,7 +290,9 @@ describe("motion recipe", () => {
     const params = new Map(extracted?.recipe.params.map((param) => [param.id, param.default]));
 
     expect(extracted?.recipe.id).toBe("page-front-back-transition");
-    expect(extracted?.recipe.bindings.selectors).toEqual(expect.arrayContaining([".mine-content", ".orders-content"]));
+    expect(extracted?.recipe.bindings.selectors).toEqual(
+      expect.arrayContaining([".mine-content", ".orders-content"])
+    );
     expect(params.get("cycleDuration")).toBe(3120);
     expect(params.get("enterDistance")).toBe(430);
     expect(params.get("transitionOpacity")).toBe(0.42);
@@ -316,14 +354,22 @@ describe("motion recipe", () => {
         kind: "builtin-component" as const,
         entry: "source/index.html",
         files: [
-          { path: "source/index.html", kind: "html" as const, content: '<main data-motion-root><div data-motion="backgroundLayer"></div></main>' },
+          {
+            path: "source/index.html",
+            kind: "html" as const,
+            content: '<main data-motion-root><div data-motion="backgroundLayer"></div></main>'
+          },
           {
             path: "source/style.css",
             kind: "css" as const,
             content:
               ":root { --float-duration: 3200ms; } .is-playing [data-motion=backgroundLayer] { animation: generated-loop-float var(--float-duration) ease-in-out infinite; } @keyframes generated-loop-float { 50% { transform: translateY(-20px); } }"
           },
-          { path: "source/script.js", kind: "js" as const, content: "window.motionReplay = function motionReplay() {};" }
+          {
+            path: "source/script.js",
+            kind: "js" as const,
+            content: "window.motionReplay = function motionReplay() {};"
+          }
         ]
       }
     };
@@ -347,7 +393,14 @@ describe("motion recipe", () => {
             label: "卡片",
             kind: "structure" as const,
             replaceable: true,
-            targets: [{ kind: "html-attribute" as const, file: "source/index.html", selector: "[data-motion=cardRoot]", attribute: "class" }]
+            targets: [
+              {
+                kind: "html-attribute" as const,
+                file: "source/index.html",
+                selector: "[data-motion=cardRoot]",
+                attribute: "class"
+              }
+            ]
           }
         ]
       },
@@ -357,7 +410,11 @@ describe("motion recipe", () => {
         kind: "builtin-component" as const,
         entry: "source/index.html",
         files: [
-          { path: "source/index.html", kind: "html" as const, content: '<main data-motion-root><article data-motion="cardRoot"></article></main>' },
+          {
+            path: "source/index.html",
+            kind: "html" as const,
+            content: '<main data-motion-root><article data-motion="cardRoot"></article></main>'
+          },
           { path: "source/style.css", kind: "css" as const, content: "" },
           { path: "source/script.js", kind: "js" as const, content: "" }
         ]

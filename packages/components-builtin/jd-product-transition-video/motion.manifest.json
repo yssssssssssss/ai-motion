@@ -8,11 +8,7 @@
     "entry": "source/index.html",
     "sandbox": "iframe"
   },
-  "capabilities": [
-    "builtin",
-    "editable",
-    "export-html"
-  ],
+  "capabilities": ["builtin", "editable", "export-html"],
   "params": [
     {
       "id": "transitionDuration",
@@ -228,11 +224,7 @@
       "type": "image",
       "default": null,
       "constraints": {
-        "allowedFileTypes": [
-          "image/png",
-          "image/jpeg",
-          "image/webp"
-        ]
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
       },
       "status": "confirmed",
       "targets": [
@@ -250,11 +242,7 @@
       "type": "image",
       "default": null,
       "constraints": {
-        "allowedFileTypes": [
-          "image/png",
-          "image/jpeg",
-          "image/webp"
-        ]
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
       },
       "status": "confirmed",
       "targets": [
@@ -272,11 +260,7 @@
       "type": "image",
       "default": null,
       "constraints": {
-        "allowedFileTypes": [
-          "image/png",
-          "image/jpeg",
-          "image/webp"
-        ]
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
       },
       "status": "confirmed",
       "targets": [
@@ -294,11 +278,7 @@
       "type": "image",
       "default": null,
       "constraints": {
-        "allowedFileTypes": [
-          "image/png",
-          "image/jpeg",
-          "image/webp"
-        ]
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
       },
       "status": "confirmed",
       "targets": [
@@ -315,40 +295,22 @@
     {
       "id": "timing",
       "label": "速度",
-      "params": [
-        "transitionDuration",
-        "startDelay"
-      ]
+      "params": ["transitionDuration", "startDelay"]
     },
     {
       "id": "trajectory",
       "label": "轨迹",
-      "params": [
-        "midX",
-        "midY",
-        "midScale",
-        "endX",
-        "endY"
-      ]
+      "params": ["midX", "midY", "midScale", "endX", "endY"]
     },
     {
       "id": "shape",
       "label": "形变",
-      "params": [
-        "endWidth",
-        "endHeight",
-        "dimOpacity"
-      ]
+      "params": ["endWidth", "endHeight", "dimOpacity"]
     },
     {
       "id": "assets",
       "label": "素材",
-      "params": [
-        "homeFrameImage",
-        "detailFrameImage",
-        "homeCardImage",
-        "detailCardImage"
-      ]
+      "params": ["homeFrameImage", "detailFrameImage", "homeCardImage", "detailCardImage"]
     }
   ],
   "designSpecs": [

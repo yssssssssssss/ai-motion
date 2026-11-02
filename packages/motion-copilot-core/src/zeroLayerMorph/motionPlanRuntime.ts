@@ -207,7 +207,7 @@ export function sampleMotionPlan(value: MotionPlan | unknown, timeMs: number): S
 
 /**
  * Bakes a MotionPlan into browser-neutral keyframes. Easing, springs, and paths
- * are sampled so the preview and CSS fallback share one trajectory.
+ * are sampled so the preview, WAAPI player, and CSS fallback share one trajectory.
  */
 export function compileMotionPlanKeyframes(
   value: MotionPlan | unknown,

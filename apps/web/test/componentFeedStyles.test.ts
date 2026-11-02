@@ -32,9 +32,7 @@ describe("ComponentFeed styles", () => {
   });
 
   it("keeps the hero short enough for the feed to peek into the first viewport", () => {
-    expect(styles).toMatch(
-      /\.discovery-panel\s*{[^}]*min-height:\s*min\(560px,\s*calc\(100svh - 52px\)\)/s
-    );
+    expect(styles).toMatch(/\.discovery-panel\s*{[^}]*min-height:\s*min\(560px,\s*calc\(100svh - 52px\)\)/s);
     expect(styles).toMatch(/\.recommendation-strip,\s*\.feed-panel\s*{[^}]*padding:\s*62px 0 18px/s);
   });
 
@@ -46,7 +44,9 @@ describe("ComponentFeed styles", () => {
   });
 
   it("keeps atomic motion parameters embedded in the shared three-tab hero", () => {
-    expect(home).toMatch(/\.brief-mode-tabs\s*{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
+    expect(home).toMatch(
+      /\.brief-mode-tabs\s*{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s
+    );
     expect(home).toContain(".discovery-panel.is-atomic-mode");
     expect(home).toContain(".brief-content-region.is-atomic-content");
     expect(home).toContain(".ethereal-shadow-background");
@@ -67,8 +67,12 @@ describe("ComponentFeed styles", () => {
     expect(home).not.toContain("grid-row: span 2");
     expect(home).not.toContain(".atomic-motion-scroll-controls");
     expect(home).not.toContain(".atomic-motion-scroll-button");
-    expect(home).toMatch(/\.atomic-motion-option:hover:not\(:disabled\)\s*{[^}]*background:\s*rgba\(126,\s*34,\s*206,\s*0\.2\)/s);
-    expect(home).toMatch(/\.atomic-motion-option\.is-on:hover:not\(:disabled\)\s*{[^}]*background:\s*rgba\(126,\s*34,\s*206,\s*0\.34\)/s);
+    expect(home).toMatch(
+      /\.atomic-motion-option:hover:not\(:disabled\)\s*{[^}]*background:\s*rgba\(126,\s*34,\s*206,\s*0\.2\)/s
+    );
+    expect(home).toMatch(
+      /\.atomic-motion-option\.is-on:hover:not\(:disabled\)\s*{[^}]*background:\s*rgba\(126,\s*34,\s*206,\s*0\.34\)/s
+    );
     expect(home).toMatch(
       /\.discovery-panel\.is-generate-mode \.brief-mode-tab\.is-on,\s*\.discovery-panel\.is-atomic-mode \.brief-mode-tab\.is-on\s*{[^}]*color:\s*var\(--brief-active-tab-color\)/s
     );
@@ -86,7 +90,9 @@ describe("ComponentFeed styles", () => {
   it("allocates more editor width to the inspector and groups it with high-level tabs", () => {
     expect(editor).toContain("grid-template-columns: minmax(380px, 0.82fr) clamp(420px, 38vw, 560px)");
     expect(editor).toContain(".inspector-tabs");
-    expect(editor).toMatch(/\.inspector-tabs\s*{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s);
+    expect(editor).toMatch(
+      /\.inspector-tabs\s*{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s
+    );
     expect(editor).toContain(".inspector-tab-panel");
   });
 
@@ -95,7 +101,9 @@ describe("ComponentFeed styles", () => {
     expect(editor).toMatch(/\.editor-shell\.is-modal\s*{[^}]*--editor-preview-sticky-offset:\s*72px/s);
     expect(editor).toMatch(/\.editor-preview\s*{[^}]*position:\s*sticky/s);
     expect(editor).toMatch(/\.editor-preview\s*{[^}]*top:\s*var\(--editor-preview-sticky-offset\)/s);
-    expect(editor).toMatch(/\.editor-preview\s*{[^}]*max-height:\s*calc\(100svh - var\(--editor-preview-sticky-offset\)\)/s);
+    expect(editor).toMatch(
+      /\.editor-preview\s*{[^}]*max-height:\s*calc\(100svh - var\(--editor-preview-sticky-offset\)\)/s
+    );
     expect(responsive).toMatch(/\.editor-preview\s*{[^}]*position:\s*static/s);
     expect(responsive).toMatch(/\.editor-preview\s*{[^}]*overflow:\s*visible/s);
   });

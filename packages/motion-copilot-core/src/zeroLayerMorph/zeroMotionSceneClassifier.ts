@@ -41,10 +41,14 @@ function percent(value: number): string {
 }
 
 export function classifyZeroMotionScene(input: ZeroMotionSceneInput): ZeroMotionSceneClassification {
-  const widthRatio = Math.abs(input.dominantWidthDelta) / Math.max(1, Math.abs(input.dominantWidthDelta) + 120);
-  const heightRatio = Math.abs(input.dominantHeightDelta) / Math.max(1, Math.abs(input.dominantHeightDelta) + 120);
-  const hasMeaningfulWidthChange = Math.abs(input.stageWidthDelta) >= 32 || Math.abs(input.dominantWidthDelta) >= 32;
-  const hasMeaningfulHeightChange = Math.abs(input.stageHeightDelta) >= 32 || Math.abs(input.dominantHeightDelta) >= 32;
+  const widthRatio =
+    Math.abs(input.dominantWidthDelta) / Math.max(1, Math.abs(input.dominantWidthDelta) + 120);
+  const heightRatio =
+    Math.abs(input.dominantHeightDelta) / Math.max(1, Math.abs(input.dominantHeightDelta) + 120);
+  const hasMeaningfulWidthChange =
+    Math.abs(input.stageWidthDelta) >= 32 || Math.abs(input.dominantWidthDelta) >= 32;
+  const hasMeaningfulHeightChange =
+    Math.abs(input.stageHeightDelta) >= 32 || Math.abs(input.dominantHeightDelta) >= 32;
   const enterExitCount = input.enterCount + input.exitCount;
 
   if (input.enterAreaRatio >= 0.32 && input.enterCount >= 1) {
@@ -76,10 +80,7 @@ export function classifyZeroMotionScene(input: ZeroMotionSceneInput): ZeroMotion
     return {
       type: "horizontal-expand",
       confidence: confidence(0.62 + widthRatio * 0.3),
-      reasons: [
-        `主图层宽度变化 ${Math.round(input.dominantWidthDelta)}px`,
-        "首尾帧变化主要发生在横向空间"
-      ]
+      reasons: [`主图层宽度变化 ${Math.round(input.dominantWidthDelta)}px`, "首尾帧变化主要发生在横向空间"]
     };
   }
 
@@ -90,10 +91,7 @@ export function classifyZeroMotionScene(input: ZeroMotionSceneInput): ZeroMotion
     return {
       type: "vertical-expand",
       confidence: confidence(0.62 + heightRatio * 0.3),
-      reasons: [
-        `主图层高度变化 ${Math.round(input.dominantHeightDelta)}px`,
-        "首尾帧变化主要发生在纵向空间"
-      ]
+      reasons: [`主图层高度变化 ${Math.round(input.dominantHeightDelta)}px`, "首尾帧变化主要发生在纵向空间"]
     };
   }
 

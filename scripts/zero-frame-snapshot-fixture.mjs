@@ -35,4 +35,6 @@ if (!fileName) {
 
 const repoRoot = resolve(fileURLToPath(import.meta.url), "../..");
 const filePath = resolve(repoRoot, "fixtures/frames", fileName);
-process.stdout.write(readFileSync(filePath, "utf8"));
+const snapshot = JSON.parse(readFileSync(filePath, "utf8"));
+snapshot.name = `示例数据 · ${snapshot.name}`;
+process.stdout.write(`${JSON.stringify(snapshot)}\n`);

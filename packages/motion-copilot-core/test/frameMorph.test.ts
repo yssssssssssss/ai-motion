@@ -389,7 +389,9 @@ describe("ZeroVisualSnapshot normalization", () => {
         html: '<div data-node-id="28:2"></div>',
         css: "",
         assets: [],
-        nodes: [{ nodeId: "28:2", name: "信息展开状态", kind: "group", bounds: { x: 0, y: 0, w: 583, h: 38 } }]
+        nodes: [
+          { nodeId: "28:2", name: "信息展开状态", kind: "group", bounds: { x: 0, y: 0, w: 583, h: 38 } }
+        ]
       })
     ).toThrow(ZeroVisualSnapshotValidationError);
   });
@@ -747,7 +749,10 @@ else process.exit(2);`
       const chunks: Buffer[] = [];
       for await (const chunk of req) chunks.push(Buffer.from(chunk));
       const payload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
-        params?: { name?: string; arguments?: { nodeId?: string; forceCode?: boolean; maxDimension?: number } };
+        params?: {
+          name?: string;
+          arguments?: { nodeId?: string; forceCode?: boolean; maxDimension?: number };
+        };
       };
       const tool = payload.params?.name ?? "";
       seenTools.push(tool);
@@ -757,7 +762,11 @@ else process.exit(2);`
           ? { content: [{ type: "text", text: "context" }], forceCode: payload.params?.arguments?.forceCode }
           : tool === "get_design_metadata"
             ? { content: [{ type: "text", text: "metadata" }] }
-            : { content: [{ type: "text", text: JSON.stringify({ image_url: "http://localhost/shot.png", nodeId }) }] };
+            : {
+                content: [
+                  { type: "text", text: JSON.stringify({ image_url: "http://localhost/shot.png", nodeId }) }
+                ]
+              };
       res.writeHead(200, { "Content-Type": "text/event-stream" });
       res.end(`event: message\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: "test", result })}\n\n`);
     });
@@ -877,11 +886,15 @@ else process.exit(2);`
       const address = server.address();
       const port = typeof address === "object" && address ? address.port : 0;
       await expect(
-        execFileText(process.execPath, [rootPath("scripts/zero-mcp-visual-bridge.mjs"), "--node-id", "28:2"], {
-          ...process.env,
-          ZERO_MCP_HTTP_URL: `http://127.0.0.1:${port}/mcp`,
-          ZERO_MCP_BRIDGE_RETRY_DELAY_MS: "10"
-        })
+        execFileText(
+          process.execPath,
+          [rootPath("scripts/zero-mcp-visual-bridge.mjs"), "--node-id", "28:2"],
+          {
+            ...process.env,
+            ZERO_MCP_HTTP_URL: `http://127.0.0.1:${port}/mcp`,
+            ZERO_MCP_BRIDGE_RETRY_DELAY_MS: "10"
+          }
+        )
       ).rejects.toThrow(/get_design_context/);
     } finally {
       await new Promise<void>((resolveClose, rejectClose) =>
@@ -1188,7 +1201,7 @@ describe("Frame morph compilation", () => {
     const snapshot = normalizeFrameSnapshot(JSON.parse(output) as unknown);
     expect(snapshot).toMatchObject({
       frameId: "28:19",
-      name: "信息收起状态"
+      name: "示例数据 · 信息收起状态"
     });
   });
 
@@ -1366,7 +1379,13 @@ export default function Component() {
         { nodeId: "from", name: "from", kind: "group", bounds: { x: 0, y: 0, w: 400, h: 80 } },
         { nodeId: "from-a", name: "A", kind: "text", bounds: { x: 10, y: 10, w: 40, h: 20 }, text: "A" },
         { nodeId: "from-b", name: "B", kind: "text", bounds: { x: 60, y: 10, w: 40, h: 20 }, text: "B" },
-        { nodeId: "from-only", name: "old", kind: "text", bounds: { x: 200, y: 10, w: 40, h: 20 }, text: "old" }
+        {
+          nodeId: "from-only",
+          name: "old",
+          kind: "text",
+          bounds: { x: 200, y: 10, w: 40, h: 20 },
+          text: "old"
+        }
       ]
     });
     const to = normalizeZeroVisualSnapshot({
@@ -1538,7 +1557,10 @@ export default function Component() {
     const result = compileFrameMorphComposition({ from: fromSnapshot, to: toSnapshot, prompt: "" });
     const cardLayer = result.document.layers.find((layer) => layer.id === "zero-group-card");
     expect(cardLayer).toBeDefined();
-    expect(cardLayer?.style).toMatchObject({ borderColor: "#dddddd", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" });
+    expect(cardLayer?.style).toMatchObject({
+      borderColor: "#dddddd",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.08)"
+    });
   });
 
   it("propagates border-radius from MCP metadata, SVG rx, and Tailwind tokens into snapshot css (bug 1 radius)", () => {
@@ -1547,7 +1569,9 @@ export default function Component() {
   <rounded-rectangle id="pill-svg" name="svg-pill" x="110" y="0" width="100" height="40" />
   <rounded-rectangle id="pill-tw" name="tailwind-pill" x="0" y="0" width="100" height="40" />
 </group>`;
-    const svgRectRx = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><rect width="100" height="40" rx="84" fill="#eee"/></svg>');
+    const svgRectRx = encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><rect width="100" height="40" rx="84" fill="#eee"/></svg>'
+    );
     const designContext = `const imgPillSvg = "data:image/svg+xml,${svgRectRx}";
 export default function Component() {
   return (
@@ -1602,8 +1626,12 @@ describe("Restoration report", () => {
           nodeId: "n1",
           name: "圆角容器",
           kind: "rect",
-          x: 0, y: 0, w: 50, h: 50,
-          opacity: 1, zIndex: 1,
+          x: 0,
+          y: 0,
+          w: 50,
+          h: 50,
+          opacity: 1,
+          zIndex: 1,
           style: { radius: 12 }
         }
       ]
@@ -1627,7 +1655,18 @@ describe("Restoration report", () => {
       height: 300,
       elements: [
         { key: "a", nodeId: "n1", name: "A", kind: "rect", x: 0, y: 0, w: 100, h: 50, opacity: 1, zIndex: 1 },
-        { key: "b", nodeId: "n2", name: "B", kind: "rect", x: 0, y: 100, w: 100, h: 50, opacity: 1, zIndex: 2 }
+        {
+          key: "b",
+          nodeId: "n2",
+          name: "B",
+          kind: "rect",
+          x: 0,
+          y: 100,
+          w: 100,
+          h: 50,
+          opacity: 1,
+          zIndex: 2
+        }
       ]
     };
     const to: FrameSnapshot = {
@@ -1637,7 +1676,18 @@ describe("Restoration report", () => {
       width: 300,
       height: 300,
       elements: [
-        { key: "a", nodeId: "n1", name: "A", kind: "rect", x: 0, y: 200, w: 100, h: 50, opacity: 1, zIndex: 1 },
+        {
+          key: "a",
+          nodeId: "n1",
+          name: "A",
+          kind: "rect",
+          x: 0,
+          y: 200,
+          w: 100,
+          h: 50,
+          opacity: 1,
+          zIndex: 1
+        },
         { key: "b", nodeId: "n2", name: "B", kind: "rect", x: 0, y: 0, w: 100, h: 50, opacity: 1, zIndex: 2 }
       ]
     };
@@ -1816,7 +1866,11 @@ function flattenAll(objects: Array<{ children: Array<any>; [k: string]: any }>):
 }
 
 describe("Visual QA: export report embedding and key-frame validation", () => {
-  function makeVisualSnap(id: string, name: string, nodes: Array<{ nodeId: string; kind: string; text?: string }>): ZeroVisualSnapshot {
+  function makeVisualSnap(
+    id: string,
+    name: string,
+    nodes: Array<{ nodeId: string; kind: string; text?: string }>
+  ): ZeroVisualSnapshot {
     return {
       schemaVersion: "motion-copilot.zero-visual-snapshot.v1",
       frameId: `frame:${id}`,
@@ -1897,7 +1951,12 @@ describe("Visual QA: export report embedding and key-frame validation", () => {
     const to = makeVisualSnap("2", "尾帧", [{ nodeId: "b", kind: "text" }]);
     const bindings = compileVisualMotionBindings(from, to);
     const r1 = createRestorationReport({ from, to, bindings });
-    const r2 = createRestorationReport({ from, to, bindings, userOverrides: [{ fromNodeId: "a", action: "ignore" }] });
+    const r2 = createRestorationReport({
+      from,
+      to,
+      bindings,
+      userOverrides: [{ fromNodeId: "a", action: "ignore" }]
+    });
     expect(r1.bindingHash).not.toBe(r2.bindingHash);
     expect(r1.inputHash).toBe(r2.inputHash);
   });
@@ -2063,7 +2122,9 @@ describe("P12 E2E regression: 28:19 → 28:2 full pipeline", () => {
     for (const item of bindings.ignored ?? []) {
       const selector = `.mc-zero-from [data-node-id="${item.nodeId}"]`;
       expect(html).toContain(selector);
-      const ruleLine = html.split("\n").find((line) => line.includes(selector) && line.includes("animation:"));
+      const ruleLine = html
+        .split("\n")
+        .find((line) => line.includes(selector) && line.includes("animation:"));
       expect(ruleLine, `expected fade animation for ignored node ${item.nodeId}`).toBeTruthy();
     }
     // Each ignored fragment must end fully transparent in its keyframe.
@@ -2130,7 +2191,9 @@ describe("P12 E2E regression: 28:19 → 28:2 full pipeline", () => {
 
     expect(report.score).toBeGreaterThanOrEqual(85);
     expect(report.score).toBeLessThanOrEqual(100);
-    expect(bindings.exit.map((node) => node.nodeId)).not.toEqual(expect.arrayContaining(statusFragmentNodeIds));
+    expect(bindings.exit.map((node) => node.nodeId)).not.toEqual(
+      expect.arrayContaining(statusFragmentNodeIds)
+    );
     expect(bindings.ignored).toEqual(
       expect.arrayContaining(
         statusFragmentNodeIds.map((nodeId) =>
@@ -2154,7 +2217,9 @@ describe("P12 E2E regression: 28:19 → 28:2 full pipeline", () => {
         })
       ])
     );
-    expect(bindings.bindings.find((binding) => binding.nodeId === "28:34")?.confidence).toBeGreaterThanOrEqual(75);
+    expect(
+      bindings.bindings.find((binding) => binding.nodeId === "28:34")?.confidence
+    ).toBeGreaterThanOrEqual(75);
     expect(report.metrics.nodeCoverage.value).toBeTypeOf("number");
     expect(report.metrics.nodeCoverage.value).toBeGreaterThanOrEqual(80);
     expect(report.metrics.visualRisk.value).toBeTypeOf("number");

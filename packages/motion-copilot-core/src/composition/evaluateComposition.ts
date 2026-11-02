@@ -99,7 +99,10 @@ export function evaluateComposition(steps: CompositionStep[]): CompositionTrack 
   for (const skeleton of skeletonSteps) {
     const targetKey = `${skeleton.target}:${skeleton.layerId ?? "primary"}`;
     const conflicting = steps.find(
-      (s) => s.id !== skeleton.id && `${s.target}:${s.layerId ?? "primary"}` === targetKey && motionSlots.has(s.slot)
+      (s) =>
+        s.id !== skeleton.id &&
+        `${s.target}:${s.layerId ?? "primary"}` === targetKey &&
+        motionSlots.has(s.slot)
     );
     if (conflicting) {
       issues.push({

@@ -18,21 +18,37 @@ function issue(path: string, message: string): CompositionJsonValidationIssue {
   return { path, message };
 }
 
-function stringAt(value: Record<string, unknown>, key: string, path: string): CompositionJsonValidationIssue[] {
+function stringAt(
+  value: Record<string, unknown>,
+  key: string,
+  path: string
+): CompositionJsonValidationIssue[] {
   return typeof value[key] === "string" ? [] : [issue(`${path}.${key}`, "必须是字符串")];
 }
 
-function numberAt(value: Record<string, unknown>, key: string, path: string): CompositionJsonValidationIssue[] {
+function numberAt(
+  value: Record<string, unknown>,
+  key: string,
+  path: string
+): CompositionJsonValidationIssue[] {
   return typeof value[key] === "number" && Number.isFinite(value[key])
     ? []
     : [issue(`${path}.${key}`, "必须是有效数字")];
 }
 
-function booleanAt(value: Record<string, unknown>, key: string, path: string): CompositionJsonValidationIssue[] {
+function booleanAt(
+  value: Record<string, unknown>,
+  key: string,
+  path: string
+): CompositionJsonValidationIssue[] {
   return typeof value[key] === "boolean" ? [] : [issue(`${path}.${key}`, "必须是布尔值")];
 }
 
-function arrayAt(value: Record<string, unknown>, key: string, path: string): CompositionJsonValidationIssue[] {
+function arrayAt(
+  value: Record<string, unknown>,
+  key: string,
+  path: string
+): CompositionJsonValidationIssue[] {
   return Array.isArray(value[key]) ? [] : [issue(`${path}.${key}`, "必须是数组")];
 }
 
@@ -78,7 +94,8 @@ function validateLanes(value: unknown, path: string): CompositionJsonValidationI
     ];
     if (Array.isArray(lane.stepIds)) {
       lane.stepIds.forEach((stepId, stepIndex) => {
-        if (typeof stepId !== "string") issues.push(issue(`${lanePath}.stepIds[${stepIndex}]`, "必须是字符串"));
+        if (typeof stepId !== "string")
+          issues.push(issue(`${lanePath}.stepIds[${stepIndex}]`, "必须是字符串"));
       });
     }
     return issues;

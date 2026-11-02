@@ -79,6 +79,7 @@
 ### Task 1: Motion Skill Types And Manifest Metadata
 
 **Files:**
+
 - Create: `packages/core/src/motionSkill/types.ts`
 - Create: `packages/core/src/motionSkill/index.ts`
 - Modify: `packages/core/src/manifest/types.ts`
@@ -303,6 +304,7 @@ Expected: PASS.
 ### Task 2: CSV Header Mapping, Fill-Down, And Value Parsing
 
 **Files:**
+
 - Create: `packages/core/src/motionSkill/normalize.ts`
 - Modify: `packages/core/src/motionSkill/index.ts`
 - Test: `packages/core/test/motionSkillNormalize.test.ts`
@@ -467,7 +469,9 @@ export function parseMilliseconds(value: string): number {
 export function parseCssEasing(value: string): string {
   const trimmed = value.trim();
   if (/^cubic-bezier\(/i.test(trimmed)) return trimmed.replace(/\s+/g, " ");
-  const tuple = trimmed.match(/^\(?\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)?$/);
+  const tuple = trimmed.match(
+    /^\(?\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)?$/
+  );
   if (tuple) {
     const values = tuple.slice(1).map((item) => String(Number(item)));
     return `cubic-bezier(${values.join(", ")})`;
@@ -531,6 +535,7 @@ Expected: PASS.
 ### Task 3: Compile CSV Rows Into Registry, Tokens, Recipes, And Lock
 
 **Files:**
+
 - Create: `packages/core/src/motionSkill/compiler.ts`
 - Create: `packages/core/src/motionSkill/schema.ts`
 - Modify: `packages/core/src/motionSkill/index.ts`
@@ -610,7 +615,9 @@ describe("motion skill compiler", () => {
     expect(second.registry.elements[0]?.latestVersion).toBe("1.0.0");
     expect(second.report).toContain("无变化: 弹窗反馈@1.0.0");
     expect(removed.registry.elements[0]?.latestVersion).toBe("1.1.0");
-    expect(removed.lock.families["popup-feedback"]?.tokens["popup-feedback.medium.opacity"]?.status).toBe("archived");
+    expect(removed.lock.families["popup-feedback"]?.tokens["popup-feedback.medium.opacity"]?.status).toBe(
+      "archived"
+    );
   });
 
   it("marks incomplete elements as disabled instead of generating broken recipes", () => {
@@ -737,6 +744,7 @@ Expected: PASS.
 ### Task 4: Motion Skill Recipe Adapter And Mock Draft Component
 
 **Files:**
+
 - Create: `packages/core/src/motionSkill/recipeAdapter.ts`
 - Create: `packages/core/src/motionSkill/mockComponent.ts`
 - Modify: `packages/core/src/motionSkill/index.ts`
@@ -826,12 +834,14 @@ describe("motion skill recipe adapter", () => {
     });
     expect(sourceText).toContain('data-motion="modalLayer"');
     expect(sourceText).toContain("window.motionReplay");
-    expect(validateRecipeApplication({
-      binding,
-      params: component.manifest.params,
-      layers: component.manifest.layers ?? [],
-      sourceText
-    }).valid).toBe(true);
+    expect(
+      validateRecipeApplication({
+        binding,
+        params: component.manifest.params,
+        layers: component.manifest.layers ?? [],
+        sourceText
+      }).valid
+    ).toBe(true);
     expect(validateGeneratedComponent(component).valid).toBe(true);
   });
 });
@@ -932,6 +942,7 @@ Expected: PASS.
 ### Task 5: CLI And Seed Designer CSV/Packs
 
 **Files:**
+
 - Create: `motion-source/atomic-motion.csv`
 - Create: `scripts/compile-motion-skills.mjs`
 - Create: `packages/core/src/motionSkill/cli.ts`
@@ -1031,6 +1042,7 @@ Expected: PASS.
 ### Task 6: Web Runtime Data And Atomic Generation Service
 
 **Files:**
+
 - Create: `apps/web/src/data/motionSkills.ts`
 - Create: `apps/web/src/services/atomicMotionGeneration.ts`
 - Test: `apps/web/src/services/atomicMotionGeneration.test.ts`
@@ -1153,6 +1165,7 @@ Expected: PASS.
 ### Task 7: Homepage UI Entry And Remove Generation Understanding Chips
 
 **Files:**
+
 - Create: `apps/web/src/features/brief/AtomicMotionPanel.tsx`
 - Create: `apps/web/src/features/brief/AtomicMotionPanel.test.tsx`
 - Modify: `apps/web/src/features/brief/BriefPanel.tsx`
@@ -1180,7 +1193,7 @@ expect(html).not.toContain("排除 按钮");
 Add prop to baseProps:
 
 ```ts
-onOpenAtomicMotion: () => {}
+onOpenAtomicMotion: () => {};
 ```
 
 - [ ] **Step 2: Run BriefPanel test to verify failure**
@@ -1209,7 +1222,12 @@ onOpenAtomicMotion: () => void;
 
 ```tsx
 <div className="brief-actions">
-  <button className="ai-recommend-button" type="button" onClick={isGenerateMode ? onGenerate : onRecommend} disabled={isLoading || isDisabled}>
+  <button
+    className="ai-recommend-button"
+    type="button"
+    onClick={isGenerateMode ? onGenerate : onRecommend}
+    disabled={isLoading || isDisabled}
+  >
     {isDisabled ? "组件库加载中..." : isLoading ? heading.loading : heading.button}
   </button>
   {isGenerateMode ? (
@@ -1348,6 +1366,7 @@ Expected: PASS.
 ### Task 8: Final Verification
 
 **Files:**
+
 - All touched files.
 
 - [ ] **Step 1: Run core focused tests**
@@ -1440,4 +1459,3 @@ Expected: app returns to clean stopped state.
 - Natural semantic generation no longer renders understanding chips.
 - Atomic motion generation does not depend on prompt matching.
 - Existing generated-draft save behavior remains unchanged.
-

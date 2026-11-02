@@ -23,7 +23,12 @@ const controls: PlusControl[] = [
 describe("PlusControlPanel", () => {
   it("renders option and slider controls for plus mode", () => {
     const html = renderToStaticMarkup(
-      <PlusControlPanel controls={controls} values={{}} affectedParamIds={["transitionDuration"]} onChange={vi.fn()} />
+      <PlusControlPanel
+        controls={controls}
+        values={{}}
+        affectedParamIds={["transitionDuration"]}
+        onChange={vi.fn()}
+      />
     );
 
     expect(html).toContain("速度");

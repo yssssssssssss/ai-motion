@@ -13,6 +13,8 @@ This repository is **ai-motion-web**. Web and Motion Copilot each have a **separ
 
 When changing functionality, identify which line you're in first — they have different mental models, different APIs, and different test suites. Cross-line work is rare and should be questioned.
 
+For independent Orca worktrees, follow `docs/worktree-development.md` and the target application's `AGENTS.md`. Verify the application package and JoyApp appCode before packaging or deploying.
+
 ## Commands
 
 Root-level (run from monorepo root):
@@ -43,7 +45,7 @@ pnpm --filter @motion-tool/web typecheck
 Run a single test file or a single test name (vitest runs in non-watch mode here):
 
 ```bash
-pnpm --filter @motion-copilot/core test -- src/intent/generateCompositionDraftLLM.test.ts
+pnpm --filter @motion-copilot/core test -- test/generateCompositionDraftLLM.test.ts
 pnpm --filter @motion-tool/web test -- -t "candidate selection"
 ```
 
@@ -74,7 +76,7 @@ Motion-skill / asset pipelines (only touch when working on those areas):
 
 **Env source-of-truth is `apps/web/.env.local`.** `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_GENERATION_MODEL` (default `gpt-5.5` — JD Cloud `modelservice.jdcloud.com`). `motion-copilot` parses this same file via relative path — don't introduce per-app env files unless you explicitly want to fork the config.
 
-**Generation pipelines have a shared shape.** Whether it's web's `briefParse → recommendComponents → createGenerationPlan → generateReferenceGuidedComponent` or copilot's `prompt → LLM plan → assembleDraftFromSpecs`, the structure is: parse intent (schema-validated) → score/select candidates → assemble into a domain object → run a validation gate → degrade to a local rule-based fallback on any failure. **The LLM only replaces the "intent extraction / candidate ranking" step; the assembly logic is deterministic and shared between LLM and fallback paths.** See `packages/motion-copilot-core/src/intent/generateCompositionDraft.ts` (`assembleDraftFromSpecs`) for the canonical pattern.
+**Generation pipelines have a shared shape.** Whether it's web's `briefParse → recommendComponents → createGenerationPlan → generateReferenceGuidedComponent` or copilot's `prompt → LLM plan → assembleDraftFromSpecs`, the structure is: parse intent (schema-validated) → score/select candidates → assemble into a domain object → run a validation gate → degrade to a local rule-based fallback on any failure. **The LLM only replaces the "intent extraction / candidate ranking" step; the assembly logic is deterministic and shared between LLM and fallback paths.** See `packages/motion-copilot-core/src/intent/generateCompositionDraft.ts` (`assembleDraftFromSpecs`) for the canonical pattern. Exception: web's reference-guided generation lets the model draft HTML/CSS/JS source by design; core still owns manifest creation, validation, and fallback (`docs/superpowers/specs/2026-06-03-reference-guided-generation-design.md`).
 
 **Motion components are manifest-driven.** A `MotionComponent` carries a `MotionManifest` (params + targets + layers + readiness checks); `analyzeGenerationReadiness` gates whether AI can touch it; `derivePlusControls` projects user-facing controls. Recommendation/matching combines `searchProfile` (TF×IDF over manifest+source) and `semanticProfile` (role/scene/intent facets). Built-in components live under `packages/components-builtin/<id>/` with HTML/CSS/JS source + `motion.manifest.json`.
 

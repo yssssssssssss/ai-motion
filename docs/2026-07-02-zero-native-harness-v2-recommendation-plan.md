@@ -781,4 +781,3 @@ node scripts/zero-layer-diagnose.mjs --fixture --from 28:19 --to 28:2 --recipe-s
 - 新增 recipe 推荐不能破坏现有 recipe 手动选择。
 - 所有新增推荐和建议必须能从本地确定性数据推导出来。
 - 如果后续接入 LLM，只能接在意图推荐和解释层，不能接入动画代码生成层。
-

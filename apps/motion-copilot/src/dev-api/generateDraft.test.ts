@@ -28,14 +28,21 @@ describe("generateCopilotDraft", () => {
   });
 
   it("parses a valid model plan and reports llm mode", async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValue(
-        modelResponse([
-          { presetId: "modal-feedback", layerId: "modal-image", timing: "sequential", delayMs: 0, reason: "焦点" }
-        ])
-      );
-    const result = await generateCopilotDraft({ prompt: "弹窗进场", document }, { apiKey: "test-key", fetchImpl });
+    const fetchImpl = vi.fn().mockResolvedValue(
+      modelResponse([
+        {
+          presetId: "modal-feedback",
+          layerId: "modal-image",
+          timing: "sequential",
+          delayMs: 0,
+          reason: "焦点"
+        }
+      ])
+    );
+    const result = await generateCopilotDraft(
+      { prompt: "弹窗进场", document },
+      { apiKey: "test-key", fetchImpl }
+    );
     expect(result.mode).toBe("llm");
     expect(result.plan.steps).toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);

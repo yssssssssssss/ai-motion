@@ -25,10 +25,10 @@ describe("jd horizontal switch component", () => {
     expect(html).not.toContain("channel-tabs");
     expect(html).not.toContain("bottom-tabbar");
     expect(html).not.toContain("joy-agent");
-    expect(assets).toContain("--shell-frame: url(\"data:image/webp;base64,");
-    expect(assets).toContain("--start-screen: url(\"data:image/webp;base64,");
-    expect(assets).toContain("--end-screen: url(\"data:image/webp;base64,");
-    expect(assets).toContain("--end-nav: url(\"data:image/webp;base64,");
+    expect(assets).toContain('--shell-frame: url("data:image/webp;base64,');
+    expect(assets).toContain('--start-screen: url("data:image/webp;base64,');
+    expect(assets).toContain('--end-screen: url("data:image/webp;base64,');
+    expect(assets).toContain('--end-nav: url("data:image/webp;base64,');
     expect(assets).toContain("start-screen-source: frame_0001_crop_213_222_1118_2417");
     expect(assets).toContain("end-screen-source: frame_0087_crop_213_222_1118_2417");
   });

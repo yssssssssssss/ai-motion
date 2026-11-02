@@ -139,11 +139,17 @@ describe("applyPatchToFiles", () => {
           }
         ]
       },
-      patch: { id: "patch-missing-var", sourceManifestId: "missing-image-var", values: { heroImage: dataUrl } }
+      patch: {
+        id: "patch-missing-var",
+        sourceManifestId: "missing-image-var",
+        values: { heroImage: dataUrl }
+      }
     });
 
     expect(files["source/style.css"]).toContain(`:root { --hero-image: url("${dataUrl}"); }`);
-    expect(files["source/style.css"]).toContain("background: var(--hero-image, none) center / cover no-repeat");
+    expect(files["source/style.css"]).toContain(
+      "background: var(--hero-image, none) center / cover no-repeat"
+    );
   });
 
   it("does not patch externalized stylesheet references as if they were css", () => {

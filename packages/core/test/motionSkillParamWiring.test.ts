@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createMotionSkillDraftComponent } from "../src/motionSkill/mockComponent";
-import type { MotionComponent, MotionParam, MotionSkillPack, MotionSkillRegistry, MotionTarget } from "../src";
+import type {
+  MotionComponent,
+  MotionParam,
+  MotionSkillPack,
+  MotionSkillRegistry,
+  MotionTarget
+} from "../src";
 import registry from "../../../motion-skills/registry.json";
 import containerTransformManifest from "../../../motion-skills/container-transform/manifest.json";
 import containerTransformRecipes from "../../../motion-skills/container-transform/recipes.json";

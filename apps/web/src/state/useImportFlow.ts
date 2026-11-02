@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import {
   confirmValidParams,
   importMotionSourceFromFiles,
+  importEditablePackageFromFiles,
   scanSourceForLayers,
   scanSourceForParams,
   suggestParams,
@@ -83,6 +84,31 @@ export function createDraftImportState(component: MotionComponent): DraftImportS
   };
 }
 
+function packageMetadata(
+  metadata: Record<string, unknown>,
+  manifest: MotionManifest
+): MotionComponentMetadata {
+  const category = metadata.category;
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) && value.every((item) => typeof item === "string") ? value : [];
+  return {
+    id: typeof metadata.id === "string" ? metadata.id : manifest.id,
+    name: typeof metadata.name === "string" ? metadata.name : manifest.name,
+    category:
+      category === "text" ||
+      category === "media" ||
+      category === "layout" ||
+      category === "interaction" ||
+      category === "background" ||
+      category === "data"
+        ? category
+        : "layout",
+    tags: strings(metadata.tags),
+    useCases: strings(metadata.useCases),
+    moods: strings(metadata.moods)
+  };
+}
+
 export function useImportFlow() {
   const [phase, setPhase] = useState<ImportPhase>("idle");
   const [pendingImport, setPendingImport] = useState<MotionSource | null>(null);
@@ -97,38 +123,56 @@ export function useImportFlow() {
   const [pendingManifest, setPendingManifest] = useState<MotionManifest | null>(null);
   const [metadataDefaults, setMetadataDefaults] = useState<MotionComponentMetadata | null>(null);
 
-  // 阶段 1：上传文件 → 解析 → 自动扫描参数 → 进入确认参数阶段
-  const importFiles = useCallback((files: Record<string, string>) => {
-    const result = importMotionSourceFromFiles(files);
-    const suggested = suggestParams(scanSourceForParams(result.source));
-    const layers = scanSourceForLayers(result.source);
-    setPendingImport(result.source);
-    setImportWarnings(result.warnings);
-    setSuggestedParams(suggested);
-    setSelectedParamIds(new Set(suggested.map((param) => param.id)));
-    setSuggestedLayers(layers);
-    setSelectedReplaceableLayerIds(
-      new Set(layers.filter((layer) => layer.replaceable).map((layer) => layer.id))
-    );
-    setSelectedDesignSpecId(DEFAULT_IMPORT_DESIGN_SPEC_ID);
-    setPendingManifest(null);
-    setMetadataDefaults(null);
-    setPhase("confirm-params");
-  }, []);
+  const importComponentDraft = useCallback(
+    (component: MotionComponent, warnings: import("@motion-tool/core").ImportWarning[] = []) => {
+      const draft = createDraftImportState(component);
+      setPendingImport(draft.pendingImport);
+      setPendingManifest(draft.pendingManifest);
+      setImportWarnings(warnings);
+      setSuggestedParams(draft.suggestedParams);
+      setSelectedParamIds(draft.selectedParamIds);
+      setSuggestedLayers(draft.suggestedLayers);
+      setSelectedReplaceableLayerIds(draft.selectedReplaceableLayerIds);
+      setSelectedDesignSpecId(draft.selectedDesignSpecId);
+      setMetadataDefaults(draft.metadataDefaults);
+      setPhase("confirm-params");
+    },
+    []
+  );
 
-  const importComponentDraft = useCallback((component: MotionComponent) => {
-    const draft = createDraftImportState(component);
-    setPendingImport(draft.pendingImport);
-    setPendingManifest(draft.pendingManifest);
-    setImportWarnings(draft.importWarnings);
-    setSuggestedParams(draft.suggestedParams);
-    setSelectedParamIds(draft.selectedParamIds);
-    setSuggestedLayers(draft.suggestedLayers);
-    setSelectedReplaceableLayerIds(draft.selectedReplaceableLayerIds);
-    setSelectedDesignSpecId(draft.selectedDesignSpecId);
-    setMetadataDefaults(draft.metadataDefaults);
-    setPhase("confirm-params");
-  }, []);
+  // 阶段 1：上传文件 → 解析 → 自动扫描参数 → 进入确认参数阶段
+  const importFiles = useCallback(
+    (files: Record<string, string>) => {
+      const project = importEditablePackageFromFiles(files);
+      if (project) {
+        importComponentDraft(
+          {
+            ...packageMetadata(project.metadata, project.manifest),
+            source: project.source,
+            manifest: project.manifest
+          },
+          project.warnings
+        );
+        return;
+      }
+      const result = importMotionSourceFromFiles(files);
+      const suggested = suggestParams(scanSourceForParams(result.source));
+      const layers = scanSourceForLayers(result.source);
+      setPendingImport(result.source);
+      setImportWarnings(result.warnings);
+      setSuggestedParams(suggested);
+      setSelectedParamIds(new Set(suggested.map((param) => param.id)));
+      setSuggestedLayers(layers);
+      setSelectedReplaceableLayerIds(
+        new Set(layers.filter((layer) => layer.replaceable).map((layer) => layer.id))
+      );
+      setSelectedDesignSpecId(DEFAULT_IMPORT_DESIGN_SPEC_ID);
+      setPendingManifest(null);
+      setMetadataDefaults(null);
+      setPhase("confirm-params");
+    },
+    [importComponentDraft]
+  );
 
   const toggleParam = useCallback((id: string) => {
     setSelectedParamIds((current) => {
@@ -152,13 +196,16 @@ export function useImportFlow() {
   const confirmParams = useCallback(() => {
     if (!pendingImport) return;
     const selected = suggestedParams.filter((param) => selectedParamIds.has(param.id));
-    const validation = confirmValidParams({ source: pendingImport, params: selected });
+    // 已有 manifest 的参数类型以项目模型为准，扫描校验只用于新导入的源码。
+    const confirmed = pendingManifest
+      ? selected
+      : confirmValidParams({ source: pendingImport, params: selected }).confirmed;
     const manifest: MotionManifest = pendingManifest
       ? {
           ...pendingManifest,
           sourceKind: pendingImport.kind,
           runtime: { ...pendingManifest.runtime, entry: pendingImport.entry },
-          params: validation.confirmed,
+          params: confirmed,
           layers: suggestedLayers,
           capabilities: pendingManifest.capabilities ?? ["imported", "editable", "export-html"]
         }
@@ -168,7 +215,7 @@ export function useImportFlow() {
           name: "导入动效",
           sourceKind: pendingImport.kind,
           runtime: { engine: "html", entry: pendingImport.entry, sandbox: "iframe" },
-          params: validation.confirmed,
+          params: confirmed,
           layers: suggestedLayers,
           capabilities: ["imported", "editable", "export-html"]
         };

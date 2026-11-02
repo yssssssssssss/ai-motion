@@ -15,17 +15,17 @@
 
 ## 示例
 
-| 文件名 | 场景 | 状态 |
-|--------|------|------|
-| `info-collapsed.json` | 信息状态条 | 收起 |
-| `info-expanded.json` | 信息状态条 | 展开 |
-| `card-expand-collapsed.json` | 卡片展开 | 收起态 |
-| `card-expand-expanded.json` | 卡片展开 | 展开态 |
-| `bottom-sheet-hidden.json` | 底部弹层 | 隐藏 |
-| `bottom-sheet-visible.json` | 底部弹层 | 可见 |
-| `list-3-items.json` | 列表增删 | 3项 |
-| `top-nav-tab-a.json` | 顶部导航 | Tab A 激活 |
-| `top-nav-tab-b.json` | 顶部导航 | Tab B 激活 |
+| 文件名                       | 场景       | 状态       |
+| ---------------------------- | ---------- | ---------- |
+| `info-collapsed.json`        | 信息状态条 | 收起       |
+| `info-expanded.json`         | 信息状态条 | 展开       |
+| `card-expand-collapsed.json` | 卡片展开   | 收起态     |
+| `card-expand-expanded.json`  | 卡片展开   | 展开态     |
+| `bottom-sheet-hidden.json`   | 底部弹层   | 隐藏       |
+| `bottom-sheet-visible.json`  | 底部弹层   | 可见       |
+| `list-3-items.json`          | 列表增删   | 3项        |
+| `top-nav-tab-a.json`         | 顶部导航   | Tab A 激活 |
+| `top-nav-tab-b.json`         | 顶部导航   | Tab B 激活 |
 
 ## 成对关系
 
@@ -39,6 +39,7 @@
 ## 内容要求
 
 每个 fixture 必须包含：
+
 - `schemaVersion`: `"motion-copilot.frame-snapshot.v1"`
 - `frameId`: 格式 `<场景>:<状态>`
 - `name`: 中文可读名称

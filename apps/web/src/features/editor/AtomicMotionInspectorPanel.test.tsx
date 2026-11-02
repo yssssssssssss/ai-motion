@@ -325,7 +325,12 @@ describe("AtomicMotionInspectorPanel", () => {
       }
     };
     const html = renderToStaticMarkup(
-      <AtomicMotionInspectorPanel section="params" manifest={swipeManifest} patch={patch} onChange={vi.fn()} />
+      <AtomicMotionInspectorPanel
+        section="params"
+        manifest={swipeManifest}
+        patch={patch}
+        onChange={vi.fn()}
+      />
     );
 
     expect(html).toContain("滑块5-位移");

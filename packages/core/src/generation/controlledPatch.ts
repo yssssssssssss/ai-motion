@@ -1,6 +1,10 @@
 import type { MotionComponent } from "../library/componentLibrary";
 import type { MotionParam, MotionParamConstraints, MotionPatch } from "../manifest/types";
-import { createGenerationPlan, type GenerationPlan, type GenerationPlanCandidate } from "../orchestrator/generationPlan";
+import {
+  createGenerationPlan,
+  type GenerationPlan,
+  type GenerationPlanCandidate
+} from "../orchestrator/generationPlan";
 import type { ParamConceptId } from "../orchestrator/paramConcepts";
 import { applyPatchToFiles } from "../patch/applyPatch";
 import { validateGeneratedComponent, type GeneratedComponentValidationResult } from "./sandbox";
@@ -80,7 +84,10 @@ function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
 
-function paramSummaries(component: MotionComponent, candidate: GenerationPlanCandidate): ControlledGenerationParamSummary[] {
+function paramSummaries(
+  component: MotionComponent,
+  candidate: GenerationPlanCandidate
+): ControlledGenerationParamSummary[] {
   const conceptsByParam = new Map(candidate.paramConcepts.map((item) => [item.paramId, item.concepts]));
   return component.manifest.params
     .filter((param) => candidate.allowed.paramIds.includes(param.id))
@@ -102,7 +109,9 @@ function wantsShorterMotion(brief: string): boolean {
 }
 
 function shouldShortenParam(param: ControlledGenerationParamSummary): boolean {
-  return param.concepts.some((concept) => concept === "speed" || concept === "rhythm" || concept === "trajectory");
+  return param.concepts.some(
+    (concept) => concept === "speed" || concept === "rhythm" || concept === "trajectory"
+  );
 }
 
 function isTextParam(param: ControlledGenerationParamSummary): boolean {
@@ -127,7 +136,8 @@ function extractTextValue(brief: string): string | null {
 function shouldUseDefaultVariant(param: ControlledGenerationParamSummary): boolean {
   if (param.type === "text" || param.type === "image" || param.type === "color") return false;
   return param.concepts.some(
-    (concept) => concept === "speed" || concept === "rhythm" || concept === "trajectory" || concept === "intensity"
+    (concept) =>
+      concept === "speed" || concept === "rhythm" || concept === "trajectory" || concept === "intensity"
   );
 }
 

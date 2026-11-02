@@ -30,7 +30,11 @@ const referenceButton: MotionComponent = {
     kind: "builtin-component",
     entry: "source/index.html",
     files: [
-      { path: "source/index.html", kind: "html", content: "<main data-motion-root><button>参考</button></main>" },
+      {
+        path: "source/index.html",
+        kind: "html",
+        content: "<main data-motion-root><button>参考</button></main>"
+      },
       { path: "source/style.css", kind: "css", content: "button { transition: transform 300ms; }" }
     ]
   }
@@ -59,7 +63,9 @@ const referencePageTransition: MotionComponent = {
         default: 2640,
         constraints: { min: 1400, max: 5000, step: 40, unit: "ms" },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--cycle-duration" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--cycle-duration" }
+        ]
       },
       {
         id: "enterDistance",
@@ -68,7 +74,9 @@ const referencePageTransition: MotionComponent = {
         default: 520,
         constraints: { min: 0, max: 1118, step: 1, unit: "px" },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--enter-distance" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--enter-distance" }
+        ]
       },
       {
         id: "exitDistance",
@@ -77,7 +85,9 @@ const referencePageTransition: MotionComponent = {
         default: -520,
         constraints: { min: -1118, max: 0, step: 1, unit: "px" },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--exit-distance" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--exit-distance" }
+        ]
       },
       {
         id: "transitionOpacity",
@@ -86,7 +96,9 @@ const referencePageTransition: MotionComponent = {
         default: 0.72,
         constraints: { min: 0, max: 0.9, step: 0.01 },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--transition-opacity" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--transition-opacity" }
+        ]
       },
       {
         id: "windowRadius",
@@ -95,7 +107,9 @@ const referencePageTransition: MotionComponent = {
         default: 92,
         constraints: { min: 0, max: 160, step: 1, unit: "px" },
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--window-radius" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--window-radius" }
+        ]
       },
       {
         id: "easing",
@@ -103,7 +117,9 @@ const referencePageTransition: MotionComponent = {
         type: "easing",
         default: "cubic-bezier(0.18, 0.86, 0.22, 1)",
         status: "confirmed",
-        targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }]
+        targets: [
+          { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }
+        ]
       }
     ],
     groups: [
@@ -162,7 +178,9 @@ function sourceByPath(component: MotionComponent, path: string): string {
 
 describe("reference-guided generation", () => {
   it("parses the example brief into role, color, effect, and direction intent", () => {
-    const intent = parseSemanticGenerationIntent("创建一个按钮颜色为红色，带有弹动效果，从屏幕左侧移动到右侧");
+    const intent = parseSemanticGenerationIntent(
+      "创建一个按钮颜色为红色，带有弹动效果，从屏幕左侧移动到右侧"
+    );
 
     expect(intent.role).toBe("button");
     expect(intent.colors).toEqual([{ target: "background", label: "红色", value: "#ef4444" }]);
@@ -177,9 +195,11 @@ describe("reference-guided generation", () => {
       references: [referenceButton],
       now: 1
     });
-    const html = result.component.source.files.find((file) => file.path === "source/index.html")?.content ?? "";
+    const html =
+      result.component.source.files.find((file) => file.path === "source/index.html")?.content ?? "";
     const css = result.component.source.files.find((file) => file.path === "source/style.css")?.content ?? "";
-    const script = result.component.source.files.find((file) => file.path === "source/script.js")?.content ?? "";
+    const script =
+      result.component.source.files.find((file) => file.path === "source/script.js")?.content ?? "";
 
     expect(result.component.id).toBe("generated-reference-button-1");
     expect(result.component.source.origin).toBe("generated");
@@ -212,7 +232,8 @@ describe("reference-guided generation", () => {
       brief: "创建红色按钮，按钮文案是「<script>alert(1)</script>」",
       now: 2
     });
-    const html = result.component.source.files.find((file) => file.path === "source/index.html")?.content ?? "";
+    const html =
+      result.component.source.files.find((file) => file.path === "source/index.html")?.content ?? "";
 
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).not.toContain("<script>alert(1)</script>");
@@ -283,9 +304,11 @@ window.motionSeek = function motionSeek() {};`
       brief: "我要生成一个紫色的原型按钮，点击后按钮会有弹动效果",
       now: 5
     });
-    const html = result.component.source.files.find((file) => file.path === "source/index.html")?.content ?? "";
+    const html =
+      result.component.source.files.find((file) => file.path === "source/index.html")?.content ?? "";
     const css = result.component.source.files.find((file) => file.path === "source/style.css")?.content ?? "";
-    const script = result.component.source.files.find((file) => file.path === "source/script.js")?.content ?? "";
+    const script =
+      result.component.source.files.find((file) => file.path === "source/script.js")?.content ?? "";
 
     expect(result.intent.trigger).toBe("click");
     expect(result.intent.effects).toEqual(expect.arrayContaining(["bounce", "elastic"]));
@@ -305,8 +328,10 @@ window.motionSeek = function motionSeek() {};`
       brief: "我要生成一个紫色按钮，点击后按钮会旋转",
       now: 7
     });
-    const bounceCss = bounce.component.source.files.find((file) => file.path === "source/style.css")?.content ?? "";
-    const rotateCss = rotate.component.source.files.find((file) => file.path === "source/style.css")?.content ?? "";
+    const bounceCss =
+      bounce.component.source.files.find((file) => file.path === "source/style.css")?.content ?? "";
+    const rotateCss =
+      rotate.component.source.files.find((file) => file.path === "source/style.css")?.content ?? "";
 
     expect(bounce.validation.valid).toBe(true);
     expect(rotate.validation.valid).toBe(true);
@@ -346,7 +371,8 @@ window.motionSeek = function motionSeek() {};`
 
   it("generates a page-transition variant from the front-back entry reference", () => {
     const result = createReferenceGuidedComponent({
-      brief: "基于前后进场代码动效，做一个更快一点的版本，进入距离短一点，泛白弱一点，圆角小一点，不要生成按钮",
+      brief:
+        "基于前后进场代码动效，做一个更快一点的版本，进入距离短一点，泛白弱一点，圆角小一点，不要生成按钮",
       references: [referencePageTransition],
       now: 12
     });
@@ -499,8 +525,12 @@ window.motionSeek = function motionSeek() {};`
       trigger: "load"
     });
     expect(intentV2.confidence).toBeLessThanOrEqual(0.62);
-    expect(intentV2.layers.map((layer) => layer.role)).toEqual(expect.arrayContaining(["foreground", "screen"]));
-    expect(intentV2.motions).toEqual(expect.arrayContaining([expect.objectContaining({ type: "scale", target: "foreground" })]));
+    expect(intentV2.layers.map((layer) => layer.role)).toEqual(
+      expect.arrayContaining(["foreground", "screen"])
+    );
+    expect(intentV2.motions).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "scale", target: "foreground" })])
+    );
     expect(legacy.role).toBe("mobile-page");
     expect(legacy.effects).toEqual(expect.arrayContaining(["scale"]));
   });
@@ -580,9 +610,14 @@ window.motionSeek = function motionSeek() {};`
 
       expect(result.intent.role, item.brief).toBe(item.role);
       expect(layers.length, item.brief).toBeGreaterThan(0);
-      expect(layers.every((layer) => layer.replaceable), item.brief).toBe(true);
+      expect(
+        layers.every((layer) => layer.replaceable),
+        item.brief
+      ).toBe(true);
       expect(result.component.manifest.motionRecipes?.length, item.brief).toBeGreaterThan(0);
-      expect(result.component.manifest.motionRecipes?.[0]?.targetLayerIds.length, item.brief).toBeGreaterThan(0);
+      expect(result.component.manifest.motionRecipes?.[0]?.targetLayerIds.length, item.brief).toBeGreaterThan(
+        0
+      );
       expect(result.validation.valid, item.brief).toBe(true);
     }
   });
@@ -628,7 +663,13 @@ window.motionSeek = function motionSeek() {};`
     expect(css).toContain(".semantic-card:hover");
     expect(css).toContain("@keyframes generated-hover-glow");
     expect(result.component.manifest.params.map((param) => param.id)).toEqual(
-      expect.arrayContaining(["cardTitle", "cardDescription", "cardBackgroundColor", "cardRadius", "cardShadow"])
+      expect.arrayContaining([
+        "cardTitle",
+        "cardDescription",
+        "cardBackgroundColor",
+        "cardRadius",
+        "cardShadow"
+      ])
     );
   });
 

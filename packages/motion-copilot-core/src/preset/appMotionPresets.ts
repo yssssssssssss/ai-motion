@@ -116,7 +116,9 @@ function nextPresetState(
   const resolutions: MotionPresetResolution[] = [];
 
   if (preset.id === "skeleton-loading") {
-    const removed = current.filter((item) => samePresetTarget(item, context) && skeletonIncompatibleSlots.has(item.slot));
+    const removed = current.filter(
+      (item) => samePresetTarget(item, context) && skeletonIncompatibleSlots.has(item.slot)
+    );
     if (removed.length > 0) {
       resolutions.push({
         id: "skeleton-removes-motion",
@@ -126,9 +128,13 @@ function nextPresetState(
         reason: `骨架屏加载只允许原位透明度变化，系统已移除 ${presetLabels(removed)}，避免布局跳动。`
       });
     }
-    current = current.filter((item) => !samePresetTarget(item, context) || !skeletonIncompatibleSlots.has(item.slot));
+    current = current.filter(
+      (item) => !samePresetTarget(item, context) || !skeletonIncompatibleSlots.has(item.slot)
+    );
   } else if (skeletonIncompatibleSlots.has(preset.slot)) {
-    const skeleton = current.find((item) => samePresetTarget(item, context) && item.id === "skeleton-loading");
+    const skeleton = current.find(
+      (item) => samePresetTarget(item, context) && item.id === "skeleton-loading"
+    );
     if (skeleton) {
       resolutions.push({
         id: "motion-replaces-skeleton",
@@ -141,7 +147,9 @@ function nextPresetState(
     current = current.filter((item) => !samePresetTarget(item, context) || item.id !== "skeleton-loading");
   }
 
-  const replaced = current.find((item) => samePresetTarget(item, context) && item.slot === preset.slot && item.id !== preset.id);
+  const replaced = current.find(
+    (item) => samePresetTarget(item, context) && item.slot === preset.slot && item.id !== preset.id
+  );
   if (replaced) {
     resolutions.push({
       id: `replace-${preset.slot}`,
@@ -179,10 +187,27 @@ function staggerLayers(layers: MotionLayer[]): MotionLayer[] {
 }
 
 function layerMotionPresetFor(presetId: AppMotionPresetId): LayerMotionPreset {
-  if (presetId === "enter-screen" || presetId === "modal-feedback" || presetId === "list-stagger" || presetId === "bottom-sheet-up" || presetId === "empty-state-appear") return "lift";
-  if (presetId === "exit-final" || presetId === "skeleton-loading" || presetId === "bottom-sheet-down" || presetId === "overlay-fade-in" || presetId === "overlay-fade-out" || presetId === "loading-to-success") return "fade";
-  if (presetId === "container-transform" || presetId === "card-expand-detail" || presetId === "like-bounce") return "zoom";
-  if (presetId === "move-inside" || presetId === "exit-temporary" || presetId === "form-error-shake") return "slide-left";
+  if (
+    presetId === "enter-screen" ||
+    presetId === "modal-feedback" ||
+    presetId === "list-stagger" ||
+    presetId === "bottom-sheet-up" ||
+    presetId === "empty-state-appear"
+  )
+    return "lift";
+  if (
+    presetId === "exit-final" ||
+    presetId === "skeleton-loading" ||
+    presetId === "bottom-sheet-down" ||
+    presetId === "overlay-fade-in" ||
+    presetId === "overlay-fade-out" ||
+    presetId === "loading-to-success"
+  )
+    return "fade";
+  if (presetId === "container-transform" || presetId === "card-expand-detail" || presetId === "like-bounce")
+    return "zoom";
+  if (presetId === "move-inside" || presetId === "exit-temporary" || presetId === "form-error-shake")
+    return "slide-left";
   if (presetId === "search-expand") return "slide-right";
   if (presetId === "pull-refresh") return "lift";
   return "slide-right";
@@ -222,8 +247,15 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "我来了：初快后慢，让新内容被感知。",
     guideline: "使用减速曲线，适合 Toast、非焦点进场与轻量页面元素出现。",
     apply: (document) => ({
-      element: { initial: { y: 18, scale: 0.98, opacity: 0, blur: 0 }, animate: { y: 0, scale: 1, opacity: 1, blur: 0 } },
-      timeline: { direction: "enter", durationMs: durationFor(document, 240), easing: createClassicEasing("decelerate") }
+      element: {
+        initial: { y: 18, scale: 0.98, opacity: 0, blur: 0 },
+        animate: { y: 0, scale: 1, opacity: 1, blur: 0 }
+      },
+      timeline: {
+        direction: "enter",
+        durationMs: durationFor(document, 240),
+        easing: createClassicEasing("decelerate")
+      }
     })
   },
   {
@@ -234,7 +266,10 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "彻底结束：快速释放空间，不拖泥带水。",
     guideline: "使用加速曲线，适合关闭、删除、最终退出。",
     apply: () => ({
-      element: { initial: { y: 0, scale: 1, opacity: 1, blur: 0 }, animate: { y: 8, scale: 0.98, opacity: 0, blur: 0 } },
+      element: {
+        initial: { y: 0, scale: 1, opacity: 1, blur: 0 },
+        animate: { y: 8, scale: 0.98, opacity: 0, blur: 0 }
+      },
       timeline: { direction: "exit-final", durationMs: 90, easing: createClassicEasing("accelerate") }
     })
   },
@@ -246,7 +281,10 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "精准停靠：慢-快-慢，稳定移动到目标位置。",
     guideline: "使用标准曲线，适合指示器、选中态和点对点位移。",
     apply: () => ({
-      element: { initial: { x: -18, y: 0, scale: 1, opacity: 1 }, animate: { x: 0, y: 0, scale: 1, opacity: 1 } },
+      element: {
+        initial: { x: -18, y: 0, scale: 1, opacity: 1 },
+        animate: { x: 0, y: 0, scale: 1, opacity: 1 }
+      },
       timeline: { direction: "move-inside", durationMs: 180, easing: createClassicEasing("standard") }
     })
   },
@@ -258,7 +296,10 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "退居幕后：快速退场，为新页面让位。",
     guideline: "使用夏普曲线，适合父级页面向幕后滑出。",
     apply: () => ({
-      element: { initial: { x: 0, y: 0, scale: 1, opacity: 1 }, animate: { x: -36, y: 0, scale: 1, opacity: 0.96 } },
+      element: {
+        initial: { x: 0, y: 0, scale: 1, opacity: 1 },
+        animate: { x: -36, y: 0, scale: 1, opacity: 0.96 }
+      },
       timeline: { direction: "exit-temporary", durationMs: 120, easing: createClassicEasing("sharp") }
     })
   },
@@ -270,8 +311,17 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "卡片到详情：通过形变建立视觉连续性。",
     guideline: "使用低阻尼物理弹簧，但避免过强回弹造成大面积视觉噪点。",
     apply: () => ({
-      element: { size: "large", initial: { y: 24, scale: 0.92, opacity: 0 }, animate: { y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "click", direction: "enter", durationMs: 340, easing: createSpringEasing({ stiffness: 210, damping: 18 }) }
+      element: {
+        size: "large",
+        initial: { y: 24, scale: 0.92, opacity: 0 },
+        animate: { y: 0, scale: 1, opacity: 1 }
+      },
+      timeline: {
+        trigger: "click",
+        direction: "enter",
+        durationMs: 340,
+        easing: createSpringEasing({ stiffness: 210, damping: 18 })
+      }
     })
   },
   {
@@ -282,8 +332,16 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "进入二级页面：强化空间深入方向。",
     guideline: "使用减速曲线，不使用回弹，保证移动端页面导航稳定。",
     apply: () => ({
-      element: { initial: { x: 36, y: 0, scale: 1, opacity: 0.98 }, animate: { x: 0, y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "click", direction: "enter", durationMs: 280, easing: createClassicEasing("decelerate") }
+      element: {
+        initial: { x: 36, y: 0, scale: 1, opacity: 0.98 },
+        animate: { x: 0, y: 0, scale: 1, opacity: 1 }
+      },
+      timeline: {
+        trigger: "click",
+        direction: "enter",
+        durationMs: 280,
+        easing: createClassicEasing("decelerate")
+      }
     })
   },
   {
@@ -294,8 +352,16 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "同层切换：快速、干脆、保持结构稳定。",
     guideline: "使用标准曲线，适合顶部类目、底部 Tab 和指示器切换。",
     apply: () => ({
-      element: { initial: { x: 20, y: 0, scale: 1, opacity: 1 }, animate: { x: 0, y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "click", direction: "move-inside", durationMs: 180, easing: createClassicEasing("standard") }
+      element: {
+        initial: { x: 20, y: 0, scale: 1, opacity: 1 },
+        animate: { x: 0, y: 0, scale: 1, opacity: 1 }
+      },
+      timeline: {
+        trigger: "click",
+        direction: "move-inside",
+        durationMs: 180,
+        easing: createClassicEasing("standard")
+      }
     })
   },
   {
@@ -306,8 +372,18 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "进场吸睛，离场快速撤离。",
     guideline: "进场可用减速或轻弹簧，离场必须切换为加速短时长策略。",
     apply: () => ({
-      element: { role: "modal", size: "medium", initial: { y: 24, scale: 0.96, opacity: 0 }, animate: { y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "load", direction: "enter", durationMs: 260, easing: createSpringEasing({ stiffness: 220, damping: 20 }) }
+      element: {
+        role: "modal",
+        size: "medium",
+        initial: { y: 24, scale: 0.96, opacity: 0 },
+        animate: { y: 0, scale: 1, opacity: 1 }
+      },
+      timeline: {
+        trigger: "load",
+        direction: "enter",
+        durationMs: 260,
+        easing: createSpringEasing({ stiffness: 220, damping: 20 })
+      }
     })
   },
   {
@@ -318,8 +394,16 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "原位渐隐渐现，保持阅读视点稳定。",
     guideline: "只允许透明度变化，不位移、不回弹，避免布局跳动。",
     apply: () => ({
-      element: { initial: { x: 0, y: 0, scale: 1, opacity: 0, blur: 0 }, animate: { x: 0, y: 0, scale: 1, opacity: 1, blur: 0 } },
-      timeline: { trigger: "load", direction: "enter", durationMs: 220, easing: createClassicEasing("standard") }
+      element: {
+        initial: { x: 0, y: 0, scale: 1, opacity: 0, blur: 0 },
+        animate: { x: 0, y: 0, scale: 1, opacity: 1, blur: 0 }
+      },
+      timeline: {
+        trigger: "load",
+        direction: "enter",
+        durationMs: 220,
+        easing: createClassicEasing("standard")
+      }
     })
   },
   {
@@ -339,8 +423,18 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "从底部滑出，减速到位，不回弹。",
     guideline: "使用减速曲线，位移距离与面板高度匹配，不使用弹簧避免内容抖动。",
     apply: () => ({
-      element: { role: "modal", size: "large", initial: { y: 120, scale: 1, opacity: 0.9 }, animate: { y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "click", direction: "enter", durationMs: 320, easing: createClassicEasing("decelerate") }
+      element: {
+        role: "modal",
+        size: "large",
+        initial: { y: 120, scale: 1, opacity: 0.9 },
+        animate: { y: 0, scale: 1, opacity: 1 }
+      },
+      timeline: {
+        trigger: "click",
+        direction: "enter",
+        durationMs: 320,
+        easing: createClassicEasing("decelerate")
+      }
     })
   },
   {
@@ -352,7 +446,12 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     guideline: "使用加速曲线，时长短于升起（规范要求退出 0-100ms 临时性），让用户感觉面板被甩下去。",
     apply: () => ({
       element: { initial: { y: 0, scale: 1, opacity: 1 }, animate: { y: 120, scale: 1, opacity: 0.9 } },
-      timeline: { trigger: "click", direction: "exit-final", durationMs: 150, easing: createClassicEasing("accelerate") }
+      timeline: {
+        trigger: "click",
+        direction: "exit-final",
+        durationMs: 150,
+        easing: createClassicEasing("accelerate")
+      }
     })
   },
   {
@@ -364,7 +463,12 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     guideline: "使用轻弹簧，阻尼偏高避免过度回弹，时长短于 300ms。",
     apply: () => ({
       element: { initial: { y: 40, scale: 1, opacity: 1 }, animate: { y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "load", direction: "enter", durationMs: 260, easing: createSpringEasing({ stiffness: 300, damping: 22 }) }
+      timeline: {
+        trigger: "load",
+        direction: "enter",
+        durationMs: 260,
+        easing: createSpringEasing({ stiffness: 300, damping: 22 })
+      }
     })
   },
   {
@@ -376,7 +480,12 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     guideline: "使用标准曲线，只做宽度和透明度变化，不位移主内容。",
     apply: () => ({
       element: { initial: { x: 12, scale: 0.96, opacity: 0 }, animate: { x: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "click", direction: "enter", durationMs: 220, easing: createClassicEasing("standard") }
+      timeline: {
+        trigger: "click",
+        direction: "enter",
+        durationMs: 220,
+        easing: createClassicEasing("standard")
+      }
     })
   },
   {
@@ -387,8 +496,17 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "卡片放大为详情页，形变建立视觉连续性。",
     guideline: "使用低阻尼弹簧，缩放从 0.88 到 1，配合透明度。避免过强回弹。",
     apply: () => ({
-      element: { size: "large", initial: { y: 20, scale: 0.88, opacity: 0 }, animate: { y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "click", direction: "enter", durationMs: 360, easing: createSpringEasing({ stiffness: 200, damping: 20 }) }
+      element: {
+        size: "large",
+        initial: { y: 20, scale: 0.88, opacity: 0 },
+        animate: { y: 0, scale: 1, opacity: 1 }
+      },
+      timeline: {
+        trigger: "click",
+        direction: "enter",
+        durationMs: 360,
+        easing: createSpringEasing({ stiffness: 200, damping: 20 })
+      }
     })
   },
   {
@@ -400,7 +518,12 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     guideline: "使用高刚度弹簧，时长极短（≤160ms），仅做缩放不位移。",
     apply: () => ({
       element: { role: "button", size: "small", initial: { scale: 1 }, animate: { scale: 0.85 } },
-      timeline: { trigger: "click", direction: "move-inside", durationMs: 140, easing: createSpringEasing({ stiffness: 400, damping: 14 }) }
+      timeline: {
+        trigger: "click",
+        direction: "move-inside",
+        durationMs: 140,
+        easing: createSpringEasing({ stiffness: 400, damping: 14 })
+      }
     })
   },
   {
@@ -411,8 +534,16 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     summary: "水平抖动，明确提示输入错误。",
     guideline: "使用利落曲线，仅做 X 轴位移 ±6px，时长短不超过 180ms。",
     apply: () => ({
-      element: { initial: { x: -6, y: 0, scale: 1, opacity: 1 }, animate: { x: 0, y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "load", direction: "move-inside", durationMs: 160, easing: createClassicEasing("sharp") }
+      element: {
+        initial: { x: -6, y: 0, scale: 1, opacity: 1 },
+        animate: { x: 0, y: 0, scale: 1, opacity: 1 }
+      },
+      timeline: {
+        trigger: "load",
+        direction: "move-inside",
+        durationMs: 160,
+        easing: createClassicEasing("sharp")
+      }
     })
   },
   {
@@ -424,7 +555,12 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     guideline: "使用减速曲线，从缩小状态放大到 1，配合透明度。不用弹簧避免喧宾夺主。",
     apply: () => ({
       element: { initial: { scale: 0.9, opacity: 0, blur: 1 }, animate: { scale: 1, opacity: 1, blur: 0 } },
-      timeline: { trigger: "load", direction: "enter", durationMs: 240, easing: createClassicEasing("decelerate") }
+      timeline: {
+        trigger: "load",
+        direction: "enter",
+        durationMs: 240,
+        easing: createClassicEasing("decelerate")
+      }
     })
   },
   {
@@ -436,7 +572,12 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     guideline: "使用标准曲线，纯透明度变化 + 微小上浮（8px），时长略长于普通进场。",
     apply: () => ({
       element: { initial: { y: 8, scale: 1, opacity: 0 }, animate: { y: 0, scale: 1, opacity: 1 } },
-      timeline: { trigger: "load", direction: "enter", durationMs: 300, easing: createClassicEasing("standard") }
+      timeline: {
+        trigger: "load",
+        direction: "enter",
+        durationMs: 300,
+        easing: createClassicEasing("standard")
+      }
     })
   },
   {
@@ -448,7 +589,12 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     guideline: "纯透明度变化，时长 180-240ms，不使用弹簧。",
     apply: () => ({
       element: { initial: { opacity: 0 }, animate: { opacity: 1 } },
-      timeline: { trigger: "load", direction: "enter", durationMs: 200, easing: createClassicEasing("standard") }
+      timeline: {
+        trigger: "load",
+        direction: "enter",
+        durationMs: 200,
+        easing: createClassicEasing("standard")
+      }
     })
   },
   {
@@ -460,7 +606,12 @@ export const appMotionPresets: AppMotionPresetDefinition[] = [
     guideline: "纯透明度变化，使用加速曲线，时长短于浮现。",
     apply: () => ({
       element: { initial: { opacity: 1 }, animate: { opacity: 0 } },
-      timeline: { trigger: "load", direction: "exit-final", durationMs: 150, easing: createClassicEasing("accelerate") }
+      timeline: {
+        trigger: "load",
+        direction: "exit-final",
+        durationMs: 150,
+        easing: createClassicEasing("accelerate")
+      }
     })
   }
 ];
@@ -481,7 +632,9 @@ export function applyAppMotionPreset(
   if (options.target === "selected-layer") {
     const layer = selectedLayer(document);
     if (!layer?.editable || layer.locked || layer.hidden) {
-      return applyDocumentPatch(document, { presetResolutions: [selectedLayerUnavailableResolution(preset)] });
+      return applyDocumentPatch(document, {
+        presetResolutions: [selectedLayerUnavailableResolution(preset)]
+      });
     }
 
     return applyDocumentPatch(document, {

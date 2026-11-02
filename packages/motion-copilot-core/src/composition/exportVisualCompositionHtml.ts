@@ -39,7 +39,11 @@ function stepEasing(step: CompositionStep): string {
   return easingCss(step.easing ?? createClassicEasing("decelerate"));
 }
 
-function numberValue(source: Record<string, number | undefined> | undefined, key: string, fallback: number): number {
+function numberValue(
+  source: Record<string, number | undefined> | undefined,
+  key: string,
+  fallback: number
+): number {
   const value = source?.[key];
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -180,11 +184,11 @@ export function exportVisualCompositionHtml(document: MotionDocument, track: Com
     .mc-zero-stage[data-verify-progress] [data-node-id]{animation-play-state:paused!important;}
     .mc-zero-layer{position:absolute;left:0;top:0;width:${width}px;height:${height}px;transform-origin:left top;}
     .mc-zero-layer iframe{border:0;}
-    ${source.from.css}
-    ${source.to.css}
+    ${source.from.css.replaceAll("</", "\\3c /")}
+    ${source.to.css.replaceAll("</", "\\3c /")}
     ${ZERO_VISUAL_STAGE_ALIGNMENT_CSS}
-    ${overrideCss}
-    ${motionCss}
+    ${overrideCss.replaceAll("</", "\\3c /")}
+    ${motionCss.replaceAll("</", "\\3c /")}
     .mc-zero-replay{position:fixed;right:16px;bottom:16px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:22px;cursor:pointer;display:grid;place-items:center;z-index:9999;transition:opacity 0.2s;}
     .mc-zero-replay:hover{background:rgba(0,0,0,0.8);}
     @media (prefers-reduced-motion: reduce){[data-node-id]{animation:none!important;}.mc-zero-replay{display:none;}}

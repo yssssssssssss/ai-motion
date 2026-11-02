@@ -250,4 +250,3 @@ export type PlusPatch = Record<PlusControlKind, PlusControlValue>;
   - `compilePlusPatch` 只写入 mapped 参数。
   - duration 结果被 constraints clamp。
   - Pro 面板仍按当前 manifest 参数渲染。
-

@@ -18,6 +18,8 @@ import {
   inlineZeroVisualAssets,
   matchFrameElements,
   normalizeFrameSnapshot,
+  type CompositionTrack,
+  type VisualCompositionReportCache,
   type EasingSpec,
   type FrameElement,
   type FrameElementMatch,
@@ -50,6 +52,9 @@ type PairSelection = { fromKey?: string; toKey?: string };
 type FrameMorphPanelProps = {
   onApplyComposition: (result: FrameMorphCompositionResult) => void;
   onApplyVisualComposition: (result: VisualMotionCompositionResult) => void;
+  onUpdateVisualComposition: (result: VisualMotionCompositionResult) => void;
+  onUpdateRestorationReport: (cache: VisualCompositionReportCache) => void;
+  compositionTrack: CompositionTrack;
   savedVisualSource?: VisualCompositionSource;
   onConvertToLayer?: (layer: {
     name: string;
@@ -64,7 +69,10 @@ type FrameMorphPanelProps = {
 type VisualReadInfo = {
   source: ZeroVisualSnapshotSource;
   bridge?: string;
-  from: Pick<ZeroVisualSnapshot, "nodeId" | "name" | "width" | "height" | "nodes" | "assets" | "screenshotUrl">;
+  from: Pick<
+    ZeroVisualSnapshot,
+    "nodeId" | "name" | "width" | "height" | "nodes" | "assets" | "screenshotUrl"
+  >;
   to: Pick<ZeroVisualSnapshot, "nodeId" | "name" | "width" | "height" | "nodes" | "assets" | "screenshotUrl">;
 };
 
@@ -344,14 +352,22 @@ function ObjectRow({
 
   return (
     <>
-      <div className={`object-row${isSelected ? " is-selected" : ""}`} style={{ paddingLeft: 6 + depth * 12 }}>
+      <div
+        className={`object-row${isSelected ? " is-selected" : ""}`}
+        style={{ paddingLeft: 6 + depth * 12 }}
+      >
         <button type="button" className="object-row-main" onClick={() => onSelect(primaryNode)}>
           <span className={`object-kind-badge is-${object.kind}`}>{kindLabel}</span>
           <span className="object-name">{object.name}</span>
           {status !== "none" ? <span className={`object-status is-${status}`}>{status}</span> : null}
         </button>
         {canConvert && onConvert ? (
-          <button type="button" className="object-convert-btn" title="转为可编辑图层" onClick={() => onConvert(object)}>
+          <button
+            type="button"
+            className="object-convert-btn"
+            title="转为可编辑图层"
+            onClick={() => onConvert(object)}
+          >
             编
           </button>
         ) : null}
@@ -392,8 +408,10 @@ function applyOverridesToBinding(
     if (action === "matched" && toNodeId) {
       const fromNode = fromSnap?.nodes.find((n) => n.nodeId === fromNodeId);
       const toNode = toSnap?.nodes.find((n) => n.nodeId === toNodeId);
-      const fromBounds = fromNode?.bounds ?? base.bindings.find((b) => b.nodeId === fromNodeId)?.fromBounds ?? { x: 0, y: 0, w: 0, h: 0 };
-      const toBounds = toNode?.bounds ?? base.bindings.find((b) => b.toNodeId === toNodeId)?.toBounds ?? { x: 0, y: 0, w: 0, h: 0 };
+      const fromBounds = fromNode?.bounds ??
+        base.bindings.find((b) => b.nodeId === fromNodeId)?.fromBounds ?? { x: 0, y: 0, w: 0, h: 0 };
+      const toBounds = toNode?.bounds ??
+        base.bindings.find((b) => b.toNodeId === toNodeId)?.toBounds ?? { x: 0, y: 0, w: 0, h: 0 };
       bindings.push({
         layerId: `manual-${fromNodeId}`,
         nodeId: fromNodeId,
@@ -413,7 +431,9 @@ function applyOverridesToBinding(
         enter.push(node);
       }
     } else if (action === "exit") {
-      const node = fromSnap?.nodes.find((n) => n.nodeId === fromNodeId) ?? toSnap?.nodes.find((n) => n.nodeId === fromNodeId);
+      const node =
+        fromSnap?.nodes.find((n) => n.nodeId === fromNodeId) ??
+        toSnap?.nodes.find((n) => n.nodeId === fromNodeId);
       if (node) {
         exit.push(node);
       }
@@ -428,7 +448,10 @@ function nodeForOverride(
   fromSnap: ZeroVisualSnapshot | undefined,
   toSnap: ZeroVisualSnapshot | undefined
 ) {
-  return fromSnap?.nodes.find((node) => node.nodeId === nodeId) ?? toSnap?.nodes.find((node) => node.nodeId === nodeId);
+  return (
+    fromSnap?.nodes.find((node) => node.nodeId === nodeId) ??
+    toSnap?.nodes.find((node) => node.nodeId === nodeId)
+  );
 }
 
 function overrideForNode(
@@ -468,6 +491,9 @@ function overrideNumberValue(value: string, fallback: number): number {
 export function FrameMorphPanel({
   onApplyComposition,
   onApplyVisualComposition,
+  onUpdateVisualComposition,
+  onUpdateRestorationReport,
+  compositionTrack,
   savedVisualSource,
   onConvertToLayer,
   mode = "all"
@@ -519,7 +545,8 @@ export function FrameMorphPanel({
 
   const hasRestoredRef = useRef(false);
   useEffect(() => {
-    if (hasRestoredRef.current || !savedVisualSource || savedVisualSource.kind !== "zero-visual-morph") return;
+    if (hasRestoredRef.current || !savedVisualSource || savedVisualSource.kind !== "zero-visual-morph")
+      return;
     hasRestoredRef.current = true;
     const fromSnap = savedVisualSource.from as ZeroVisualSnapshot;
     const toSnap = savedVisualSource.to as ZeroVisualSnapshot;
@@ -528,13 +555,21 @@ export function FrameMorphPanel({
     setVisualPreviewMode("from");
     const freshBindings = compileVisualMotionBindings(fromSnap, toSnap);
     const overrides = savedVisualSource.userBindingOverrides ?? [];
-    const merged = overrides.length > 0 ? applyOverridesToBinding(freshBindings, overrides, fromSnap, toSnap) : freshBindings;
+    const merged =
+      overrides.length > 0
+        ? applyOverridesToBinding(freshBindings, overrides, fromSnap, toSnap)
+        : freshBindings;
     setVisualBindingResult(merged);
     setUserOverrides(overrides);
     setNodeOverrides(savedVisualSource.nodeOverrides ?? []);
     if (savedVisualSource.restorationReportCache) {
       const cache = savedVisualSource.restorationReportCache;
-      const currentReport = createRestorationReport({ from: fromSnap, to: toSnap, bindings: merged, ...(overrides.length > 0 ? { userOverrides: overrides } : {}) });
+      const currentReport = createRestorationReport({
+        from: fromSnap,
+        to: toSnap,
+        bindings: merged,
+        ...(overrides.length > 0 ? { userOverrides: overrides } : {})
+      });
       if (cache.inputHash === currentReport.inputHash && cache.bindingHash === currentReport.bindingHash) {
         setRestorationReport(cache.report);
         setReportStale(false);
@@ -588,7 +623,12 @@ export function FrameMorphPanel({
   const visualExportHtml = useMemo(() => {
     if (!fromVisualFrame || !toVisualFrame || !visualBindingResult) return undefined;
     const intent = compileVisualMotionIntent(motionPrompt);
-    const result = compileVisualMotionComposition({ from: fromVisualFrame, to: toVisualFrame, bindingResult: visualBindingResult, intent });
+    const result = compileVisualMotionComposition({
+      from: fromVisualFrame,
+      to: toVisualFrame,
+      bindingResult: visualBindingResult,
+      intent
+    });
     if (result.document.visualSource?.kind === "zero-visual-morph") {
       if (nodeOverrides.length > 0) result.document.visualSource.nodeOverrides = nodeOverrides;
       if (restorationReport) {
@@ -600,8 +640,16 @@ export function FrameMorphPanel({
         };
       }
     }
-    return exportVisualCompositionHtml(result.document, result.document.composition!);
-  }, [fromVisualFrame, toVisualFrame, visualBindingResult, motionPrompt, nodeOverrides, restorationReport]);
+    return exportVisualCompositionHtml(result.document, compositionTrack);
+  }, [
+    fromVisualFrame,
+    toVisualFrame,
+    visualBindingResult,
+    motionPrompt,
+    nodeOverrides,
+    restorationReport,
+    compositionTrack
+  ]);
 
   useEffect(() => {
     if (!isPlaying) return undefined;
@@ -702,7 +750,13 @@ export function FrameMorphPanel({
       setPreviewMode("morph");
       setProgress(0);
       setIsPlaying(false);
-      onApplyComposition(composition);
+      onApplyComposition({
+        ...composition,
+        intent: {
+          ...composition.intent,
+          summary: `${from.name} → ${to.name} · ${composition.intent.summary}`
+        }
+      });
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Zero 首尾帧读取失败。");
     } finally {
@@ -735,7 +789,7 @@ export function FrameMorphPanel({
       visualComposition.document.visualSource.userBindingOverrides = next;
       if (nodeOverrides.length > 0) visualComposition.document.visualSource.nodeOverrides = nodeOverrides;
     }
-    onApplyVisualComposition(visualComposition);
+    onUpdateVisualComposition(visualComposition);
   }
 
   function refreshRestorationReport() {
@@ -748,28 +802,12 @@ export function FrameMorphPanel({
     });
     setRestorationReport(fresh);
     setReportStale(false);
-    const intent = compileVisualMotionIntent(motionPrompt);
-    const visualComposition = compileVisualMotionComposition({
-      from: fromVisualFrame,
-      to: toVisualFrame,
-      bindingResult: visualBindingResult,
-      intent
+    onUpdateRestorationReport({
+      report: fresh,
+      inputHash: fresh.inputHash,
+      bindingHash: fresh.bindingHash,
+      generatedAt: fresh.generatedAt
     });
-    if (visualComposition.document.visualSource?.kind === "zero-visual-morph") {
-      visualComposition.document.visualSource.restorationReportCache = {
-        report: fresh,
-        inputHash: fresh.inputHash,
-        bindingHash: fresh.bindingHash,
-        generatedAt: fresh.generatedAt
-      };
-      if (userOverrides.length > 0) {
-        visualComposition.document.visualSource.userBindingOverrides = userOverrides;
-      }
-      if (nodeOverrides.length > 0) {
-        visualComposition.document.visualSource.nodeOverrides = nodeOverrides;
-      }
-    }
-    onApplyVisualComposition(visualComposition);
   }
 
   function updateSelectedNodeOverride(patch: Partial<ZeroVisualNodeOverride>): void {
@@ -793,7 +831,7 @@ export function FrameMorphPanel({
       }
       visualComposition.document.visualSource.nodeOverrides = nextOverrides;
     }
-    onApplyVisualComposition(visualComposition);
+    onUpdateVisualComposition(visualComposition);
   }
 
   async function readZeroVisualFrames() {
@@ -930,913 +968,932 @@ export function FrameMorphPanel({
   return (
     <section className="frame-morph-panel">
       {showLegacy ? (
-      <div className="panel-section">
-        <p className="eyebrow">帧间过渡</p>
-        <label className="field">
-          <span>动效描述</span>
-          <textarea
-            aria-label="帧间动效描述"
-            value={motionPrompt}
-            onChange={(event) => setMotionPrompt(event.target.value)}
-          />
-        </label>
-        <div className="field-row">
+        <div className="panel-section">
+          <p className="eyebrow">帧间过渡</p>
           <label className="field">
-            <span>起始 Zero nodeId</span>
-            <input
-              aria-label="起始 Zero nodeId"
-              value={fromNodeId}
-              onChange={(event) => setFromNodeId(event.target.value)}
-              placeholder="例如 28:19"
+            <span>动效描述</span>
+            <textarea
+              aria-label="帧间动效描述"
+              value={motionPrompt}
+              onChange={(event) => setMotionPrompt(event.target.value)}
             />
           </label>
-          <label className="field">
-            <span>结束 Zero nodeId</span>
-            <input
-              aria-label="结束 Zero nodeId"
-              value={toNodeId}
-              onChange={(event) => setToNodeId(event.target.value)}
-              placeholder="例如 28:2"
-            />
-          </label>
+          <div className="field-row">
+            <label className="field">
+              <span>起始 Zero nodeId</span>
+              <input
+                aria-label="起始 Zero nodeId"
+                value={fromNodeId}
+                onChange={(event) => setFromNodeId(event.target.value)}
+                placeholder="例如 28:19"
+              />
+            </label>
+            <label className="field">
+              <span>结束 Zero nodeId</span>
+              <input
+                aria-label="结束 Zero nodeId"
+                value={toNodeId}
+                onChange={(event) => setToNodeId(event.target.value)}
+                placeholder="例如 28:2"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            className="primary-action"
+            disabled={isReadingZero}
+            onClick={() => void readZeroFramesAndApply()}
+          >
+            {isReadingZero ? "读取 legacy Zero 中…" : "从 Zero 读取 legacy 低保真时间线"}
+          </button>
+          <p className="empty-state">
+            该入口只用于调试 FrameSnapshot 旧链路，会把 Zero 节点重绘成 MotionLayer，不作为高保真交付路径。
+          </p>
+          {error ? <p className="frame-morph-error">{error}</p> : null}
         </div>
-        <button
-          type="button"
-          className="primary-action"
-          disabled={isReadingZero}
-          onClick={() => void readZeroFramesAndApply()}
-        >
-          {isReadingZero ? "读取 legacy Zero 中…" : "从 Zero 读取 legacy 低保真时间线"}
-        </button>
-        <p className="empty-state">
-          该入口只用于调试 FrameSnapshot 旧链路，会把 Zero 节点重绘成 MotionLayer，不作为高保真交付路径。
-        </p>
-        {error ? <p className="frame-morph-error">{error}</p> : null}
-      </div>
       ) : null}
 
       {showVisual ? (
-      <div className="panel-section">
-        <p className="eyebrow">高保真预览</p>
-        <div className="field-row">
-          <label className="field">
-            <span>起始 Zero nodeId</span>
-            <input
-              aria-label="起始 Zero nodeId"
-              value={fromNodeId}
-              onChange={(event) => setFromNodeId(event.target.value)}
-              placeholder="例如 28:19"
-            />
-          </label>
-          <label className="field">
-            <span>结束 Zero nodeId</span>
-            <input
-              aria-label="结束 Zero nodeId"
-              value={toNodeId}
-              onChange={(event) => setToNodeId(event.target.value)}
-              placeholder="例如 28:2"
-            />
-          </label>
-        </div>
-        <button
-          type="button"
-          className="primary-action"
-          disabled={isReadingVisualZero}
-          onClick={() => void readZeroVisualFrames()}
-        >
-          {isReadingVisualZero ? "读取 Zero 高保真帧中…" : "从 Zero 读取并生成高保真时间线"}
-        </button>
-        <p className="empty-state">
-          该预览读取 ZeroVisualSnapshot，使用隔离 iframe 渲染
-          HTML/CSS/assets；截图只作为验收参考，不作为画布背景。
-        </p>
-        {visualError ? <p className="frame-morph-error">{visualError}</p> : null}
-        {visualReadMeta ? (
-          <div className="zero-visual-source-panel" aria-label="Zero 高保真读取状态">
-            <p>
-              来源：<strong>{visualReadMeta.source}</strong>
-            </p>
-            <p>首帧：{visualFrameSummary(visualReadMeta.from)}</p>
-            <p>尾帧：{visualFrameSummary(visualReadMeta.to)}</p>
-            <p>首帧截图：{visualScreenshotStatus(visualReadMeta.from.screenshotUrl)}</p>
-            <p>尾帧截图：{visualScreenshotStatus(visualReadMeta.to.screenshotUrl)}</p>
-            {visualReadMeta.bridge ? <p>bridge：{visualReadMeta.bridge}</p> : null}
+        <div className="panel-section">
+          <p className="eyebrow">高保真预览</p>
+          <div className="field-row">
+            <label className="field">
+              <span>起始 Zero nodeId</span>
+              <input
+                aria-label="起始 Zero nodeId"
+                value={fromNodeId}
+                onChange={(event) => setFromNodeId(event.target.value)}
+                placeholder="例如 28:19"
+              />
+            </label>
+            <label className="field">
+              <span>结束 Zero nodeId</span>
+              <input
+                aria-label="结束 Zero nodeId"
+                value={toNodeId}
+                onChange={(event) => setToNodeId(event.target.value)}
+                placeholder="例如 28:2"
+              />
+            </label>
           </div>
-        ) : null}
-        {fromVisualFrame && toVisualFrame ? (
-          <>
-            <div className="frame-morph-preview-toolbar">
-              {(["from", "to", "overlay", "motion"] as const).map((mode) => (
+          <button
+            type="button"
+            className="primary-action"
+            disabled={isReadingVisualZero}
+            onClick={() => void readZeroVisualFrames()}
+          >
+            {isReadingVisualZero ? "读取 Zero 高保真帧中…" : "从 Zero 读取并生成高保真时间线"}
+          </button>
+          <p className="empty-state">
+            该预览读取 ZeroVisualSnapshot，使用隔离 iframe 渲染
+            HTML/CSS/assets；截图只作为验收参考，不作为画布背景。
+          </p>
+          {visualError ? <p className="frame-morph-error">{visualError}</p> : null}
+          {visualReadMeta ? (
+            <div className="zero-visual-source-panel" aria-label="Zero 高保真读取状态">
+              <p>
+                来源：
+                <strong>{visualReadMeta.source === "fixture" ? "示例数据" : visualReadMeta.source}</strong>
+              </p>
+              <p>首帧：{visualFrameSummary(visualReadMeta.from)}</p>
+              <p>尾帧：{visualFrameSummary(visualReadMeta.to)}</p>
+              <p>首帧截图：{visualScreenshotStatus(visualReadMeta.from.screenshotUrl)}</p>
+              <p>尾帧截图：{visualScreenshotStatus(visualReadMeta.to.screenshotUrl)}</p>
+              {visualReadMeta.bridge ? <p>bridge：{visualReadMeta.bridge}</p> : null}
+            </div>
+          ) : null}
+          {fromVisualFrame && toVisualFrame ? (
+            <>
+              <div className="frame-morph-preview-toolbar">
+                {(["from", "to", "overlay", "motion"] as const).map((mode) => (
+                  <button
+                    type="button"
+                    className={visualPreviewMode === mode ? "is-active" : ""}
+                    onClick={() => setVisualPreviewMode(mode)}
+                    key={mode}
+                  >
+                    {mode === "from" ? "首帧" : mode === "to" ? "尾帧" : mode === "overlay" ? "叠加" : "播放"}
+                  </button>
+                ))}
+              </div>
+              <div
+                className={`zero-visual-stage-wrap is-${visualPreviewMode}`}
+                style={{ width: visualFrameWidth, height: visualFrameHeight }}
+              >
+                {visualPreviewMode === "from" ? (
+                  <VisualStage
+                    snapshot={fromVisualFrame}
+                    highlightedNodeId={visualNodeId}
+                    overrideCss={fromVisualOverrideCss}
+                    stageWidth={visualFrameWidth}
+                    stageHeight={visualFrameHeight}
+                    onNodeSelect={setVisualNodeId}
+                  />
+                ) : null}
+                {visualPreviewMode === "to" ? (
+                  <VisualStage
+                    snapshot={toVisualFrame}
+                    highlightedNodeId={visualNodeId}
+                    overrideCss={toVisualOverrideCss}
+                    stageWidth={visualFrameWidth}
+                    stageHeight={visualFrameHeight}
+                    onNodeSelect={setVisualNodeId}
+                  />
+                ) : null}
+                {visualPreviewMode === "overlay" ? (
+                  <>
+                    <div className="zero-visual-overlay-layer is-from">
+                      <VisualStage
+                        snapshot={fromVisualFrame}
+                        highlightedNodeId={visualNodeId}
+                        overrideCss={fromVisualOverrideCss}
+                        stageWidth={visualFrameWidth}
+                        stageHeight={visualFrameHeight}
+                        onNodeSelect={setVisualNodeId}
+                      />
+                    </div>
+                    <div className="zero-visual-overlay-layer is-to">
+                      <VisualStage
+                        snapshot={toVisualFrame}
+                        highlightedNodeId={visualNodeId}
+                        overrideCss={toVisualOverrideCss}
+                        stageWidth={visualFrameWidth}
+                        stageHeight={visualFrameHeight}
+                        onNodeSelect={setVisualNodeId}
+                      />
+                    </div>
+                  </>
+                ) : null}
+                {visualPreviewMode === "motion" && visualBindingResult ? (
+                  <>
+                    <div className="zero-visual-overlay-layer is-from">
+                      <VisualStage
+                        snapshot={fromVisualFrame}
+                        highlightedNodeId={visualNodeId}
+                        overrideCss={fromVisualOverrideCss}
+                        stageWidth={visualFrameWidth}
+                        stageHeight={visualFrameHeight}
+                        motionCss={createVisualTimelineCss(visualBindingResult, visualProgress, "from")}
+                        onNodeSelect={setVisualNodeId}
+                      />
+                    </div>
+                    <div className="zero-visual-overlay-layer is-to">
+                      <VisualStage
+                        snapshot={toVisualFrame}
+                        highlightedNodeId={visualNodeId}
+                        overrideCss={toVisualOverrideCss}
+                        stageWidth={visualFrameWidth}
+                        stageHeight={visualFrameHeight}
+                        motionCss={createVisualTimelineCss(visualBindingResult, visualProgress, "to")}
+                        onNodeSelect={setVisualNodeId}
+                      />
+                    </div>
+                  </>
+                ) : null}
+              </div>
+              <input
+                aria-label="高保真预览播放进度"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={visualProgress}
+                onChange={(event) => {
+                  setVisualPreviewMode("motion");
+                  setVisualProgress(Number(event.target.value));
+                }}
+              />
+              <div className="asset-actions">
                 <button
                   type="button"
-                  className={visualPreviewMode === mode ? "is-active" : ""}
-                  onClick={() => setVisualPreviewMode(mode)}
-                  key={mode}
+                  className="small-action"
+                  disabled={!visualBindingResult}
+                  onClick={() => {
+                    setVisualPreviewMode("motion");
+                    setIsVisualPlaying((current) => !current);
+                  }}
                 >
-                  {mode === "from" ? "首帧" : mode === "to" ? "尾帧" : mode === "overlay" ? "叠加" : "播放"}
+                  {isVisualPlaying ? "暂停高保真预览" : "播放高保真预览"}
                 </button>
-              ))}
-            </div>
-            <div
-              className={`zero-visual-stage-wrap is-${visualPreviewMode}`}
-              style={{ width: visualFrameWidth, height: visualFrameHeight }}
-            >
-              {visualPreviewMode === "from" ? (
-                <VisualStage
-                  snapshot={fromVisualFrame}
-                  highlightedNodeId={visualNodeId}
-                  overrideCss={fromVisualOverrideCss}
-                  stageWidth={visualFrameWidth}
-                  stageHeight={visualFrameHeight}
-                  onNodeSelect={setVisualNodeId}
-                />
-              ) : null}
-              {visualPreviewMode === "to" ? (
-                <VisualStage
-                  snapshot={toVisualFrame}
-                  highlightedNodeId={visualNodeId}
-                  overrideCss={toVisualOverrideCss}
-                  stageWidth={visualFrameWidth}
-                  stageHeight={visualFrameHeight}
-                  onNodeSelect={setVisualNodeId}
-                />
-              ) : null}
-              {visualPreviewMode === "overlay" ? (
-                <>
-                  <div className="zero-visual-overlay-layer is-from">
-                    <VisualStage
-                      snapshot={fromVisualFrame}
-                      highlightedNodeId={visualNodeId}
-                      overrideCss={fromVisualOverrideCss}
-                      stageWidth={visualFrameWidth}
-                      stageHeight={visualFrameHeight}
-                      onNodeSelect={setVisualNodeId}
-                    />
-                  </div>
-                  <div className="zero-visual-overlay-layer is-to">
-                    <VisualStage
-                      snapshot={toVisualFrame}
-                      highlightedNodeId={visualNodeId}
-                      overrideCss={toVisualOverrideCss}
-                      stageWidth={visualFrameWidth}
-                      stageHeight={visualFrameHeight}
-                      onNodeSelect={setVisualNodeId}
-                    />
-                  </div>
-                </>
-              ) : null}
-              {visualPreviewMode === "motion" && visualBindingResult ? (
-                <>
-                  <div className="zero-visual-overlay-layer is-from">
-                    <VisualStage
-                      snapshot={fromVisualFrame}
-                      highlightedNodeId={visualNodeId}
-                      overrideCss={fromVisualOverrideCss}
-                      stageWidth={visualFrameWidth}
-                      stageHeight={visualFrameHeight}
-                      motionCss={createVisualTimelineCss(visualBindingResult, visualProgress, "from")}
-                      onNodeSelect={setVisualNodeId}
-                    />
-                  </div>
-                  <div className="zero-visual-overlay-layer is-to">
-                    <VisualStage
-                      snapshot={toVisualFrame}
-                      highlightedNodeId={visualNodeId}
-                      overrideCss={toVisualOverrideCss}
-                      stageWidth={visualFrameWidth}
-                      stageHeight={visualFrameHeight}
-                      motionCss={createVisualTimelineCss(visualBindingResult, visualProgress, "to")}
-                      onNodeSelect={setVisualNodeId}
-                    />
-                  </div>
-                </>
-              ) : null}
-            </div>
-            <input
-              aria-label="高保真预览播放进度"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={visualProgress}
-              onChange={(event) => {
-                setVisualPreviewMode("motion");
-                setVisualProgress(Number(event.target.value));
-              }}
-            />
-            <div className="asset-actions">
-              <button
-                type="button"
-                className="small-action"
-                disabled={!visualBindingResult}
-                onClick={() => {
-                  setVisualPreviewMode("motion");
-                  setIsVisualPlaying((current) => !current);
-                }}
-              >
-                {isVisualPlaying ? "暂停高保真预览" : "播放高保真预览"}
-              </button>
-              <button
-                type="button"
-                className="small-action"
-                disabled={!visualBindingResult}
-                onClick={() => {
-                  setVisualPreviewMode("motion");
-                  setIsVisualPlaying(false);
-                  setVisualProgress(0);
-                }}
-              >
-                高保真归零
-              </button>
-            </div>
-            <p className="empty-state">
-              当前节点：
-              {visualNodeId ?? "未选择"}
-            </p>
-            {selectedVisualOverride ? (
-              <div className="zero-node-edit-panel">
-                <p className="eyebrow">高保真节点</p>
-                <div className="field-row">
-                  <label className="field">
-                    <span>X</span>
-                    <input
-                      aria-label="高保真节点 X"
-                      type="number"
-                      value={selectedVisualOverride.x ?? 0}
-                      onChange={(event) =>
-                        updateSelectedNodeOverride({
-                          x: overrideNumberValue(event.target.value, selectedVisualOverride.x ?? 0)
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Y</span>
-                    <input
-                      aria-label="高保真节点 Y"
-                      type="number"
-                      value={selectedVisualOverride.y ?? 0}
-                      onChange={(event) =>
-                        updateSelectedNodeOverride({
-                          y: overrideNumberValue(event.target.value, selectedVisualOverride.y ?? 0)
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-                <div className="field-row">
-                  <label className="field">
-                    <span>宽</span>
-                    <input
-                      aria-label="高保真节点宽度"
-                      type="number"
-                      min={1}
-                      value={selectedVisualOverride.width ?? 1}
-                      onChange={(event) =>
-                        updateSelectedNodeOverride({
-                          width: Math.max(
-                            1,
-                            overrideNumberValue(event.target.value, selectedVisualOverride.width ?? 1)
-                          )
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>高</span>
-                    <input
-                      aria-label="高保真节点高度"
-                      type="number"
-                      min={1}
-                      value={selectedVisualOverride.height ?? 1}
-                      onChange={(event) =>
-                        updateSelectedNodeOverride({
-                          height: Math.max(
-                            1,
-                            overrideNumberValue(event.target.value, selectedVisualOverride.height ?? 1)
-                          )
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-                <div className="field-row">
-                  <label className="field">
-                    <span>圆角</span>
-                    <input
-                      aria-label="高保真节点圆角"
-                      type="number"
-                      min={0}
-                      value={selectedVisualOverride.radius ?? 0}
-                      onChange={(event) =>
-                        updateSelectedNodeOverride({
-                          radius: Math.max(
-                            0,
-                            overrideNumberValue(event.target.value, selectedVisualOverride.radius ?? 0)
-                          )
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>透明度</span>
-                    <input
-                      aria-label="高保真节点透明度"
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={selectedVisualOverride.opacity ?? 1}
-                      onChange={(event) =>
-                        updateSelectedNodeOverride({
-                          opacity: Math.min(
-                            1,
-                            Math.max(0, overrideNumberValue(event.target.value, selectedVisualOverride.opacity ?? 1))
-                          )
-                        })
-                      }
-                    />
-                  </label>
-                </div>
+                <button
+                  type="button"
+                  className="small-action"
+                  disabled={!visualBindingResult}
+                  onClick={() => {
+                    setVisualPreviewMode("motion");
+                    setIsVisualPlaying(false);
+                    setVisualProgress(0);
+                  }}
+                >
+                  高保真归零
+                </button>
               </div>
-            ) : null}
-            {visualBindingResult ? (
-              <div className="zero-visual-binding-panel">
-                <p className="eyebrow">
-                  匹配关系 · matched {visualBindingResult.bindings.length} / enter{" "}
-                  {visualBindingResult.enter.length} / exit {visualBindingResult.exit.length} / unresolved{" "}
-                  {visualBindingResult.unresolved.length}
-                </p>
-                {manualMatchFrom ? (
-                  <div className="manual-match-hint">
-                    <span>选择目标节点完成匹配: {manualMatchFrom} →</span>
-                    <button type="button" className="small-action" onClick={() => setManualMatchFrom(undefined)}>
-                      取消
-                    </button>
+              <p className="empty-state">
+                当前节点：
+                {visualNodeId ?? "未选择"}
+              </p>
+              {selectedVisualOverride ? (
+                <div className="zero-node-edit-panel">
+                  <p className="eyebrow">高保真节点</p>
+                  <div className="field-row">
+                    <label className="field">
+                      <span>X</span>
+                      <input
+                        aria-label="高保真节点 X"
+                        type="number"
+                        value={selectedVisualOverride.x ?? 0}
+                        onChange={(event) =>
+                          updateSelectedNodeOverride({
+                            x: overrideNumberValue(event.target.value, selectedVisualOverride.x ?? 0)
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Y</span>
+                      <input
+                        aria-label="高保真节点 Y"
+                        type="number"
+                        value={selectedVisualOverride.y ?? 0}
+                        onChange={(event) =>
+                          updateSelectedNodeOverride({
+                            y: overrideNumberValue(event.target.value, selectedVisualOverride.y ?? 0)
+                          })
+                        }
+                      />
+                    </label>
                   </div>
-                ) : null}
-                <div className="zero-visual-binding-list">
-                  {visualBindingResult.bindings.map((binding) => (
-                    <div
-                      className={`binding-row${visualNodeId === binding.nodeId ? " is-selected" : ""}${binding.confidence < 60 ? " is-low-confidence" : ""}`}
-                      key={binding.layerId}
-                    >
+                  <div className="field-row">
+                    <label className="field">
+                      <span>宽</span>
+                      <input
+                        aria-label="高保真节点宽度"
+                        type="number"
+                        min={1}
+                        value={selectedVisualOverride.width ?? 1}
+                        onChange={(event) =>
+                          updateSelectedNodeOverride({
+                            width: Math.max(
+                              1,
+                              overrideNumberValue(event.target.value, selectedVisualOverride.width ?? 1)
+                            )
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span>高</span>
+                      <input
+                        aria-label="高保真节点高度"
+                        type="number"
+                        min={1}
+                        value={selectedVisualOverride.height ?? 1}
+                        onChange={(event) =>
+                          updateSelectedNodeOverride({
+                            height: Math.max(
+                              1,
+                              overrideNumberValue(event.target.value, selectedVisualOverride.height ?? 1)
+                            )
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="field-row">
+                    <label className="field">
+                      <span>圆角</span>
+                      <input
+                        aria-label="高保真节点圆角"
+                        type="number"
+                        min={0}
+                        value={selectedVisualOverride.radius ?? 0}
+                        onChange={(event) =>
+                          updateSelectedNodeOverride({
+                            radius: Math.max(
+                              0,
+                              overrideNumberValue(event.target.value, selectedVisualOverride.radius ?? 0)
+                            )
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span>透明度</span>
+                      <input
+                        aria-label="高保真节点透明度"
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={selectedVisualOverride.opacity ?? 1}
+                        onChange={(event) =>
+                          updateSelectedNodeOverride({
+                            opacity: Math.min(
+                              1,
+                              Math.max(
+                                0,
+                                overrideNumberValue(event.target.value, selectedVisualOverride.opacity ?? 1)
+                              )
+                            )
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : null}
+              {visualBindingResult ? (
+                <div className="zero-visual-binding-panel">
+                  <p className="eyebrow">
+                    匹配关系 · matched {visualBindingResult.bindings.length} / enter{" "}
+                    {visualBindingResult.enter.length} / exit {visualBindingResult.exit.length} / unresolved{" "}
+                    {visualBindingResult.unresolved.length}
+                  </p>
+                  {manualMatchFrom ? (
+                    <div className="manual-match-hint">
+                      <span>选择目标节点完成匹配: {manualMatchFrom} →</span>
                       <button
                         type="button"
-                        className="binding-main"
-                        onClick={() => setVisualNodeId(binding.nodeId)}
+                        className="small-action"
+                        onClick={() => setManualMatchFrom(undefined)}
                       >
-                        <span className="binding-badge is-matched">matched</span>
-                        <span className="binding-detail">
-                          {binding.nodeId} → {binding.toNodeId}
-                        </span>
-                        <span className="binding-confidence">{binding.confidence}%</span>
+                        取消
                       </button>
-                      <div className="binding-actions">
-                        <button
-                          type="button"
-                          title="设为 enter"
-                          onClick={() =>
-                            applyVisualOverride({ fromNodeId: binding.nodeId, action: "enter" })
-                          }
-                        >
-                          E
-                        </button>
-                        <button
-                          type="button"
-                          title="设为 exit"
-                          onClick={() =>
-                            applyVisualOverride({ fromNodeId: binding.nodeId, action: "exit" })
-                          }
-                        >
-                          X
-                        </button>
-                        <button
-                          type="button"
-                          title="忽略"
-                          onClick={() =>
-                            applyVisualOverride({ fromNodeId: binding.nodeId, action: "ignore" })
-                          }
-                        >
-                          ×
-                        </button>
-                      </div>
                     </div>
-                  ))}
-                  {visualBindingResult.enter.map((node) => (
-                    <div
-                      className={`binding-row${visualNodeId === node.nodeId ? " is-selected" : ""}${manualMatchFrom ? " is-match-target" : ""}`}
-                      key={`enter:${node.nodeId}`}
-                    >
-                      <button
-                        type="button"
-                        className="binding-main"
-                        onClick={() => {
-                          if (manualMatchFrom) {
-                            confirmManualMatch(node.nodeId);
-                          } else {
-                            setVisualPreviewMode("to");
-                            setVisualNodeId(node.nodeId);
-                          }
-                        }}
+                  ) : null}
+                  <div className="zero-visual-binding-list">
+                    {visualBindingResult.bindings.map((binding) => (
+                      <div
+                        className={`binding-row${visualNodeId === binding.nodeId ? " is-selected" : ""}${binding.confidence < 60 ? " is-low-confidence" : ""}`}
+                        key={binding.layerId}
                       >
-                        <span className="binding-badge is-enter">enter</span>
-                        <span className="binding-detail">
-                          {node.nodeId} · {node.text ?? node.name}
-                        </span>
-                        {manualMatchFrom ? <span className="binding-badge is-matched">← 点击配对</span> : null}
-                      </button>
-                      <div className="binding-actions">
                         <button
                           type="button"
-                          title="设为 exit"
-                          onClick={() =>
-                            applyVisualOverride({ fromNodeId: node.nodeId, action: "exit" })
-                          }
+                          className="binding-main"
+                          onClick={() => setVisualNodeId(binding.nodeId)}
                         >
-                          X
+                          <span className="binding-badge is-matched">matched</span>
+                          <span className="binding-detail">
+                            {binding.nodeId} → {binding.toNodeId}
+                          </span>
+                          <span className="binding-confidence">{binding.confidence}%</span>
                         </button>
-                        <button
-                          type="button"
-                          title="忽略"
-                          onClick={() =>
-                            applyVisualOverride({ fromNodeId: node.nodeId, action: "ignore" })
-                          }
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {visualBindingResult.exit.map((node) => (
-                    <div
-                      className={`binding-row${visualNodeId === node.nodeId ? " is-selected" : ""}`}
-                      key={`exit:${node.nodeId}`}
-                    >
-                      <button
-                        type="button"
-                        className="binding-main"
-                        onClick={() => {
-                          setVisualPreviewMode("from");
-                          setVisualNodeId(node.nodeId);
-                        }}
-                      >
-                        <span className="binding-badge is-exit">exit</span>
-                        <span className="binding-detail">
-                          {node.nodeId} · {node.text ?? node.name}
-                        </span>
-                      </button>
-                      <div className="binding-actions">
-                        <button
-                          type="button"
-                          title="手动匹配"
-                          onClick={() => setManualMatchFrom(node.nodeId)}
-                        >
-                          M
-                        </button>
-                        <button
-                          type="button"
-                          title="设为 enter"
-                          onClick={() =>
-                            applyVisualOverride({ fromNodeId: node.nodeId, action: "enter" })
-                          }
-                        >
-                          E
-                        </button>
-                        <button
-                          type="button"
-                          title="忽略"
-                          onClick={() =>
-                            applyVisualOverride({ fromNodeId: node.nodeId, action: "ignore" })
-                          }
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {visualBindingResult.unresolved.map((item) => (
-                    <div
-                      className="binding-row is-unresolved"
-                      key={`unresolved:${item.fromNodeId ?? "none"}:${item.toNodeId ?? "none"}`}
-                    >
-                      <button
-                        type="button"
-                        className="binding-main"
-                        onClick={() => setVisualNodeId(item.fromNodeId ?? item.toNodeId)}
-                      >
-                        <span className="binding-badge is-unresolved">待确认</span>
-                        <span className="binding-detail">
-                          {item.fromNodeId ?? "-"} → {item.toNodeId ?? "-"}
-                        </span>
-                        <span className="binding-reason">{item.reason}</span>
-                      </button>
-                      <div className="binding-actions">
-                        {item.fromNodeId ? (
+                        <div className="binding-actions">
                           <button
                             type="button"
-                            title="手动匹配"
-                            onClick={() => setManualMatchFrom(item.fromNodeId!)}
+                            title="设为 enter"
+                            onClick={() =>
+                              applyVisualOverride({ fromNodeId: binding.nodeId, action: "enter" })
+                            }
                           >
-                            M
+                            E
                           </button>
-                        ) : null}
-                        {item.fromNodeId ? (
                           <button
                             type="button"
                             title="设为 exit"
                             onClick={() =>
-                              applyVisualOverride({ fromNodeId: item.fromNodeId!, action: "exit" })
+                              applyVisualOverride({ fromNodeId: binding.nodeId, action: "exit" })
                             }
                           >
                             X
                           </button>
-                        ) : null}
-                        {item.fromNodeId ? (
                           <button
                             type="button"
                             title="忽略"
                             onClick={() =>
-                              applyVisualOverride({ fromNodeId: item.fromNodeId!, action: "ignore" })
+                              applyVisualOverride({ fromNodeId: binding.nodeId, action: "ignore" })
                             }
                           >
                             ×
                           </button>
-                        ) : null}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-                {userOverrides.length > 0 ? (
-                  <p className="override-count">手动修正: {userOverrides.length} 条</p>
-                ) : null}
-              </div>
-            ) : null}
-            {fromObjectModel && fromObjectModel.objects.length > 0 ? (
-              <div className="object-model-panel">
-                <p className="eyebrow">
-                  对象层 · {fromObjectModel.objects.length} 个顶层对象
-                  {fromObjectModel.unresolvedNodeIds.length > 0
-                    ? ` · ${fromObjectModel.unresolvedNodeIds.length} 未归类`
-                    : ""}
-                </p>
-                <div className="object-model-list">
-                  {fromObjectModel.objects.map((obj) => (
-                    <ObjectRow
-                      key={obj.id}
-                      object={obj}
-                      depth={0}
-                      selectedNodeId={visualNodeId}
-                      onSelect={setVisualNodeId}
-                      bindingResult={visualBindingResult}
-                      {...(onConvertToLayer
-                        ? {
-                            onConvert: (target: FrameObject) => {
-                              onConvertToLayer({
-                                name: target.name,
-                                kind: target.kind === "text" ? "text" : "shape",
-                                bounds: target.bounds,
-                                ...(target.kind === "text" ? { text: target.name } : {})
-                              });
-                            }
-                          }
-                        : {})}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {restorationReport ? (
-              <div className="restoration-report-panel" aria-label="还原质量报告">
-                <p className="eyebrow">还原质量{reportStale ? " (已过期)" : ""}</p>
-                <button type="button" className="small-action" onClick={refreshRestorationReport}>
-                  {reportStale ? "重新计算报告" : "刷新报告"}
-                </button>
-                <div className="restoration-issue-summary">
-                  <span className="issue-count is-error">
-                    {restorationReport.issues.filter((i) => i.severity === "error").length} 错误
-                  </span>
-                  <span className="issue-count is-warning">
-                    {restorationReport.issues.filter((i) => i.severity === "warning").length} 警告
-                  </span>
-                  <span className="issue-count is-info">
-                    {restorationReport.issues.filter((i) => i.severity === "info").length} 提示
-                  </span>
-                </div>
-                <details className="restoration-score-detail">
-                  <summary>总分 {restorationReport.score} · {restorationReport.summary}</summary>
-                  <div className="restoration-metrics">
-                    {Object.entries(restorationReport.metrics).map(([key, metric]) => (
-                      <p key={key} className={`is-${metric.status}`}>
-                        {key === "nodeCoverage" ? "节点覆盖" : key === "styleCoverage" ? "样式覆盖" : key === "layerOrderConfidence" ? "层级顺序" : key === "matchConfidence" ? "匹配置信" : "视觉风险"}
-                        ：{metric.value !== null ? `${metric.value}%` : metric.status} (权重 {metric.weight})
-                      </p>
                     ))}
-                  </div>
-                </details>
-                {restorationReport.issues.length > 0 ? (
-                  <div className="restoration-issue-list">
-                    {restorationReport.issues.slice(0, 20).map((issue) => (
-                      <button
-                        type="button"
-                        className={`restoration-issue is-${issue.severity}`}
-                        onClick={() => {
-                          if (issue.nodeId) setVisualNodeId(issue.nodeId);
-                        }}
-                        key={issue.id}
+                    {visualBindingResult.enter.map((node) => (
+                      <div
+                        className={`binding-row${visualNodeId === node.nodeId ? " is-selected" : ""}${manualMatchFrom ? " is-match-target" : ""}`}
+                        key={`enter:${node.nodeId}`}
                       >
-                        <span className="issue-severity">{issue.severity}</span>
-                        <span className="issue-title">{issue.title}</span>
-                        <span className="issue-suggestion">{issue.suggestion}</span>
-                      </button>
+                        <button
+                          type="button"
+                          className="binding-main"
+                          onClick={() => {
+                            if (manualMatchFrom) {
+                              confirmManualMatch(node.nodeId);
+                            } else {
+                              setVisualPreviewMode("to");
+                              setVisualNodeId(node.nodeId);
+                            }
+                          }}
+                        >
+                          <span className="binding-badge is-enter">enter</span>
+                          <span className="binding-detail">
+                            {node.nodeId} · {node.text ?? node.name}
+                          </span>
+                          {manualMatchFrom ? (
+                            <span className="binding-badge is-matched">← 点击配对</span>
+                          ) : null}
+                        </button>
+                        <div className="binding-actions">
+                          <button
+                            type="button"
+                            title="设为 exit"
+                            onClick={() => applyVisualOverride({ fromNodeId: node.nodeId, action: "exit" })}
+                          >
+                            X
+                          </button>
+                          <button
+                            type="button"
+                            title="忽略"
+                            onClick={() => applyVisualOverride({ fromNodeId: node.nodeId, action: "ignore" })}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {visualBindingResult.exit.map((node) => (
+                      <div
+                        className={`binding-row${visualNodeId === node.nodeId ? " is-selected" : ""}`}
+                        key={`exit:${node.nodeId}`}
+                      >
+                        <button
+                          type="button"
+                          className="binding-main"
+                          onClick={() => {
+                            setVisualPreviewMode("from");
+                            setVisualNodeId(node.nodeId);
+                          }}
+                        >
+                          <span className="binding-badge is-exit">exit</span>
+                          <span className="binding-detail">
+                            {node.nodeId} · {node.text ?? node.name}
+                          </span>
+                        </button>
+                        <div className="binding-actions">
+                          <button
+                            type="button"
+                            title="手动匹配"
+                            onClick={() => setManualMatchFrom(node.nodeId)}
+                          >
+                            M
+                          </button>
+                          <button
+                            type="button"
+                            title="设为 enter"
+                            onClick={() => applyVisualOverride({ fromNodeId: node.nodeId, action: "enter" })}
+                          >
+                            E
+                          </button>
+                          <button
+                            type="button"
+                            title="忽略"
+                            onClick={() => applyVisualOverride({ fromNodeId: node.nodeId, action: "ignore" })}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {visualBindingResult.unresolved.map((item) => (
+                      <div
+                        className="binding-row is-unresolved"
+                        key={`unresolved:${item.fromNodeId ?? "none"}:${item.toNodeId ?? "none"}`}
+                      >
+                        <button
+                          type="button"
+                          className="binding-main"
+                          onClick={() => setVisualNodeId(item.fromNodeId ?? item.toNodeId)}
+                        >
+                          <span className="binding-badge is-unresolved">待确认</span>
+                          <span className="binding-detail">
+                            {item.fromNodeId ?? "-"} → {item.toNodeId ?? "-"}
+                          </span>
+                          <span className="binding-reason">{item.reason}</span>
+                        </button>
+                        <div className="binding-actions">
+                          {item.fromNodeId ? (
+                            <button
+                              type="button"
+                              title="手动匹配"
+                              onClick={() => setManualMatchFrom(item.fromNodeId!)}
+                            >
+                              M
+                            </button>
+                          ) : null}
+                          {item.fromNodeId ? (
+                            <button
+                              type="button"
+                              title="设为 exit"
+                              onClick={() =>
+                                applyVisualOverride({ fromNodeId: item.fromNodeId!, action: "exit" })
+                              }
+                            >
+                              X
+                            </button>
+                          ) : null}
+                          {item.fromNodeId ? (
+                            <button
+                              type="button"
+                              title="忽略"
+                              onClick={() =>
+                                applyVisualOverride({ fromNodeId: item.fromNodeId!, action: "ignore" })
+                              }
+                            >
+                              ×
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="empty-state">无关键问题，还原质量良好。</p>
-                )}
-              </div>
-            ) : !fromVisualFrame && !toVisualFrame ? (
-              <p className="empty-state">读取 Zero 首尾帧后将生成还原质量报告。</p>
-            ) : !fromVisualFrame || !toVisualFrame ? (
-              <p className="empty-state">缺少首帧或尾帧数据，无法生成报告。</p>
+                  {userOverrides.length > 0 ? (
+                    <p className="override-count">手动修正: {userOverrides.length} 条</p>
+                  ) : null}
+                </div>
+              ) : null}
+              {fromObjectModel && fromObjectModel.objects.length > 0 ? (
+                <div className="object-model-panel">
+                  <p className="eyebrow">
+                    对象层 · {fromObjectModel.objects.length} 个顶层对象
+                    {fromObjectModel.unresolvedNodeIds.length > 0
+                      ? ` · ${fromObjectModel.unresolvedNodeIds.length} 未归类`
+                      : ""}
+                  </p>
+                  <div className="object-model-list">
+                    {fromObjectModel.objects.map((obj) => (
+                      <ObjectRow
+                        key={obj.id}
+                        object={obj}
+                        depth={0}
+                        selectedNodeId={visualNodeId}
+                        onSelect={setVisualNodeId}
+                        bindingResult={visualBindingResult}
+                        {...(onConvertToLayer
+                          ? {
+                              onConvert: (target: FrameObject) => {
+                                onConvertToLayer({
+                                  name: target.name,
+                                  kind: target.kind === "text" ? "text" : "shape",
+                                  bounds: target.bounds,
+                                  ...(target.kind === "text" ? { text: target.name } : {})
+                                });
+                              }
+                            }
+                          : {})}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {restorationReport ? (
+                <div className="restoration-report-panel" aria-label="还原质量报告">
+                  <p className="eyebrow">还原质量{reportStale ? " (已过期)" : ""}</p>
+                  <button type="button" className="small-action" onClick={refreshRestorationReport}>
+                    {reportStale ? "重新计算报告" : "刷新报告"}
+                  </button>
+                  <div className="restoration-issue-summary">
+                    <span className="issue-count is-error">
+                      {restorationReport.issues.filter((i) => i.severity === "error").length} 错误
+                    </span>
+                    <span className="issue-count is-warning">
+                      {restorationReport.issues.filter((i) => i.severity === "warning").length} 警告
+                    </span>
+                    <span className="issue-count is-info">
+                      {restorationReport.issues.filter((i) => i.severity === "info").length} 提示
+                    </span>
+                  </div>
+                  <details className="restoration-score-detail">
+                    <summary>
+                      总分 {restorationReport.score} · {restorationReport.summary}
+                    </summary>
+                    <div className="restoration-metrics">
+                      {Object.entries(restorationReport.metrics).map(([key, metric]) => (
+                        <p key={key} className={`is-${metric.status}`}>
+                          {key === "nodeCoverage"
+                            ? "节点覆盖"
+                            : key === "styleCoverage"
+                              ? "样式覆盖"
+                              : key === "layerOrderConfidence"
+                                ? "层级顺序"
+                                : key === "matchConfidence"
+                                  ? "匹配置信"
+                                  : "视觉风险"}
+                          ：{metric.value !== null ? `${metric.value}%` : metric.status} (权重 {metric.weight}
+                          )
+                        </p>
+                      ))}
+                    </div>
+                  </details>
+                  {restorationReport.issues.length > 0 ? (
+                    <div className="restoration-issue-list">
+                      {restorationReport.issues.slice(0, 20).map((issue) => (
+                        <button
+                          type="button"
+                          className={`restoration-issue is-${issue.severity}`}
+                          onClick={() => {
+                            if (issue.nodeId) setVisualNodeId(issue.nodeId);
+                          }}
+                          key={issue.id}
+                        >
+                          <span className="issue-severity">{issue.severity}</span>
+                          <span className="issue-title">{issue.title}</span>
+                          <span className="issue-suggestion">{issue.suggestion}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">无关键问题，还原质量良好。</p>
+                  )}
+                </div>
+              ) : !fromVisualFrame && !toVisualFrame ? (
+                <p className="empty-state">读取 Zero 首尾帧后将生成还原质量报告。</p>
+              ) : !fromVisualFrame || !toVisualFrame ? (
+                <p className="empty-state">缺少首帧或尾帧数据，无法生成报告。</p>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showLegacy ? (
+        <details className="panel-section">
+          <summary>高级调试：导入 legacy FrameSnapshot JSON（低保真）</summary>
+          <p className="empty-state">
+            这里只用于排查旧快照契约，不是正常 Zero/MCP 工作流。正常使用请点击上方“从 Zero
+            读取并生成高保真时间线”。
+          </p>
+          <div className="frame-morph-import-grid">
+            <label className="field">
+              <span>起始帧 JSON</span>
+              <textarea
+                aria-label="起始帧 JSON"
+                value={fromText}
+                onChange={(event) => setFromText(event.target.value)}
+              />
+              <input
+                aria-label="导入起始帧 JSON"
+                type="file"
+                accept="application/json,.json"
+                onChange={(event) => readFile(event.target.files?.[0], setFromText)}
+              />
+              <button type="button" className="small-action" onClick={() => loadSnapshot("from")}>
+                读取起始帧
+              </button>
+            </label>
+            <label className="field">
+              <span>结束帧 JSON</span>
+              <textarea
+                aria-label="结束帧 JSON"
+                value={toText}
+                onChange={(event) => setToText(event.target.value)}
+              />
+              <input
+                aria-label="导入结束帧 JSON"
+                type="file"
+                accept="application/json,.json"
+                onChange={(event) => readFile(event.target.files?.[0], setToText)}
+              />
+              <button type="button" className="small-action" onClick={() => loadSnapshot("to")}>
+                读取结束帧
+              </button>
+            </label>
+          </div>
+          <p className="empty-state">
+            起始：
+            {fromFrame
+              ? `${fromFrame.name} (${fromFrame.frameId}) · ${fromFrame.width}x${fromFrame.height} · ${fromFrame.elements.length} 元素`
+              : "未导入"}
+          </p>
+          <p className="empty-state">
+            结束：
+            {toFrame
+              ? `${toFrame.name} (${toFrame.frameId}) · ${toFrame.width}x${toFrame.height} · ${toFrame.elements.length} 元素`
+              : "未导入"}
+          </p>
+        </details>
+      ) : null}
+
+      {showLegacy ? (
+        <div className="panel-section">
+          <div className="field-row">
+            <label className="field">
+              <span>时长 ms</span>
+              <input
+                aria-label="帧间过渡时长"
+                type="number"
+                min="1"
+                value={durationMs}
+                onChange={(event) => setDurationMs(Number(event.target.value))}
+              />
+            </label>
+            <label className="field">
+              <span>缓动</span>
+              <select
+                aria-label="帧间过渡缓动"
+                value={easing}
+                onChange={(event) => setEasing(event.target.value as typeof easing)}
+              >
+                {easingOptions.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button
+            type="button"
+            className="small-action"
+            disabled={!fromFrame || !toFrame}
+            onClick={() => generatePlan()}
+          >
+            调试：根据 JSON 生成预览
+          </button>
+          <p className="empty-state">配对结果：{groupCounts(matchResult)}</p>
+        </div>
+      ) : null}
+
+      {showLegacy ? (
+        <div className="panel-section">
+          <div className="frame-morph-preview-toolbar">
+            {(["from", "to", "overlay", "morph"] as const).map((mode) => (
+              <button
+                type="button"
+                className={previewMode === mode ? "is-active" : ""}
+                onClick={() => setPreviewMode(mode)}
+                key={mode}
+              >
+                {mode === "from" ? "首帧" : mode === "to" ? "尾帧" : mode === "overlay" ? "叠加" : "播放"}
+              </button>
+            ))}
+          </div>
+          <div
+            className="frame-morph-stage"
+            style={{ width: frameWidth, height: frameHeight }}
+            data-preview-mode={previewMode}
+          >
+            {previewMode === "from" && fromFrame?.screenshotUrl ? (
+              <img src={fromFrame.screenshotUrl} alt="" />
             ) : null}
-          </>
-        ) : null}
-      </div>
-      ) : null}
-
-      {showLegacy ? (
-      <details className="panel-section">
-        <summary>高级调试：导入 legacy FrameSnapshot JSON（低保真）</summary>
-        <p className="empty-state">
-          这里只用于排查旧快照契约，不是正常 Zero/MCP 工作流。正常使用请点击上方“从 Zero 读取并生成高保真时间线”。
-        </p>
-        <div className="frame-morph-import-grid">
-          <label className="field">
-            <span>起始帧 JSON</span>
-            <textarea
-              aria-label="起始帧 JSON"
-              value={fromText}
-              onChange={(event) => setFromText(event.target.value)}
-            />
-            <input
-              aria-label="导入起始帧 JSON"
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => readFile(event.target.files?.[0], setFromText)}
-            />
-            <button type="button" className="small-action" onClick={() => loadSnapshot("from")}>
-              读取起始帧
-            </button>
-          </label>
-          <label className="field">
-            <span>结束帧 JSON</span>
-            <textarea
-              aria-label="结束帧 JSON"
-              value={toText}
-              onChange={(event) => setToText(event.target.value)}
-            />
-            <input
-              aria-label="导入结束帧 JSON"
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => readFile(event.target.files?.[0], setToText)}
-            />
-            <button type="button" className="small-action" onClick={() => loadSnapshot("to")}>
-              读取结束帧
-            </button>
-          </label>
-        </div>
-        <p className="empty-state">
-          起始：
-          {fromFrame
-            ? `${fromFrame.name} (${fromFrame.frameId}) · ${fromFrame.width}x${fromFrame.height} · ${fromFrame.elements.length} 元素`
-            : "未导入"}
-        </p>
-        <p className="empty-state">
-          结束：
-          {toFrame
-            ? `${toFrame.name} (${toFrame.frameId}) · ${toFrame.width}x${toFrame.height} · ${toFrame.elements.length} 元素`
-            : "未导入"}
-        </p>
-      </details>
-      ) : null}
-
-      {showLegacy ? (
-      <div className="panel-section">
-        <div className="field-row">
-          <label className="field">
-            <span>时长 ms</span>
-            <input
-              aria-label="帧间过渡时长"
-              type="number"
-              min="1"
-              value={durationMs}
-              onChange={(event) => setDurationMs(Number(event.target.value))}
-            />
-          </label>
-          <label className="field">
-            <span>缓动</span>
-            <select
-              aria-label="帧间过渡缓动"
-              value={easing}
-              onChange={(event) => setEasing(event.target.value as typeof easing)}
-            >
-              {easingOptions.map((option) => (
-                <option value={option.value} key={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <button
-          type="button"
-          className="small-action"
-          disabled={!fromFrame || !toFrame}
-          onClick={() => generatePlan()}
-        >
-          调试：根据 JSON 生成预览
-        </button>
-        <p className="empty-state">配对结果：{groupCounts(matchResult)}</p>
-      </div>
-      ) : null}
-
-      {showLegacy ? (
-      <div className="panel-section">
-        <div className="frame-morph-preview-toolbar">
-          {(["from", "to", "overlay", "morph"] as const).map((mode) => (
+            {previewMode === "to" && toFrame?.screenshotUrl ? (
+              <img src={toFrame.screenshotUrl} alt="" />
+            ) : null}
+            {renderPreviewLayers()}
+          </div>
+          <input
+            aria-label="帧间过渡播放进度"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={progress}
+            onChange={(event) => setProgress(Number(event.target.value))}
+          />
+          <div className="asset-actions">
             <button
               type="button"
-              className={previewMode === mode ? "is-active" : ""}
-              onClick={() => setPreviewMode(mode)}
-              key={mode}
+              className="small-action"
+              disabled={!plan}
+              onClick={() => {
+                setPreviewMode("morph");
+                setIsPlaying((current) => !current);
+              }}
             >
-              {mode === "from" ? "首帧" : mode === "to" ? "尾帧" : mode === "overlay" ? "叠加" : "播放"}
+              {isPlaying ? "暂停" : "播放"}
             </button>
-          ))}
+            <button
+              type="button"
+              className="small-action"
+              disabled={!plan}
+              onClick={() => {
+                setIsPlaying(false);
+                setProgress(0);
+                setPreviewMode("morph");
+              }}
+            >
+              归零
+            </button>
+          </div>
         </div>
-        <div
-          className="frame-morph-stage"
-          style={{ width: frameWidth, height: frameHeight }}
-          data-preview-mode={previewMode}
-        >
-          {previewMode === "from" && fromFrame?.screenshotUrl ? (
-            <img src={fromFrame.screenshotUrl} alt="" />
-          ) : null}
-          {previewMode === "to" && toFrame?.screenshotUrl ? <img src={toFrame.screenshotUrl} alt="" /> : null}
-          {renderPreviewLayers()}
-        </div>
-        <input
-          aria-label="帧间过渡播放进度"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={progress}
-          onChange={(event) => setProgress(Number(event.target.value))}
-        />
-        <div className="asset-actions">
-          <button
-            type="button"
-            className="small-action"
-            disabled={!plan}
-            onClick={() => {
-              setPreviewMode("morph");
-              setIsPlaying((current) => !current);
-            }}
-          >
-            {isPlaying ? "暂停" : "播放"}
-          </button>
-          <button
-            type="button"
-            className="small-action"
-            disabled={!plan}
-            onClick={() => {
-              setIsPlaying(false);
-              setProgress(0);
-              setPreviewMode("morph");
-            }}
-          >
-            归零
-          </button>
-        </div>
-      </div>
       ) : null}
 
       {showLegacy ? (
-      <div className="panel-section">
-        <p className="eyebrow">配对检查</p>
-        <input
-          className="frame-morph-search"
-          type="text"
-          placeholder="搜索 key / nodeId / text"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <div className="selected-layer-readout">
-          <strong>{elementSummary(selection.fromKey ? fromByKey.get(selection.fromKey) : undefined)}</strong>
-          <span>{elementSummary(selection.toKey ? toByKey.get(selection.toKey) : undefined)}</span>
-        </div>
-        <div className="asset-actions">
-          <button
-            type="button"
-            className="small-action"
-            disabled={!selection.fromKey || !selection.toKey}
-            onClick={addManualPair}
-          >
-            建立配对
-          </button>
-          <button
-            type="button"
-            className="small-action"
-            disabled={!selection.fromKey && !selection.toKey}
-            onClick={() => {
-              if (selection.fromKey) excludeElement(selection.fromKey);
-              if (selection.toKey) excludeElement(selection.toKey);
-              setSelection({});
-            }}
-          >
-            排除选中
-          </button>
-          <button
-            type="button"
-            className="small-action"
-            disabled={!selection.toKey}
-            onClick={() => {
-              if (selection.toKey) markEnter(selection.toKey);
-              setSelection((current) => (current.fromKey ? { fromKey: current.fromKey } : {}));
-            }}
-          >
-            设为进入
-          </button>
-          <button
-            type="button"
-            className="small-action"
-            disabled={!selection.fromKey}
-            onClick={() => {
-              if (selection.fromKey) markExit(selection.fromKey);
-              setSelection((current) => (current.toKey ? { toKey: current.toKey } : {}));
-            }}
-          >
-            设为退出
-          </button>
-        </div>
-        <div className="frame-morph-pair-grid">
-          <div>
-            <strong>首帧元素</strong>
-            {filteredFrom.slice(0, 24).map((element) => (
-              <button
-                type="button"
-                className={selection.fromKey === element.key ? "is-selected" : ""}
-                onClick={() => setSelection((current) => ({ ...current, fromKey: element.key }))}
-                key={element.key}
-              >
-                {elementSummary(element)}
-              </button>
-            ))}
+        <div className="panel-section">
+          <p className="eyebrow">配对检查</p>
+          <input
+            className="frame-morph-search"
+            type="text"
+            placeholder="搜索 key / nodeId / text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <div className="selected-layer-readout">
+            <strong>
+              {elementSummary(selection.fromKey ? fromByKey.get(selection.fromKey) : undefined)}
+            </strong>
+            <span>{elementSummary(selection.toKey ? toByKey.get(selection.toKey) : undefined)}</span>
           </div>
-          <div>
-            <strong>尾帧元素</strong>
-            {filteredTo.slice(0, 24).map((element) => (
-              <button
-                type="button"
-                className={selection.toKey === element.key ? "is-selected" : ""}
-                onClick={() => setSelection((current) => ({ ...current, toKey: element.key }))}
-                key={element.key}
-              >
-                {elementSummary(element)}
-              </button>
-            ))}
+          <div className="asset-actions">
+            <button
+              type="button"
+              className="small-action"
+              disabled={!selection.fromKey || !selection.toKey}
+              onClick={addManualPair}
+            >
+              建立配对
+            </button>
+            <button
+              type="button"
+              className="small-action"
+              disabled={!selection.fromKey && !selection.toKey}
+              onClick={() => {
+                if (selection.fromKey) excludeElement(selection.fromKey);
+                if (selection.toKey) excludeElement(selection.toKey);
+                setSelection({});
+              }}
+            >
+              排除选中
+            </button>
+            <button
+              type="button"
+              className="small-action"
+              disabled={!selection.toKey}
+              onClick={() => {
+                if (selection.toKey) markEnter(selection.toKey);
+                setSelection((current) => (current.fromKey ? { fromKey: current.fromKey } : {}));
+              }}
+            >
+              设为进入
+            </button>
+            <button
+              type="button"
+              className="small-action"
+              disabled={!selection.fromKey}
+              onClick={() => {
+                if (selection.fromKey) markExit(selection.fromKey);
+                setSelection((current) => (current.toKey ? { toKey: current.toKey } : {}));
+              }}
+            >
+              设为退出
+            </button>
           </div>
+          <div className="frame-morph-pair-grid">
+            <div>
+              <strong>首帧元素</strong>
+              {filteredFrom.slice(0, 24).map((element) => (
+                <button
+                  type="button"
+                  className={selection.fromKey === element.key ? "is-selected" : ""}
+                  onClick={() => setSelection((current) => ({ ...current, fromKey: element.key }))}
+                  key={element.key}
+                >
+                  {elementSummary(element)}
+                </button>
+              ))}
+            </div>
+            <div>
+              <strong>尾帧元素</strong>
+              {filteredTo.slice(0, 24).map((element) => (
+                <button
+                  type="button"
+                  className={selection.toKey === element.key ? "is-selected" : ""}
+                  onClick={() => setSelection((current) => ({ ...current, toKey: element.key }))}
+                  key={element.key}
+                >
+                  {elementSummary(element)}
+                </button>
+              ))}
+            </div>
+          </div>
+          {matchResult ? (
+            <div className="frame-morph-match-list">
+              <strong>matched</strong>
+              {matchResult.matches.slice(0, 12).map((match) => (
+                <p key={`${match.fromKey}-${match.toKey}`}>
+                  matched · confidence {match.confidence} · {elementDetail(fromByKey.get(match.fromKey))} →
+                  {elementDetail(toByKey.get(match.toKey))}
+                </p>
+              ))}
+              <strong>enter</strong>
+              {matchResult.enter.slice(0, 8).map((key) => (
+                <p key={`enter-${key}`}>enter · {elementDetail(toByKey.get(key))}</p>
+              ))}
+              <strong>exit</strong>
+              {matchResult.exit.slice(0, 8).map((key) => (
+                <p key={`exit-${key}`}>exit · {elementDetail(fromByKey.get(key))}</p>
+              ))}
+              <strong>unresolved</strong>
+              {matchResult.unresolved.slice(0, 8).map((item, index) => (
+                <p key={`${item.fromKey}-${item.toKey}-${index}`}>
+                  unresolved · {item.reason} ·{" "}
+                  {item.fromKey ? elementDetail(fromByKey.get(item.fromKey)) : ""}
+                  {item.toKey ? ` → ${elementDetail(toByKey.get(item.toKey))}` : ""}
+                </p>
+              ))}
+            </div>
+          ) : null}
         </div>
-        {matchResult ? (
-          <div className="frame-morph-match-list">
-            <strong>matched</strong>
-            {matchResult.matches.slice(0, 12).map((match) => (
-              <p key={`${match.fromKey}-${match.toKey}`}>
-                matched · confidence {match.confidence} · {elementDetail(fromByKey.get(match.fromKey))} →
-                {elementDetail(toByKey.get(match.toKey))}
-              </p>
-            ))}
-            <strong>enter</strong>
-            {matchResult.enter.slice(0, 8).map((key) => (
-              <p key={`enter-${key}`}>enter · {elementDetail(toByKey.get(key))}</p>
-            ))}
-            <strong>exit</strong>
-            {matchResult.exit.slice(0, 8).map((key) => (
-              <p key={`exit-${key}`}>exit · {elementDetail(fromByKey.get(key))}</p>
-            ))}
-            <strong>unresolved</strong>
-            {matchResult.unresolved.slice(0, 8).map((item, index) => (
-              <p key={`${item.fromKey}-${item.toKey}-${index}`}>
-                unresolved · {item.reason} · {item.fromKey ? elementDetail(fromByKey.get(item.fromKey)) : ""}
-                {item.toKey ? ` → ${elementDetail(toByKey.get(item.toKey))}` : ""}
-              </p>
-            ))}
-          </div>
-        ) : null}
-      </div>
       ) : null}
 
       <div className="panel-section">

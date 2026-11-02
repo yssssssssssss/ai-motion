@@ -49,12 +49,7 @@ export const semanticIntentV2MotionTypes = [
   "transition"
 ] as const;
 
-export const semanticIntentV2MotionCategories = [
-  "entrance",
-  "feedback",
-  "transition",
-  "loop"
-] as const;
+export const semanticIntentV2MotionCategories = ["entrance", "feedback", "transition", "loop"] as const;
 
 export const semanticIntentV2Compositions = ["single", "sequence", "parallel"] as const;
 
@@ -128,7 +123,10 @@ const semanticIntentV2Schema = z.object({
         type: z.enum(semanticIntentV2MotionTypes),
         target: z.enum(semanticIntentV2LayerRoles).nullable().optional(),
         trigger: z.enum(["load", "hover", "click", "loop"]).nullable().optional(),
-        direction: z.enum(["left-to-right", "right-to-left", "top-to-bottom", "bottom-to-top"]).nullable().optional(),
+        direction: z
+          .enum(["left-to-right", "right-to-left", "top-to-bottom", "bottom-to-top"])
+          .nullable()
+          .optional(),
         speed: z.enum(["fast", "normal", "slow"]).nullable().optional(),
         description: z.string().min(1).max(160).nullable().optional()
       })
@@ -230,8 +228,7 @@ function targetRoleForMotion(layers: SemanticIntentV2LayerRole[]): SemanticInten
         layer === "card" ||
         layer === "badge" ||
         layer === "loader"
-    ) ??
-    layers[0]
+    ) ?? layers[0]
   );
 }
 
@@ -342,7 +339,11 @@ export function semanticIntentV2ToLegacyIntent(intent: SemanticIntentV2): Semant
       ...intent.referenceHints
     ]),
     negativePreferences: unique([...intent.negativeConstraints, ...fallback.negativePreferences]),
-    referenceHints: unique([...intent.referenceHints, ...intent.referenceRecipeHints, ...fallback.referenceHints]),
+    referenceHints: unique([
+      ...intent.referenceHints,
+      ...intent.referenceRecipeHints,
+      ...fallback.referenceHints
+    ]),
     raw: intent.raw
   };
 }

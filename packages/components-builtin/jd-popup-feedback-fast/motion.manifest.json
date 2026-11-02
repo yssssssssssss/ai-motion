@@ -8,11 +8,7 @@
     "entry": "source/index.html",
     "sandbox": "iframe"
   },
-  "capabilities": [
-    "builtin",
-    "editable",
-    "export-html"
-  ],
+  "capabilities": ["builtin", "editable", "export-html"],
   "params": [
     {
       "id": "cycleDuration",
@@ -165,11 +161,7 @@
       "type": "image",
       "default": null,
       "constraints": {
-        "allowedFileTypes": [
-          "image/png",
-          "image/jpeg",
-          "image/webp"
-        ]
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
       },
       "status": "confirmed",
       "targets": [
@@ -285,45 +277,27 @@
     {
       "id": "timing",
       "label": "速度",
-      "params": [
-        "cycleDuration",
-        "easing"
-      ]
+      "params": ["cycleDuration", "easing"]
     },
     {
       "id": "layout",
       "label": "布局",
-      "params": [
-        "popupX",
-        "popupY",
-        "popupWidth",
-        "popupHeight"
-      ]
+      "params": ["popupX", "popupY", "popupWidth", "popupHeight"]
     },
     {
       "id": "assets",
       "label": "素材",
-      "params": [
-        "couponPopupImage"
-      ]
+      "params": ["couponPopupImage"]
     },
     {
       "id": "feedback",
       "label": "反馈",
-      "params": [
-        "rippleX",
-        "rippleY",
-        "rippleSize"
-      ]
+      "params": ["rippleX", "rippleY", "rippleSize"]
     },
     {
       "id": "visual",
       "label": "视觉",
-      "params": [
-        "dimOpacity",
-        "dismissScale",
-        "windowRadius"
-      ]
+      "params": ["dimOpacity", "dismissScale", "windowRadius"]
     }
   ],
   "layers": [

@@ -337,7 +337,11 @@ describe("atomic motion generation service", () => {
     expect(channelTabComponent.manifest.layers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "foregroundLayer", replaceable: false }),
-        expect.objectContaining({ id: "channelTabIconLayer1", paramId: "channelTabIcon1", replaceable: true }),
+        expect.objectContaining({
+          id: "channelTabIconLayer1",
+          paramId: "channelTabIcon1",
+          replaceable: true
+        }),
         expect.objectContaining({ id: "channelTabIconLayer6", paramId: "channelTabIcon6", replaceable: true })
       ])
     );

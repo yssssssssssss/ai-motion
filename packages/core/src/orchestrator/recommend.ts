@@ -83,7 +83,10 @@ function extractKnownTerms(value: string): string[] {
 
 function extractIntentTerms(intent: ParsedBriefIntent): string[] {
   return unique([
-    ...[intent.query, intent.semanticQuery].flatMap((value) => [...tokenize(value), ...extractKnownTerms(value)]),
+    ...[intent.query, intent.semanticQuery].flatMap((value) => [
+      ...tokenize(value),
+      ...extractKnownTerms(value)
+    ]),
     ...intent.categories,
     ...intent.componentKinds,
     ...intent.motionStyles,
@@ -270,18 +273,18 @@ function semanticScore(query: QuerySemanticProfile, profile: ComponentSemanticPr
 function hasSearchIntent(intent: ParsedBriefIntent, query: QuerySemanticProfile): boolean {
   return Boolean(
     intent.query.trim() ||
-      intent.semanticQuery.trim() ||
-      query.roles.length ||
-      query.categories.length ||
-      query.scenes.length ||
-      query.intents.length ||
-      query.motion.triggers.length ||
-      query.motion.primitives.length ||
-      query.visual.colors.length ||
-      query.visual.style.length ||
-      query.visual.shape.length ||
-      query.must.length ||
-      query.should.length
+    intent.semanticQuery.trim() ||
+    query.roles.length ||
+    query.categories.length ||
+    query.scenes.length ||
+    query.intents.length ||
+    query.motion.triggers.length ||
+    query.motion.primitives.length ||
+    query.visual.colors.length ||
+    query.visual.style.length ||
+    query.visual.shape.length ||
+    query.must.length ||
+    query.should.length
   );
 }
 

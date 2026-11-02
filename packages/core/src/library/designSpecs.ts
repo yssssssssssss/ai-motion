@@ -76,7 +76,10 @@ export const designSpecSkills: DesignSpecSkill[] = [
     version: "1.0",
     terms: ["media", "video", "image", "poster", "媒体", "视频", "图片"],
     appliesTo: ["图片层", "视频首帧", "媒体卡片", "海报图层"],
-    rules: ["媒体图层替换必须走声明的 image 参数或 layer target。", "默认只调整已声明的位移、缩放、透明度和圆角参数。"],
+    rules: [
+      "媒体图层替换必须走声明的 image 参数或 layer target。",
+      "默认只调整已声明的位移、缩放、透明度和圆角参数。"
+    ],
     forbidden: ["禁止从视频中臆造未识别出的独立图层。", "禁止把原始 video 标签作为最终生成结果。"],
     motionPrinciples: ["图层可替换", "单层可控", "抽帧可预览"],
     preferredParamConcepts: ["trajectory", "intensity", "rhythm"],

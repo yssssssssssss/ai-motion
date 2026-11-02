@@ -22,7 +22,11 @@ type ZeroVisualInput = {
   nodeId?: unknown;
 };
 
-export type ZeroVisualSnapshotSource = "real-zero-mcp-http" | "fixture" | "zero-mcp-bridge" | "custom-command";
+export type ZeroVisualSnapshotSource =
+  | "real-zero-mcp-http"
+  | "fixture"
+  | "zero-mcp-bridge"
+  | "custom-command";
 
 export type ZeroVisualSnapshotOptions = {
   visualCommand?: string | undefined;
@@ -117,8 +121,8 @@ function sourceForBridge(
   commandEnv: Record<string, string | undefined> | undefined
 ): ZeroVisualSnapshotSource {
   const bridgeText = [command, ...args].join(" ");
-  if (commandEnv?.ZERO_MCP_HTTP_URL || process.env.ZERO_MCP_HTTP_URL) return "real-zero-mcp-http";
   if (bridgeText.includes("zero-visual-snapshot-fixture")) return "fixture";
+  if (commandEnv?.ZERO_MCP_HTTP_URL || process.env.ZERO_MCP_HTTP_URL) return "real-zero-mcp-http";
   if (bridgeText.includes("zero-mcp-visual-bridge")) return "zero-mcp-bridge";
   return "custom-command";
 }

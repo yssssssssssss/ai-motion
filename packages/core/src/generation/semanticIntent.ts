@@ -71,7 +71,9 @@ function extractQuotedText(brief: string): string | null {
 }
 
 function extractLabeledText(brief: string): string | null {
-  const match = brief.match(/(?:按钮文案|标题文案|文案|文字|内容|label)\s*(?:是|为|:|：)\s*([^，。；;\n]{1,80})/i);
+  const match = brief.match(
+    /(?:按钮文案|标题文案|文案|文字|内容|label)\s*(?:是|为|:|：)\s*([^，。；;\n]{1,80})/i
+  );
   const value = match?.[1]?.trim().replace(/^["'「『“]+|["'」』”]+$/g, "");
   return value || null;
 }
@@ -83,12 +85,11 @@ function colorTarget(lower: string): SemanticGenerationColorTarget {
   return "background";
 }
 
-const NEGATED_CLAUSE_PATTERN = /(?:不要|别|不需要|无需|不是|排除|禁止|别再|不要再)\s*([^，。；;,.!！?？\n]{1,80})/gi;
+const NEGATED_CLAUSE_PATTERN =
+  /(?:不要|别|不需要|无需|不是|排除|禁止|别再|不要再)\s*([^，。；;,.!！?？\n]{1,80})/gi;
 
 function negativeClauses(raw: string): string[] {
-  return [...raw.matchAll(NEGATED_CLAUSE_PATTERN)]
-    .map((match) => match[1]?.trim() ?? "")
-    .filter(Boolean);
+  return [...raw.matchAll(NEGATED_CLAUSE_PATTERN)].map((match) => match[1]?.trim() ?? "").filter(Boolean);
 }
 
 function positiveText(raw: string): string {
@@ -101,7 +102,11 @@ function referenceHints(raw: string): string[] {
     const value = match[1]?.trim();
     if (value) hints.push(value);
   }
-  if (/(jd-front-back-entry-transition|前后进场代码动效|前后进场|前后切换|页面转场|页面切换|页面.*切换|page-transition|screen-transition)/i.test(raw)) {
+  if (
+    /(jd-front-back-entry-transition|前后进场代码动效|前后进场|前后切换|页面转场|页面切换|页面.*切换|page-transition|screen-transition)/i.test(
+      raw
+    )
+  ) {
     hints.push("jd-front-back-entry-transition", "前后进场代码动效", "page-transition");
   }
   return unique(hints);
@@ -158,7 +163,9 @@ export function parseSemanticGenerationIntent(brief: string): SemanticGeneration
   else if (/(下.*上|bottom.*top|from\s+bottom|bottom-to-top)/i.test(positive)) direction = "bottom-to-top";
 
   const colors = COLOR_ALIASES.flatMap((item) =>
-    includesAny(lower, item.labels) ? [{ target: colorTarget(lower), label: item.label, value: item.value }] : []
+    includesAny(lower, item.labels)
+      ? [{ target: colorTarget(lower), label: item.label, value: item.value }]
+      : []
   );
 
   let trigger: SemanticGenerationTrigger = "load";

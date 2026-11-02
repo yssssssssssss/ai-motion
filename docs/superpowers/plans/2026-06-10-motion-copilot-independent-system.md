@@ -56,11 +56,11 @@ packages/motion-copilot-core/
 Core APIs:
 
 ```ts
-createDefaultDocument(role)
-applyDocumentPatch(document, patch)
-compileIntent({ prompt, base })
-evaluateGuidelines(document)
-exportHtmlCss(document)
+createDefaultDocument(role);
+applyDocumentPatch(document, patch);
+compileIntent({ prompt, base });
+evaluateGuidelines(document);
+exportHtmlCss(document);
 ```
 
 ### Web App
@@ -254,4 +254,3 @@ pnpm --filter @motion-copilot/app typecheck
 - Do not let prompt logic mutate source code. It only patches `MotionDocument`.
 - Do not reuse old core types. That would defeat the purpose of the rewrite.
 - Do not broaden roles beyond Modal / Toast / Button in Phase 1.
-

@@ -31,6 +31,37 @@ function snapshot(frameId: string, x: number): ZeroLayerSnapshot {
 }
 
 describe("exportZeroLayerCompositionHtml", () => {
+  it("keeps layer node IDs from closing the style element", () => {
+    const from = snapshot("from", 0);
+    const to = snapshot("to", 100);
+    const payload = "</style><img src=x onerror=alert(1)>";
+    from.layers[0]!.nodeId = payload;
+    const result = compileZeroLayerMotionComposition({
+      from,
+      to,
+      bindingResult: {
+        bindings: [
+          {
+            layerId: "zero-layer-box",
+            nodeId: payload,
+            toNodeId: "box",
+            fromBounds: from.layers[0]!.bounds,
+            toBounds: to.layers[0]!.bounds,
+            confidence: 100,
+            reasons: ["same-node"]
+          }
+        ],
+        enter: [],
+        exit: [],
+        unresolved: []
+      }
+    });
+    const html = exportZeroLayerCompositionHtml(result.document, result.document.composition!);
+    expect(html).not.toContain(payload);
+    expect(html).toContain("\\3c /style>");
+    expect(html).toContain('data-zero-layer-id="&lt;/style&gt;&lt;img src=x onerror=alert(1)&gt;"');
+  });
+
   it("exports MotionPlan keyframes and keeps a reduced-motion tail-frame fallback", () => {
     const from = snapshot("from", 0);
     const to = snapshot("to", 100);

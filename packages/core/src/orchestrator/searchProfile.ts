@@ -120,11 +120,14 @@ function inferStructuralTags(css: string): string[] {
     if (r >= 20) tags.push("胶囊", "pill");
   }
   if (/\btransform:\s*skew\b/i.test(css)) tags.push("倾斜", "skewed");
-  if (/\bbox-shadow[^;]*inset/i.test(css) && (css.match(/\bbox-shadow\b/g) || []).length > 1) tags.push("立体", "3d");
+  if (/\bbox-shadow[^;]*inset/i.test(css) && (css.match(/\bbox-shadow\b/g) || []).length > 1)
+    tags.push("立体", "3d");
   if (/\bbackdrop-filter:\s*blur\b/i.test(css)) tags.push("毛玻璃", "glass");
   if (/\blinear-gradient\b/i.test(css)) tags.push("渐变", "gradient");
-  if (/\bborder:\s*none\b/i.test(css) && !/\bbackground:\s*transparent\b/i.test(css)) tags.push("扁平", "flat");
-  if (/\bbackground:\s*(transparent|none)\b/i.test(css) && /\bborder:\s*\d+px\b/i.test(css)) tags.push("描边", "outline");
+  if (/\bborder:\s*none\b/i.test(css) && !/\bbackground:\s*transparent\b/i.test(css))
+    tags.push("扁平", "flat");
+  if (/\bbackground:\s*(transparent|none)\b/i.test(css) && /\bborder:\s*\d+px\b/i.test(css))
+    tags.push("描边", "outline");
   if (/:hover[^}]*\btransform:[^}]*scale\b/i.test(css)) tags.push("悬停放大", "hover-grow");
   if (/:hover[^}]*\b(width|height)\b/i.test(css)) tags.push("悬停展开", "hover-expand");
   if (/:active[^}]*\bscale\s*\(\s*0\./i.test(css)) tags.push("按下收缩", "press-shrink");

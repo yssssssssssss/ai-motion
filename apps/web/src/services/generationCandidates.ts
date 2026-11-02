@@ -78,5 +78,8 @@ export async function loadControlledGenerationCandidates({
     .map((candidate) => hydratedById.get(candidate.componentId))
     .filter((component): component is MotionComponent => Boolean(component));
 
-  return uniqueComponents([...hydratedPinnedReferences, ...plannedCandidates]).slice(0, GENERATION_CANDIDATE_LIMIT);
+  return uniqueComponents([...hydratedPinnedReferences, ...plannedCandidates]).slice(
+    0,
+    GENERATION_CANDIDATE_LIMIT
+  );
 }

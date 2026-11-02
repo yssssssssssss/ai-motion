@@ -3,6 +3,7 @@ import {
   compileZeroLayerMotionComposition,
   normalizeMotionPlan,
   patchMotionPlanTrack,
+  physicsFromPersonality,
   type MotionKeyframe,
   type MotionPhysics,
   type MotionTrackKind,
@@ -249,12 +250,19 @@ export function MotionPlanEditor({ source, selectedNodeId, onChange }: MotionPla
               max="1"
               step="0.05"
               value={personality[key]}
-              onChange={(event) =>
+              disabled={track.physics?.type === "spring" ? key === "sharpness" : key !== "sharpness"}
+              onChange={(event) => {
+                const next = { ...personality, [key]: finiteNumber(event.target.value, personality[key]) };
                 update({
-                  personality: { ...personality, [key]: finiteNumber(event.target.value, personality[key]) }
-                })
-              }
+                  personality: next,
+                  physics: physicsFromPersonality(track.physics?.type ?? "ease", next),
+                  keyframes: track.keyframes.map(({ easing: _easing, ...frame }) => frame)
+                });
+              }}
             />
+            {(track.physics?.type === "spring" ? key === "sharpness" : key !== "sharpness") ? (
+              <small>{key === "sharpness" ? "仅适用于缓动曲线" : "仅适用于弹簧曲线"}</small>
+            ) : null}
           </label>
         ))}
       </div>

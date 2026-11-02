@@ -112,10 +112,10 @@ function isRenderableElement(element: FrameElement): boolean {
   if (element.kind === "group") {
     return Boolean(
       element.text ||
-        element.assetUrl ||
-        element.style?.background ||
-        element.style?.borderColor ||
-        element.style?.boxShadow
+      element.assetUrl ||
+      element.style?.background ||
+      element.style?.borderColor ||
+      element.style?.boxShadow
     );
   }
   return true;

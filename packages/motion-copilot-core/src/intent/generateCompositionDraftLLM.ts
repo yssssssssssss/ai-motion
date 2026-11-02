@@ -60,7 +60,8 @@ function isLLMDraftStep(value: unknown): value is LLMDraftStep {
   const step = value as Record<string, unknown>;
   if (typeof step.presetId !== "string" || !PRESET_ID_SET.has(step.presetId)) return false;
   if (!(step.layerId === null || typeof step.layerId === "string")) return false;
-  if (typeof step.timing !== "string" || !TIMING_VALUES.includes(step.timing as CompositionTiming)) return false;
+  if (typeof step.timing !== "string" || !TIMING_VALUES.includes(step.timing as CompositionTiming))
+    return false;
   if (typeof step.delayMs !== "number" || !Number.isFinite(step.delayMs)) return false;
   if (typeof step.reason !== "string") return false;
   return true;
@@ -82,7 +83,7 @@ export function parseLLMDraftPlan(text: string): LLMDraftPlan | null {
   }
 }
 
-// 把模型给出的图层 id 解析为当前文档里真实可编辑的图层;找不到则降级为主图层(undefined)。
+// 只提取真实可编辑图层；未确定的目标统一交给 assembleDraftFromSpecs 解析。
 export function draftSpecsFromLLM(document: MotionDocument, plan: LLMDraftPlan): DraftStepSpec[] {
   const layers = selectableLayers(document);
   const byId = new Map<string, MotionLayer>(layers.map((layer) => [layer.id, layer]));
@@ -115,7 +116,10 @@ export function buildDraftPromptContext(document: MotionDocument): string {
 
   const layers = selectableLayers(document);
   const layerLines = layers.length
-    ? layers.map((layer) => `- ${layer.id}｜${layer.kind}｜${layer.name}${layer.content?.text ? `（文案:${layer.content.text}）` : ""}`)
+    ? layers.map(
+        (layer) =>
+          `- ${layer.id}｜${layer.kind}｜${layer.name}${layer.content?.text ? `（文案:${layer.content.text}）` : ""}`
+      )
     : ["- （当前没有可编辑图层，layerId 一律返回 null）"];
 
   return [

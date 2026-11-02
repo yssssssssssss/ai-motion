@@ -120,6 +120,16 @@ function cssDirectionVariables(direction: SemanticGenerationDirection | null): {
   };
 }
 
+function cssEntranceDirectionVariables(direction: SemanticGenerationDirection): string {
+  const { xStart, yStart } = cssDirectionVariables(direction);
+  return `  --travel-direction: ${direction};
+  --slide-direction: ${direction};
+  --travel-x-start: ${xStart};
+  --travel-x-end: 0;
+  --travel-y-start: ${yStart};
+  --travel-y-end: 0;`;
+}
+
 function durationForIntent(intent: SemanticGenerationIntent): number {
   if (intent.speed === "fast") return 620;
   if (intent.speed === "slow") return 1200;
@@ -326,6 +336,8 @@ function sourceFilesForButton(intent: SemanticGenerationIntent): SourceFile[] {
   --motion-duration: ${duration}ms;
   --motion-easing: ${easing};
   --travel-distance: 42vw;
+  --travel-direction: ${direction.label};
+  --slide-direction: ${direction.label};
   --bounce-scale: 1.14;
   --travel-x-start: ${direction.xStart};
   --travel-x-end: ${direction.xEnd};
@@ -500,10 +512,14 @@ function sourceFilesForText(intent: SemanticGenerationIntent): SourceFile[] {
   --motion-easing: ${easing};
   --travel-distance: 24px;
   --bounce-scale: 1.08;
-  --travel-x-start: 0;
+${
+  intent.direction
+    ? cssEntranceDirectionVariables(intent.direction)
+    : `  --travel-x-start: 0;
   --travel-x-end: 0;
   --travel-y-start: 24px;
-  --travel-y-end: 0;
+  --travel-y-end: 0;`
+}
 }
 
 html,
@@ -598,10 +614,14 @@ function sourceFilesForCard(intent: SemanticGenerationIntent): SourceFile[] {
   --motion-easing: ${easing};
   --travel-distance: 28px;
   --bounce-scale: 1.06;
-  --travel-x-start: 0;
+${
+  intent.direction
+    ? cssEntranceDirectionVariables(intent.direction)
+    : `  --travel-x-start: 0;
   --travel-x-end: 0;
   --travel-y-start: 26px;
-  --travel-y-end: 0;
+  --travel-y-end: 0;`
+}
 }
 
 html,
@@ -703,10 +723,14 @@ function sourceFilesForBadge(intent: SemanticGenerationIntent): SourceFile[] {
   --motion-duration: ${duration}ms;
   --motion-easing: ${easing};
   --bounce-scale: 1.12;
-  --travel-x-start: 0;
+${
+  intent.direction
+    ? `  --travel-distance: 24px;\n${cssEntranceDirectionVariables(intent.direction)}`
+    : `  --travel-x-start: 0;
   --travel-x-end: 0;
   --travel-y-start: 0;
-  --travel-y-end: 0;
+  --travel-y-end: 0;`
+}
 }
 
 html,
@@ -766,6 +790,8 @@ ${keyframes}`;
 function sourceFilesForLoader(intent: SemanticGenerationIntent): SourceFile[] {
   const color = intent.colors[0] ?? DEFAULT_BUTTON_COLOR;
   const duration = durationForIntent({ ...intent, speed: intent.speed === "normal" ? "fast" : intent.speed });
+  const reverse = intent.direction === "right-to-left" || intent.direction === "bottom-to-top";
+  const vertical = intent.direction === "top-to-bottom" || intent.direction === "bottom-to-top";
   const html = `<!doctype html>
 <html>
   <head>
@@ -789,7 +815,13 @@ function sourceFilesForLoader(intent: SemanticGenerationIntent): SourceFile[] {
   --loader-color: ${color.value};
   --loader-size: 16px;
   --motion-duration: ${duration}ms;
-  --motion-easing: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --motion-easing: cubic-bezier(0.34, 1.56, 0.64, 1);${
+    intent.direction
+      ? `
+  --travel-direction: ${intent.direction};
+  --slide-direction: ${intent.direction};`
+      : ""
+  }
 }
 
 html,
@@ -813,7 +845,7 @@ body {
 }
 
 .semantic-loader {
-  display: inline-flex;
+  display: inline-flex;${vertical ? "\n  flex-direction: column;" : ""}
   align-items: center;
   gap: calc(var(--loader-size) * 0.55);
 }
@@ -823,7 +855,7 @@ body {
   height: var(--loader-size);
   border-radius: 999px;
   background: var(--loader-color);
-  animation: generated-loop-dots var(--motion-duration) var(--motion-easing) infinite;
+  animation: generated-loop-dots var(--motion-duration) var(--motion-easing) infinite;${reverse ? "\n  animation-delay: calc(var(--motion-duration) * 0.32);" : ""}
   box-shadow: 0 10px 24px color-mix(in srgb, var(--loader-color) 34%, transparent);
 }
 
@@ -832,7 +864,7 @@ body {
 }
 
 .semantic-loader-dot:nth-child(3) {
-  animation-delay: calc(var(--motion-duration) * 0.32);
+  animation-delay: ${reverse ? "0s" : "calc(var(--motion-duration) * 0.32)"};
 }
 
 @keyframes generated-loop-dots {
@@ -866,7 +898,10 @@ function sourceFilesForMobilePage(intent: SemanticGenerationIntent): SourceFile[
   };
   const duration = durationForIntent(intent);
   const easing = easingForIntent(intent);
-  const animationName = "generated-load-foreground-scale";
+  // 与配方 keyframes 同名，避免配方注入的动画规则覆盖方向入场。
+  const animationName = intent.direction
+    ? animationNameForIntent({ intent, directionLabel: "page", motionKind: motionKindForIntent(intent) })
+    : "generated-load-foreground-scale";
   const html = `<!doctype html>
 <html>
   <head>
@@ -899,7 +934,13 @@ function sourceFilesForMobilePage(intent: SemanticGenerationIntent): SourceFile[
   --foreground-scale-start: 0.72;
   --foreground-scale-end: 1;
   --motion-duration: ${duration}ms;
-  --motion-easing: ${easing};
+  --motion-easing: ${easing};${
+    intent.direction
+      ? `
+  --travel-distance: 28px;
+${cssEntranceDirectionVariables(intent.direction)}`
+      : ""
+  }
 }
 
 html,
@@ -997,15 +1038,15 @@ body {
 @keyframes ${animationName} {
   0% {
     opacity: 0;
-    transform: scale(var(--foreground-scale-start)) translateY(28px);
+    transform: ${intent.direction ? "translate(var(--travel-x-start), var(--travel-y-start)) scale(var(--foreground-scale-start))" : "scale(var(--foreground-scale-start)) translateY(28px)"};
   }
   68% {
     opacity: 1;
-    transform: scale(1.04) translateY(0);
+    transform: scale(1.04) ${intent.direction ? "translate(0, 0)" : "translateY(0)"};
   }
   100% {
     opacity: 1;
-    transform: scale(var(--foreground-scale-end)) translateY(0);
+    transform: scale(var(--foreground-scale-end)) ${intent.direction ? "translate(0, 0)" : "translateY(0)"};
   }
 }`;
   return [
@@ -2070,6 +2111,23 @@ function generatedManifest(input: {
     source: input.intentV2.source,
     confidence: input.intentV2.confidence
   });
+  const files = appliedRecipe.files ?? input.files;
+  const sourceText = files.map((file) => file.content).join("\n");
+  const droppedParamIds = new Set(
+    appliedRecipe.params
+      .filter(
+        (param) =>
+          param.targets.length > 0 &&
+          param.targets.every((target) => {
+            if (target.kind !== "css-variable") return false;
+            const name = target.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            return !new RegExp(
+              `var\\(\\s*${name}\\s*[,)]|getPropertyValue\\(\\s*["']${name}["']\\s*\\)`
+            ).test(sourceText);
+          })
+      )
+      .map((param) => param.id)
+  );
 
   return {
     manifest: {
@@ -2079,13 +2137,24 @@ function generatedManifest(input: {
       sourceKind: "builtin-component",
       runtime: { engine: "html", entry: "source/index.html", sandbox: "iframe" },
       designSpecs: [designSpec],
-      motionRecipes: [appliedRecipe.binding],
-      params: appliedRecipe.params,
-      groups: roleGroups(input.role),
-      layers: appliedRecipe.layers,
+      motionRecipes: [
+        {
+          ...appliedRecipe.binding,
+          paramIds: appliedRecipe.binding.paramIds.filter((id) => !droppedParamIds.has(id))
+        }
+      ],
+      params: appliedRecipe.params.filter((param) => !droppedParamIds.has(param.id)),
+      groups: roleGroups(input.role).map((group) => ({
+        ...group,
+        params: group.params.filter((id) => !droppedParamIds.has(id))
+      })),
+      layers: appliedRecipe.layers.map((layer) => {
+        const { paramId, ...rest } = layer;
+        return paramId && droppedParamIds.has(paramId) ? rest : layer;
+      }),
       capabilities: ["editable", "export-html"]
     },
-    files: appliedRecipe.files ?? input.files
+    files
   };
 }
 
@@ -2261,7 +2330,10 @@ function coverageFor(input: {
     recordCoverage(hasScreenLayers && hasTransitionMotion, "page-transition", satisfied, missing);
   } else if (input.intent.role === "mobile-page") {
     const hasMobilePage = text.includes("semantic-mobile-page") && text.includes("foreground-layer");
-    const hasEntranceMotion = text.includes("generated-load-foreground-scale") && text.includes("scale(");
+    const hasEntranceMotion =
+      (text.includes("generated-load-foreground-scale") ||
+        (input.intent.direction !== null && text.includes("scale(var(--foreground-scale-start))"))) &&
+      text.includes("scale(");
     recordCoverage(hasMobilePage && hasEntranceMotion, "mobile-page", satisfied, missing);
   }
   for (const negative of input.intent.negativePreferences) {

@@ -53,7 +53,7 @@ function postToPreview(iframe: HTMLIFrameElement | null, message: unknown) {
 }
 
 function previewSandbox(source: MotionSource): string {
-  if (source.origin === "imported") return "allow-scripts";
+  if (source.origin !== "builtin") return "allow-scripts";
   return "allow-scripts allow-same-origin";
 }
 

@@ -380,7 +380,8 @@ describe("composeEmbedPackageFiles", () => {
     expect(iframe.style.width).toBe("120px");
     expect(iframe.style.height).toBe("48px");
     expect(postedMessages).toEqual([
-      { type: "ai-motion:init", params: { selectedIndex: 0 }, autoplay: true },
+      // init 必须携带最新参数：iframe load 时的再次 init 不能把 update 覆盖回初始值。
+      { type: "ai-motion:init", params: { selectedIndex: 2 }, autoplay: true },
       { type: "ai-motion:update", params: { selectedIndex: 2 } },
       { type: "ai-motion:replay" },
       { type: "ai-motion:pause" },

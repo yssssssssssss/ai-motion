@@ -3,6 +3,7 @@ import { sampleMotionPlan } from "./motionPlanRuntime";
 import type {
   LayerMotionTrack,
   MotionPhysics,
+  MotionPersonality,
   MotionPlan,
   MotionTrackKind,
   ZeroLayerMorphSource
@@ -166,17 +167,34 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function physicsFor(
-  curve: MotionPlanDraftCurve,
-  personality: MotionPlanDraftTrack["personality"]
+/** Applied on an explicit personality edit; loading a saved plan never remaps its physics. */
+export function physicsFromPersonality(
+  type: MotionPhysics["type"],
+  personality: MotionPersonality
 ): MotionPhysics {
-  if (curve === "spring") {
+  if (type === "spring") {
     return {
       type: "spring",
       stiffness: Math.round(120 + personality.energy * 180),
       damping: Math.round(26 - personality.bounce * 14)
     };
   }
+  const soft = [0.35, 0, 0.25, 1] as const;
+  const sharp = [0.18, 0.86, 0.22, 1] as const;
+  const amount = clamp(personality.sharpness, 0, 1);
+  const blend = (index: number) => soft[index]! + (sharp[index]! - soft[index]!) * amount;
+  return {
+    type: "ease",
+    curve: [blend(0), blend(1), blend(2), blend(3)]
+  };
+}
+
+function physicsFor(
+  curve: MotionPlanDraftCurve,
+  personality: MotionPlanDraftTrack["personality"]
+): MotionPhysics {
+  if (curve === "spring") return physicsFromPersonality("spring", personality);
+  // Preserve the model's named ease selection until the user edits sharpness.
   if (curve === "linear") return { type: "ease", curve: [0, 0, 1, 1] };
   if (curve === "decelerate") return { type: "ease", curve: [0.18, 0.86, 0.22, 1] };
   return { type: "ease", curve: [0.35, 0, 0.25, 1] };

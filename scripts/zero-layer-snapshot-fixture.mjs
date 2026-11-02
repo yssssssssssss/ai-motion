@@ -26,7 +26,12 @@ const assets = {
   )
 };
 
-const commonTextStyle = { fontFamily: '"PingFang SC", Arial, sans-serif', fontSize: 12, fontWeight: 500, lineHeight: 16 };
+const commonTextStyle = {
+  fontFamily: '"PingFang SC", Arial, sans-serif',
+  fontSize: 12,
+  fontWeight: 500,
+  lineHeight: 16
+};
 
 const snapshots = {
   "28:19": {

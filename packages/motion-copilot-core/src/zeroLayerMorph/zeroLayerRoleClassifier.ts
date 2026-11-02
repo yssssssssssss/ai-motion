@@ -72,7 +72,12 @@ function snapshotArea(snapshot: ZeroLayerSnapshot): number {
 function isBlackish(color: string | undefined): boolean {
   if (!color) return false;
   const normalized = color.trim().toLowerCase();
-  return normalized === "#000" || normalized === "#000000" || normalized === "black" || normalized.includes("0,0,0");
+  return (
+    normalized === "#000" ||
+    normalized === "#000000" ||
+    normalized === "black" ||
+    normalized.includes("0,0,0")
+  );
 }
 
 function solidFillOpacity(node: ZeroLayerNode): number | undefined {
@@ -134,7 +139,12 @@ function classifyNode(snapshot: ZeroLayerSnapshot, node: ZeroLayerNode): ZeroLay
     role = "divider";
     confidence = Math.max(confidence, 82);
     reasons.push("线性或极细图层");
-  } else if (node.kind === "vector" || node.kind === "boolean" || node.kind === "polygon" || node.kind === "star") {
+  } else if (
+    node.kind === "vector" ||
+    node.kind === "boolean" ||
+    node.kind === "polygon" ||
+    node.kind === "star"
+  ) {
     role = area(node) < snapshotArea(snapshot) * 0.08 ? "icon" : "decorative";
     confidence = Math.max(confidence, 76);
     reasons.push("矢量图层按面积识别");
@@ -145,7 +155,12 @@ function classifyNode(snapshot: ZeroLayerSnapshot, node: ZeroLayerNode): ZeroLay
   }
 
   const opacity = solidFillOpacity(node);
-  if (isLargeLayer(node, snapshot) && isBlackish(solidFillColor(node)) && opacity != null && opacity <= 0.55) {
+  if (
+    isLargeLayer(node, snapshot) &&
+    isBlackish(solidFillColor(node)) &&
+    opacity != null &&
+    opacity <= 0.55
+  ) {
     role = "mask";
     confidence = Math.max(confidence, 90);
     reasons.push("大面积低透明黑色层");
@@ -155,7 +170,10 @@ function classifyNode(snapshot: ZeroLayerSnapshot, node: ZeroLayerNode): ZeroLay
     reasons.push("宽高比和圆角接近胶囊");
   } else if (
     node.kind !== "text" &&
-    (node.kind === "frame" || node.kind === "group" || node.kind === "component" || node.kind === "instance") &&
+    (node.kind === "frame" ||
+      node.kind === "group" ||
+      node.kind === "component" ||
+      node.kind === "instance") &&
     hasChildren(node)
   ) {
     role = named?.role === "action" || area(node) < snapshotArea(snapshot) * 0.18 ? "action" : "surface";
@@ -175,9 +193,7 @@ function classifyNode(snapshot: ZeroLayerSnapshot, node: ZeroLayerNode): ZeroLay
   return { nodeId: node.nodeId, role, confidence, reasons };
 }
 
-export function classifyZeroLayerSnapshotRoles(
-  snapshot: ZeroLayerSnapshot
-): ZeroLayerRoleClassification[] {
+export function classifyZeroLayerSnapshotRoles(snapshot: ZeroLayerSnapshot): ZeroLayerRoleClassification[] {
   return snapshot.layers.map((node) => classifyNode(snapshot, node));
 }
 

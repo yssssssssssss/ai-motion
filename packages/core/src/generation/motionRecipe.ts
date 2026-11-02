@@ -13,12 +13,7 @@ import type {
   SemanticIntentV2MotionType
 } from "./semanticIntentV2";
 
-export const motionRecipeCategories = [
-  "entrance",
-  "feedback",
-  "transition",
-  "loop"
-] as const;
+export const motionRecipeCategories = ["entrance", "feedback", "transition", "loop"] as const;
 
 export const motionRecipeParamKinds = [
   "duration",
@@ -192,15 +187,15 @@ const recipeTextParam = (param: MotionRecipeParam): MotionParam => {
       ? "duration"
       : param.kind === "color"
         ? "color"
-      : param.kind === "easing"
-        ? "easing"
-        : param.kind === "loop"
-          ? "toggle"
-          : param.kind === "direction"
-            ? "select"
-            : param.kind === "transformOrigin"
-              ? "text"
-              : "range";
+        : param.kind === "easing"
+          ? "easing"
+          : param.kind === "loop"
+            ? "toggle"
+            : param.kind === "direction"
+              ? "select"
+              : param.kind === "transformOrigin"
+                ? "text"
+                : "range";
   const constraints =
     param.kind === "duration"
       ? { min: 120, max: 6000, step: 20, unit: "ms" as const }
@@ -231,19 +226,19 @@ const recipeTextParam = (param: MotionRecipeParam): MotionParam => {
       ? "时间"
       : param.kind === "easing"
         ? "缓动"
-      : param.kind === "distance" || param.kind === "direction"
-        ? "轨迹"
-        : param.kind === "opacity"
-        ? "透明度"
-        : param.kind === "color"
-          ? "颜色"
-          : param.kind === "scale"
-            ? "缩放"
-            : param.kind === "rotate" || param.kind === "transformOrigin"
-              ? "变换"
-              : param.kind === "loop"
-                ? "循环"
-                : "动效";
+        : param.kind === "distance" || param.kind === "direction"
+          ? "轨迹"
+          : param.kind === "opacity"
+            ? "透明度"
+            : param.kind === "color"
+              ? "颜色"
+              : param.kind === "scale"
+                ? "缩放"
+                : param.kind === "rotate" || param.kind === "transformOrigin"
+                  ? "变换"
+                  : param.kind === "loop"
+                    ? "循环"
+                    : "动效";
   return {
     id: param.id,
     label: param.label,
@@ -279,16 +274,63 @@ export const builtinMotionRecipes: MotionRecipe[] = [
       }
     ],
     params: [
-      { id: "motionDuration", label: "动画时长", kind: "duration", default: 900, target: rootTarget("--motion-duration") },
-      { id: "motionEasing", label: "动效缓动", kind: "easing", default: "ease-out", target: rootTarget("--motion-easing") },
-      { id: "foregroundScaleStart", label: "入场初始缩放", kind: "scale", default: 0.72, target: rootTarget("--foreground-scale-start") },
-      { id: "foregroundScaleEnd", label: "入场结束缩放", kind: "scale", default: 1, target: rootTarget("--foreground-scale-end") },
-      { id: "opacityStart", label: "入场初始透明度", kind: "opacity", default: 0, target: rootTarget("--opacity-start") },
-      { id: "opacityEnd", label: "入场结束透明度", kind: "opacity", default: 1, target: rootTarget("--opacity-end") },
-      { id: "transformOrigin", label: "变换原点", kind: "transformOrigin", default: "50% 72%", target: rootTarget("--transform-origin") }
+      {
+        id: "motionDuration",
+        label: "动画时长",
+        kind: "duration",
+        default: 900,
+        target: rootTarget("--motion-duration")
+      },
+      {
+        id: "motionEasing",
+        label: "动效缓动",
+        kind: "easing",
+        default: "ease-out",
+        target: rootTarget("--motion-easing")
+      },
+      {
+        id: "foregroundScaleStart",
+        label: "入场初始缩放",
+        kind: "scale",
+        default: 0.72,
+        target: rootTarget("--foreground-scale-start")
+      },
+      {
+        id: "foregroundScaleEnd",
+        label: "入场结束缩放",
+        kind: "scale",
+        default: 1,
+        target: rootTarget("--foreground-scale-end")
+      },
+      {
+        id: "opacityStart",
+        label: "入场初始透明度",
+        kind: "opacity",
+        default: 0,
+        target: rootTarget("--opacity-start")
+      },
+      {
+        id: "opacityEnd",
+        label: "入场结束透明度",
+        kind: "opacity",
+        default: 1,
+        target: rootTarget("--opacity-end")
+      },
+      {
+        id: "transformOrigin",
+        label: "变换原点",
+        kind: "transformOrigin",
+        default: "50% 72%",
+        target: rootTarget("--transform-origin")
+      }
     ],
     bindings: {
-      cssVariables: ["--motion-duration", "--motion-easing", "--foreground-scale-start", "--foreground-scale-end"],
+      cssVariables: [
+        "--motion-duration",
+        "--motion-easing",
+        "--foreground-scale-start",
+        "--foreground-scale-end"
+      ],
       keyframes: ["generated-load-foreground-scale", "generated-load-scale"],
       selectors: ["[data-motion=foregroundLayer]", "[data-motion=cardRoot]", "[data-motion=mobileScreen]"],
       replay: true
@@ -318,15 +360,58 @@ export const builtinMotionRecipes: MotionRecipe[] = [
       }
     ],
     params: [
-      { id: "motionDuration", label: "动画时长", kind: "duration", default: 820, target: rootTarget("--motion-duration") },
-      { id: "motionEasing", label: "动效缓动", kind: "easing", default: "ease-out", target: rootTarget("--motion-easing") },
-      { id: "slideDistance", label: "滑入距离", kind: "distance", default: 80, target: rootTarget("--slide-distance") },
-      { id: "slideDirection", label: "滑入方向", kind: "direction", default: "left-to-right", target: rootTarget("--slide-direction") },
-      { id: "opacityStart", label: "入场初始透明度", kind: "opacity", default: 0, target: rootTarget("--opacity-start") },
-      { id: "opacityEnd", label: "入场结束透明度", kind: "opacity", default: 1, target: rootTarget("--opacity-end") }
+      {
+        id: "motionDuration",
+        label: "动画时长",
+        kind: "duration",
+        default: 820,
+        target: rootTarget("--motion-duration")
+      },
+      {
+        id: "motionEasing",
+        label: "动效缓动",
+        kind: "easing",
+        default: "ease-out",
+        target: rootTarget("--motion-easing")
+      },
+      {
+        id: "slideDistance",
+        label: "滑入距离",
+        kind: "distance",
+        default: 80,
+        target: rootTarget("--slide-distance")
+      },
+      {
+        id: "slideDirection",
+        label: "滑入方向",
+        kind: "direction",
+        default: "left-to-right",
+        target: rootTarget("--slide-direction")
+      },
+      {
+        id: "opacityStart",
+        label: "入场初始透明度",
+        kind: "opacity",
+        default: 0,
+        target: rootTarget("--opacity-start")
+      },
+      {
+        id: "opacityEnd",
+        label: "入场结束透明度",
+        kind: "opacity",
+        default: 1,
+        target: rootTarget("--opacity-end")
+      }
     ],
     bindings: {
-      cssVariables: ["--motion-duration", "--motion-easing", "--slide-distance", "--slide-direction", "--opacity-start", "--opacity-end"],
+      cssVariables: [
+        "--motion-duration",
+        "--motion-easing",
+        "--slide-distance",
+        "--slide-direction",
+        "--opacity-start",
+        "--opacity-end"
+      ],
       keyframes: ["generated-load-slide"],
       selectors: ["[data-motion=foregroundLayer]", "[data-motion=cardRoot]", "[data-motion=buttonLabel]"],
       replay: true
@@ -356,7 +441,13 @@ export const builtinMotionRecipes: MotionRecipe[] = [
       }
     ],
     params: [
-      { id: "motionDuration", label: "动画时长", kind: "duration", default: 620, target: rootTarget("--motion-duration") },
+      {
+        id: "motionDuration",
+        label: "动画时长",
+        kind: "duration",
+        default: 620,
+        target: rootTarget("--motion-duration")
+      },
       {
         id: "motionEasing",
         label: "弹性缓动",
@@ -364,8 +455,20 @@ export const builtinMotionRecipes: MotionRecipe[] = [
         default: "cubic-bezier(0.34, 1.56, 0.64, 1)",
         target: rootTarget("--motion-easing")
       },
-      { id: "bounceIntensity", label: "弹动强度", kind: "scale", default: 1.14, target: rootTarget("--bounce-scale") },
-      { id: "settleScale", label: "回落缩放", kind: "scale", default: 0.97, target: rootTarget("--settle-scale") }
+      {
+        id: "bounceIntensity",
+        label: "弹动强度",
+        kind: "scale",
+        default: 1.14,
+        target: rootTarget("--bounce-scale")
+      },
+      {
+        id: "settleScale",
+        label: "回落缩放",
+        kind: "scale",
+        default: 0.97,
+        target: rootTarget("--settle-scale")
+      }
     ],
     bindings: {
       cssVariables: ["--motion-duration", "--motion-easing", "--bounce-scale"],
@@ -398,14 +501,50 @@ export const builtinMotionRecipes: MotionRecipe[] = [
       }
     ],
     params: [
-      { id: "motionDuration", label: "动画时长", kind: "duration", default: 900, target: rootTarget("--motion-duration") },
-      { id: "motionEasing", label: "动效缓动", kind: "easing", default: "ease-out", target: rootTarget("--motion-easing") },
-      { id: "opacityStart", label: "初始透明度", kind: "opacity", default: 0, target: rootTarget("--opacity-start") },
-      { id: "opacityEnd", label: "结束透明度", kind: "opacity", default: 1, target: rootTarget("--opacity-end") },
-      { id: "motionDelay", label: "延迟时间", kind: "delay", default: 0, target: rootTarget("--motion-delay") }
+      {
+        id: "motionDuration",
+        label: "动画时长",
+        kind: "duration",
+        default: 900,
+        target: rootTarget("--motion-duration")
+      },
+      {
+        id: "motionEasing",
+        label: "动效缓动",
+        kind: "easing",
+        default: "ease-out",
+        target: rootTarget("--motion-easing")
+      },
+      {
+        id: "opacityStart",
+        label: "初始透明度",
+        kind: "opacity",
+        default: 0,
+        target: rootTarget("--opacity-start")
+      },
+      {
+        id: "opacityEnd",
+        label: "结束透明度",
+        kind: "opacity",
+        default: 1,
+        target: rootTarget("--opacity-end")
+      },
+      {
+        id: "motionDelay",
+        label: "延迟时间",
+        kind: "delay",
+        default: 0,
+        target: rootTarget("--motion-delay")
+      }
     ],
     bindings: {
-      cssVariables: ["--motion-duration", "--motion-easing", "--opacity-start", "--opacity-end", "--motion-delay"],
+      cssVariables: [
+        "--motion-duration",
+        "--motion-easing",
+        "--opacity-start",
+        "--opacity-end",
+        "--motion-delay"
+      ],
       keyframes: ["generated-load-fade"],
       selectors: ["[data-motion=foregroundLayer]", "[data-motion=textContent]", "[data-motion=cardRoot]"],
       replay: true
@@ -435,14 +574,50 @@ export const builtinMotionRecipes: MotionRecipe[] = [
       }
     ],
     params: [
-      { id: "floatDuration", label: "漂浮周期", kind: "duration", default: 3200, target: rootTarget("--float-duration") },
-      { id: "motionEasing", label: "动效缓动", kind: "easing", default: "ease-in-out", target: rootTarget("--motion-easing") },
-      { id: "floatAmplitude", label: "漂浮幅度", kind: "distance", default: 22, target: rootTarget("--float-amplitude") },
-      { id: "floatDirection", label: "漂浮方向", kind: "direction", default: "bottom-to-top", target: rootTarget("--float-direction") },
-      { id: "motionLoop", label: "循环播放", kind: "loop", default: true, target: rootTarget("--motion-loop") }
+      {
+        id: "floatDuration",
+        label: "漂浮周期",
+        kind: "duration",
+        default: 3200,
+        target: rootTarget("--float-duration")
+      },
+      {
+        id: "motionEasing",
+        label: "动效缓动",
+        kind: "easing",
+        default: "ease-in-out",
+        target: rootTarget("--motion-easing")
+      },
+      {
+        id: "floatAmplitude",
+        label: "漂浮幅度",
+        kind: "distance",
+        default: 22,
+        target: rootTarget("--float-amplitude")
+      },
+      {
+        id: "floatDirection",
+        label: "漂浮方向",
+        kind: "direction",
+        default: "bottom-to-top",
+        target: rootTarget("--float-direction")
+      },
+      {
+        id: "motionLoop",
+        label: "循环播放",
+        kind: "loop",
+        default: true,
+        target: rootTarget("--motion-loop")
+      }
     ],
     bindings: {
-      cssVariables: ["--float-duration", "--motion-easing", "--float-amplitude", "--float-direction", "--motion-loop"],
+      cssVariables: [
+        "--float-duration",
+        "--motion-easing",
+        "--float-amplitude",
+        "--float-direction",
+        "--motion-loop"
+      ],
       keyframes: ["generated-loop-float"],
       selectors: ["[data-motion=backgroundLayer]", "[data-motion=foregroundLayer]", "[data-motion=cardRoot]"],
       replay: true
@@ -472,15 +647,58 @@ export const builtinMotionRecipes: MotionRecipe[] = [
       }
     ],
     params: [
-      { id: "motionDuration", label: "动画时长", kind: "duration", default: 1200, target: rootTarget("--motion-duration") },
-      { id: "motionEasing", label: "动效缓动", kind: "easing", default: "ease-in-out", target: rootTarget("--motion-easing") },
-      { id: "pulseScale", label: "脉冲缩放", kind: "scale", default: 1.08, target: rootTarget("--pulse-scale") },
-      { id: "opacityStart", label: "低点透明度", kind: "opacity", default: 0.72, target: rootTarget("--opacity-start") },
-      { id: "opacityEnd", label: "高点透明度", kind: "opacity", default: 1, target: rootTarget("--opacity-end") },
-      { id: "motionLoop", label: "循环播放", kind: "loop", default: true, target: rootTarget("--motion-loop") }
+      {
+        id: "motionDuration",
+        label: "动画时长",
+        kind: "duration",
+        default: 1200,
+        target: rootTarget("--motion-duration")
+      },
+      {
+        id: "motionEasing",
+        label: "动效缓动",
+        kind: "easing",
+        default: "ease-in-out",
+        target: rootTarget("--motion-easing")
+      },
+      {
+        id: "pulseScale",
+        label: "脉冲缩放",
+        kind: "scale",
+        default: 1.08,
+        target: rootTarget("--pulse-scale")
+      },
+      {
+        id: "opacityStart",
+        label: "低点透明度",
+        kind: "opacity",
+        default: 0.72,
+        target: rootTarget("--opacity-start")
+      },
+      {
+        id: "opacityEnd",
+        label: "高点透明度",
+        kind: "opacity",
+        default: 1,
+        target: rootTarget("--opacity-end")
+      },
+      {
+        id: "motionLoop",
+        label: "循环播放",
+        kind: "loop",
+        default: true,
+        target: rootTarget("--motion-loop")
+      }
     ],
     bindings: {
-      cssVariables: ["--motion-duration", "--motion-easing", "--pulse-scale", "--opacity-start", "--opacity-end", "--motion-loop"],
+      cssVariables: [
+        "--motion-duration",
+        "--motion-easing",
+        "--pulse-scale",
+        "--opacity-start",
+        "--opacity-end",
+        "--motion-loop"
+      ],
       keyframes: ["generated-loop-pulse"],
       selectors: ["[data-motion=badgeText]", "[data-motion=loaderRoot]", "[data-motion=buttonLabel]"],
       replay: true
@@ -518,15 +736,57 @@ export const builtinMotionRecipes: MotionRecipe[] = [
       }
     ],
     params: [
-      { id: "cycleDuration", label: "循环时长", kind: "duration", default: 2640, target: rootTarget("--cycle-duration") },
-      { id: "easing", label: "缓动曲线", kind: "easing", default: "cubic-bezier(0.18, 0.86, 0.22, 1)", target: rootTarget("--motion-easing") },
-      { id: "enterDistance", label: "进入距离", kind: "distance", default: 520, target: rootTarget("--enter-distance") },
-      { id: "exitDistance", label: "退出距离", kind: "distance", default: -520, target: rootTarget("--exit-distance") },
-      { id: "transitionOpacity", label: "过渡泛白", kind: "opacity", default: 0.72, target: rootTarget("--transition-opacity") },
-      { id: "windowRadius", label: "屏幕圆角", kind: "distance", default: 92, target: rootTarget("--window-radius") }
+      {
+        id: "cycleDuration",
+        label: "循环时长",
+        kind: "duration",
+        default: 2640,
+        target: rootTarget("--cycle-duration")
+      },
+      {
+        id: "easing",
+        label: "缓动曲线",
+        kind: "easing",
+        default: "cubic-bezier(0.18, 0.86, 0.22, 1)",
+        target: rootTarget("--motion-easing")
+      },
+      {
+        id: "enterDistance",
+        label: "进入距离",
+        kind: "distance",
+        default: 520,
+        target: rootTarget("--enter-distance")
+      },
+      {
+        id: "exitDistance",
+        label: "退出距离",
+        kind: "distance",
+        default: -520,
+        target: rootTarget("--exit-distance")
+      },
+      {
+        id: "transitionOpacity",
+        label: "过渡泛白",
+        kind: "opacity",
+        default: 0.72,
+        target: rootTarget("--transition-opacity")
+      },
+      {
+        id: "windowRadius",
+        label: "屏幕圆角",
+        kind: "distance",
+        default: 92,
+        target: rootTarget("--window-radius")
+      }
     ],
     bindings: {
-      cssVariables: ["--cycle-duration", "--motion-easing", "--enter-distance", "--exit-distance", "--transition-opacity"],
+      cssVariables: [
+        "--cycle-duration",
+        "--motion-easing",
+        "--enter-distance",
+        "--exit-distance",
+        "--transition-opacity"
+      ],
       keyframes: ["mine-exit", "orders-enter", "transition-wash"],
       selectors: ["[data-motion=frontPage]", "[data-motion=backPage]", "[data-motion=transitionWash]"],
       replay: true
@@ -566,7 +826,8 @@ export function motionRecipeRequestFromSemanticIntent(intent: SemanticIntentV2):
   } else if (motionTypes.includes("scale")) {
     recipeId = "scale-entrance";
   }
-  const loopRecipe = recipeId === "page-front-back-transition" || recipeId === "float-loop" || recipeId === "pulse-loop";
+  const loopRecipe =
+    recipeId === "page-front-back-transition" || recipeId === "float-loop" || recipeId === "pulse-loop";
 
   return {
     recipeId,
@@ -628,7 +889,10 @@ function selectorForRecipe(input: {
     input.recipe.targets.find((item) => item.required) ??
     input.recipe.targets[0];
   const selectors = [
-    ...(target?.selector.split(",").map((selector) => selector.trim()).filter(Boolean) ?? []),
+    ...(target?.selector
+      .split(",")
+      .map((selector) => selector.trim())
+      .filter(Boolean) ?? []),
     ...input.recipe.bindings.selectors
   ];
   return firstExistingSelector(input.html, selectors) ?? selectors[0] ?? "[data-motion=motionLayer]";
@@ -659,7 +923,8 @@ function ensureHtmlTarget(html: string, selector: string): string {
 }
 
 function cssValue(param: MotionRecipeParam): string {
-  if (param.kind === "duration" || param.kind === "delay" || param.kind === "stagger") return `${param.default}ms`;
+  if (param.kind === "duration" || param.kind === "delay" || param.kind === "stagger")
+    return `${param.default}ms`;
   if (param.kind === "distance") return `${param.default}px`;
   if (param.kind === "rotate") return `${param.default}deg`;
   if (typeof param.default === "boolean") return param.default ? "1" : "0";
@@ -751,7 +1016,8 @@ function injectKeyframes(css: string, recipe: MotionRecipe): string {
 }
 
 function animationNameForRecipe(recipe: MotionRecipe, trigger: MotionRecipe["trigger"]): string {
-  if (recipe.id === "bounce-feedback") return trigger === "hover" ? "generated-hover-bounce" : "generated-click-bounce";
+  if (recipe.id === "bounce-feedback")
+    return trigger === "hover" ? "generated-hover-bounce" : "generated-click-bounce";
   return recipe.timeline.keyframes[0] ?? recipe.bindings.keyframes[0] ?? "generated-motion-recipe";
 }
 
@@ -762,9 +1028,16 @@ function injectAnimationRule(input: {
   trigger: MotionRecipe["trigger"];
 }): string {
   const animationName = animationNameForRecipe(input.recipe, input.trigger);
-  const durationVar = input.recipe.timeline.durationParamId === "floatDuration" ? "--float-duration" : "--motion-duration";
-  const duration = input.recipe.id === "page-front-back-transition" ? "var(--cycle-duration, 2640ms)" : `var(${durationVar}, 900ms)`;
-  const easing = input.recipe.id === "page-front-back-transition" ? "var(--motion-easing, ease-out)" : "var(--motion-easing, ease-out)";
+  const durationVar =
+    input.recipe.timeline.durationParamId === "floatDuration" ? "--float-duration" : "--motion-duration";
+  const duration =
+    input.recipe.id === "page-front-back-transition"
+      ? "var(--cycle-duration, 2640ms)"
+      : `var(${durationVar}, 900ms)`;
+  const easing =
+    input.recipe.id === "page-front-back-transition"
+      ? "var(--motion-easing, ease-out)"
+      : "var(--motion-easing, ease-out)";
   const loop = input.recipe.timeline.loop || input.trigger === "loop" ? " infinite" : "";
   const playSelector =
     input.trigger === "hover" ? `${input.selector}:hover` : `.is-playing ${input.selector}`;
@@ -778,9 +1051,11 @@ function injectAnimationRule(input: {
 
 function replayProtocol(trigger: MotionRecipe["trigger"], selector: string, replayOnce: boolean): string {
   const escapedSelector = selector.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-  const replayGuard = replayOnce ? `
+  const replayGuard = replayOnce
+    ? `
     if (root.dataset.motionPlayed === "true") return;
-    root.dataset.motionPlayed = "true";` : "";
+    root.dataset.motionPlayed = "true";`
+    : "";
   const swipeProtocol =
     trigger === "swipe"
       ? `
@@ -832,7 +1107,7 @@ ${replayGuard}
     }
   };
 
-  ${trigger === "click" ? "if (target instanceof HTMLElement) target.addEventListener(\"click\", replay);" : ""}
+  ${trigger === "click" ? 'if (target instanceof HTMLElement) target.addEventListener("click", replay);' : ""}
   ${trigger === "load" || trigger === "loop" ? "requestAnimationFrame(replay);" : ""}
   ${swipeProtocol}
 })();`;
@@ -871,7 +1146,9 @@ function applyMotionRecipeToFiles(input: {
   trigger: MotionRecipe["trigger"];
   targetSelector?: string | undefined;
 }): SourceFile[] {
-  const htmlFile = input.sourceFiles.find((file) => file.path === "source/index.html" || file.kind === "html");
+  const htmlFile = input.sourceFiles.find(
+    (file) => file.path === "source/index.html" || file.kind === "html"
+  );
   const cssFile = input.sourceFiles.find((file) => file.path === "source/style.css" || file.kind === "css");
   const jsFile = input.sourceFiles.find((file) => file.path === "source/script.js" || file.kind === "js");
   const selector = selectorForRecipe({
@@ -892,7 +1169,11 @@ function applyMotionRecipeToFiles(input: {
   const js = ensureReplayProtocol(jsFile?.content ?? "", input.trigger, targetSelector, input.recipe);
 
   return upsertFile(
-    upsertFile(upsertFile(input.sourceFiles, htmlFile?.path ?? "source/index.html", html), cssFile?.path ?? "source/style.css", css),
+    upsertFile(
+      upsertFile(input.sourceFiles, htmlFile?.path ?? "source/index.html", html),
+      cssFile?.path ?? "source/style.css",
+      css
+    ),
     jsFile?.path ?? "source/script.js",
     js
   );
@@ -913,9 +1194,7 @@ export function applyMotionRecipe(input: {
   const recipeParamById = new Map(input.recipe.params.map((param) => [param.id, recipeTextParam(param)]));
   const paramIds = new Set(input.params.map((param) => param.id));
   const layerIds = new Set(input.layers.map((layer) => layer.id));
-  const recipeParams = input.recipe.params
-    .filter((param) => !paramIds.has(param.id))
-    .map(recipeTextParam);
+  const recipeParams = input.recipe.params.filter((param) => !paramIds.has(param.id)).map(recipeTextParam);
   const recipeLayers = input.recipe.targets
     .filter((target) => !layerIds.has(target.id))
     .map(
@@ -925,7 +1204,9 @@ export function applyMotionRecipe(input: {
         kind: target.acceptedKinds[0] ?? "structure",
         replaceable: true,
         required: target.required,
-        targets: [{ kind: "html-attribute", file: "source/index.html", selector: target.selector, attribute: "class" }]
+        targets: [
+          { kind: "html-attribute", file: "source/index.html", selector: target.selector, attribute: "class" }
+        ]
       })
     );
   const layers = [...input.layers, ...recipeLayers].map((layer) => ({ ...layer, replaceable: true }));
@@ -954,9 +1235,10 @@ export function applyMotionRecipe(input: {
         targetSelector: input.targetSelector
       })
     : undefined;
-  const bindingTargetLayerIds = input.targetLayerIds && input.targetLayerIds.length > 0
-    ? input.targetLayerIds
-    : input.recipe.targets.map((target) => target.id);
+  const bindingTargetLayerIds =
+    input.targetLayerIds && input.targetLayerIds.length > 0
+      ? input.targetLayerIds
+      : input.recipe.targets.map((target) => target.id);
   const targetSelectors = input.targetSelector ? [input.targetSelector] : input.recipe.bindings.selectors;
 
   return {
@@ -1003,7 +1285,9 @@ export function validateRecipeApplication(input: {
   }
   const recipe = builtinMotionRecipes.find((item) => item.id === input.binding.recipeId);
   if (recipe) {
-    const selectors = input.binding.targetSelectors?.length ? input.binding.targetSelectors : recipe.bindings.selectors;
+    const selectors = input.binding.targetSelectors?.length
+      ? input.binding.targetSelectors
+      : recipe.bindings.selectors;
     const hasSelector = selectors.some((selector) => selectorExists(input.sourceText, selector));
     if (!hasSelector) issues.push("recipe selector 未绑定到源码图层");
     if (!recipe.bindings.keyframes.some((name) => input.sourceText.includes(`@keyframes ${name}`))) {
@@ -1033,7 +1317,10 @@ function extractedBuiltinRecipe(id: string): MotionRecipe {
     ...recipe,
     timeline: { ...recipe.timeline, keyframes: [...recipe.timeline.keyframes] },
     targets: recipe.targets.map((target) => ({ ...target, acceptedKinds: [...target.acceptedKinds] })),
-    params: recipe.params.map((param) => ({ ...param, ...(param.target ? { target: { ...param.target } } : {}) })),
+    params: recipe.params.map((param) => ({
+      ...param,
+      ...(param.target ? { target: { ...param.target } } : {})
+    })),
     bindings: {
       cssVariables: [...recipe.bindings.cssVariables],
       keyframes: [...recipe.bindings.keyframes],
@@ -1107,7 +1394,10 @@ function recipeDefaultFromValue(
   return numberFromCssValue(value, kind) ?? undefined;
 }
 
-function manifestParamDefault(component: MotionComponent, recipeParam: MotionRecipeParam): MotionRecipeParam["default"] | undefined {
+function manifestParamDefault(
+  component: MotionComponent,
+  recipeParam: MotionRecipeParam
+): MotionRecipeParam["default"] | undefined {
   const variableName = paramCssVariableName(recipeParam);
   const matched = component.manifest.params.find((param) => {
     if (param.id === recipeParam.id) return true;
@@ -1120,14 +1410,21 @@ function manifestParamDefault(component: MotionComponent, recipeParam: MotionRec
   return recipeDefaultFromValue(matched.value ?? matched.default, recipeParam.kind);
 }
 
-function cssParamDefault(cssValues: Map<string, string>, recipeParam: MotionRecipeParam): MotionRecipeParam["default"] | undefined {
+function cssParamDefault(
+  cssValues: Map<string, string>,
+  recipeParam: MotionRecipeParam
+): MotionRecipeParam["default"] | undefined {
   const variableName = paramCssVariableName(recipeParam);
   if (!variableName) return undefined;
   const value = cssValues.get(variableName);
   return value === undefined ? undefined : recipeDefaultFromValue(value, recipeParam.kind);
 }
 
-function withExtractedParamDefaults(recipe: MotionRecipe, component: MotionComponent, css: string): MotionRecipe {
+function withExtractedParamDefaults(
+  recipe: MotionRecipe,
+  component: MotionComponent,
+  css: string
+): MotionRecipe {
   const cssValues = cssVariableValueMap(css);
   return {
     ...recipe,
@@ -1158,7 +1455,10 @@ function sourceSelectorForTarget(component: MotionComponent, target: MotionRecip
   const compatibleLayerSelector = compatibleLayer ? firstLayerSelector(compatibleLayer) : null;
   if (compatibleLayerSelector) return compatibleLayerSelector;
 
-  const html = component.source.files.filter((file) => file.kind === "html").map((file) => file.content).join("\n");
+  const html = component.source.files
+    .filter((file) => file.kind === "html")
+    .map((file) => file.content)
+    .join("\n");
   if (html.includes(`data-motion="${target.id}"`) || html.includes(`data-motion='${target.id}'`)) {
     return `[data-motion=${target.id}]`;
   }
@@ -1169,7 +1469,10 @@ function sourceSelectorForTarget(component: MotionComponent, target: MotionRecip
 }
 
 function sourceBindingSelectors(component: MotionComponent): string[] {
-  const html = component.source.files.filter((file) => file.kind === "html").map((file) => file.content).join("\n");
+  const html = component.source.files
+    .filter((file) => file.kind === "html")
+    .map((file) => file.content)
+    .join("\n");
   return [
     ...(selectorExists(html, ".mine-content") ? [".mine-content"] : []),
     ...(selectorExists(html, ".orders-content") ? [".orders-content"] : []),
@@ -1178,13 +1481,19 @@ function sourceBindingSelectors(component: MotionComponent): string[] {
 }
 
 function mergeSelectors(selectors: string[]): string[] {
-  return [...new Set(selectors.flatMap((selector) => selector.split(",").map((item) => item.trim())).filter(Boolean))];
+  return [
+    ...new Set(
+      selectors.flatMap((selector) => selector.split(",").map((item) => item.trim())).filter(Boolean)
+    )
+  ];
 }
 
 function withExtractedSelectors(recipe: MotionRecipe, component: MotionComponent): MotionRecipe {
   const targets = recipe.targets.map((target) => {
     const sourceSelector = sourceSelectorForTarget(component, target);
-    return sourceSelector ? { ...target, selector: mergeSelectors([sourceSelector, target.selector]).join(", ") } : target;
+    return sourceSelector
+      ? { ...target, selector: mergeSelectors([sourceSelector, target.selector]).join(", ") }
+      : target;
   });
   return {
     ...recipe,
@@ -1201,8 +1510,14 @@ function withExtractedSelectors(recipe: MotionRecipe, component: MotionComponent
 }
 
 function extractedRecipeWithEvidence(component: MotionComponent, recipeId: string): MotionRecipe {
-  const css = component.source.files.filter((file) => file.kind === "css").map((file) => file.content).join("\n");
-  return withExtractedSelectors(withExtractedParamDefaults(extractedBuiltinRecipe(recipeId), component, css), component);
+  const css = component.source.files
+    .filter((file) => file.kind === "css")
+    .map((file) => file.content)
+    .join("\n");
+  return withExtractedSelectors(
+    withExtractedParamDefaults(extractedBuiltinRecipe(recipeId), component, css),
+    component
+  );
 }
 
 export function extractMotionRecipeFromComponent(component: MotionComponent): ExtractedMotionRecipe | null {
@@ -1223,21 +1538,37 @@ export function extractMotionRecipeFromComponent(component: MotionComponent): Ex
     };
   }
 
-  const css = component.source.files.filter((file) => file.kind === "css").map((file) => file.content).join("\n");
+  const css = component.source.files
+    .filter((file) => file.kind === "css")
+    .map((file) => file.content)
+    .join("\n");
   const names = keyframeNames(css);
   if (names.length === 0 && !/transition\s*:/.test(css)) return null;
 
-  let recipeId = "scale-entrance";
-  if (/float/i.test(css) || /translateY|translate3d\(0/i.test(css)) recipeId = "float-loop";
-  else if (/pulse|scale\(/i.test(css) && /infinite/i.test(css)) recipeId = "pulse-loop";
-  else if (/bounce|cubic-bezier\(0\.34,\s*1\.56/i.test(css)) recipeId = "bounce-feedback";
-  else if (/translate/i.test(css)) recipeId = "slide-entrance";
-  else if (/opacity/i.test(css)) recipeId = "fade-entrance";
+  const binding = component.manifest.motionRecipes?.find(
+    (candidate) =>
+      builtinMotionRecipes.some((recipe) => recipe.id === candidate.recipeId) &&
+      validateRecipeApplication({
+        binding: candidate,
+        params: component.manifest.params,
+        layers: component.manifest.layers ?? [],
+        sourceText: text
+      }).valid
+  );
+  let recipeId = binding?.recipeId ?? "scale-entrance";
+  if (!binding) {
+    if (/float/i.test(css) || /translateY|translate3d\(0/i.test(css)) recipeId = "float-loop";
+    else if (/pulse|scale\(/i.test(css) && /infinite/i.test(css)) recipeId = "pulse-loop";
+    else if (/bounce|cubic-bezier\(0\.34,\s*1\.56/i.test(css)) recipeId = "bounce-feedback";
+    else if (/translate/i.test(css)) recipeId = "slide-entrance";
+    else if (/opacity/i.test(css)) recipeId = "fade-entrance";
+  }
 
   const issues: string[] = [];
   if (!sourceHasReplay(text)) issues.push("参考组件缺少 replay 协议");
   if (cssVariables(css).length === 0) issues.push("参考组件缺少 CSS 变量参数");
-  if ((component.manifest.layers ?? []).some((layer) => !layer.replaceable)) issues.push("参考组件存在不可替换图层");
+  if ((component.manifest.layers ?? []).some((layer) => !layer.replaceable))
+    issues.push("参考组件存在不可替换图层");
 
   return {
     recipe: extractedRecipeWithEvidence(component, recipeId),
@@ -1268,7 +1599,12 @@ export function findCachedMotionRecipe(input: {
 }): MotionRecipeCacheEntry | null {
   const raw = input.raw.toLowerCase();
   return (
-    input.cache.find((entry) => input.recipeId && entry.recipe.id === input.recipeId && entry.hints.some((hint) => raw.includes(hint.toLowerCase()))) ??
+    input.cache.find(
+      (entry) =>
+        input.recipeId &&
+        entry.recipe.id === input.recipeId &&
+        entry.hints.some((hint) => raw.includes(hint.toLowerCase()))
+    ) ??
     input.cache.find((entry) => entry.hints.some((hint) => raw.includes(hint.toLowerCase()))) ??
     null
   );
@@ -1277,7 +1613,9 @@ export function findCachedMotionRecipe(input: {
 export function applyMotionRecipeToComponent(input: ApplyMotionRecipeToComponentInput): MotionComponent {
   const extracted = extractMotionRecipeFromComponent(input.sourceComponent);
   if (!extracted) throw new Error("源组件没有可提取的 MotionRecipe。");
-  const targetLayer = input.targetComponent.manifest.layers?.find((layer) => layer.id === input.targetLayerId);
+  const targetLayer = input.targetComponent.manifest.layers?.find(
+    (layer) => layer.id === input.targetLayerId
+  );
   if (!targetLayer) throw new Error("目标图层不存在。");
   const targetSelector = firstLayerSelector(targetLayer);
   if (!targetSelector) throw new Error("目标图层缺少可绑定 selector。");
@@ -1294,7 +1632,11 @@ export function applyMotionRecipeToComponent(input: ApplyMotionRecipeToComponent
   });
   const id = input.id ?? `generated-recipe-${input.sourceComponent.id}-to-${input.targetComponent.id}`;
   const capabilities = [
-    ...new Set<MotionCapability>([...(input.targetComponent.manifest.capabilities ?? []), "editable", "export-html"])
+    ...new Set<MotionCapability>([
+      ...(input.targetComponent.manifest.capabilities ?? []),
+      "editable",
+      "export-html"
+    ])
   ];
 
   return {

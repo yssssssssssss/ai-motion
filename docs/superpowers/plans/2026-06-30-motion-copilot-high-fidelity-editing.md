@@ -49,11 +49,13 @@
 ### Task 1: Add High-Fidelity Node Override Schema
 
 **Files:**
+
 - Modify: `packages/motion-copilot-core/src/frameMorph/schema.ts`
 - Modify: `packages/motion-copilot-core/src/index.ts`
 - Test: `packages/motion-copilot-core/test/frameMorph.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `type ZeroVisualNodeOverride = { nodeId: string; x?: number; y?: number; width?: number; height?: number; radius?: number; opacity?: number }`
   - Optional `nodeOverrides?: ZeroVisualNodeOverride[]` on `MotionDocument["visualSource"]` when `kind === "zero-visual-morph"`.
@@ -146,12 +148,14 @@ Expected: PASS and no type errors.
 ### Task 2: Render Override CSS for Preview and Export
 
 **Files:**
+
 - Create: `packages/motion-copilot-core/src/frameMorph/createZeroVisualNodeOverrideCss.ts`
 - Modify: `packages/motion-copilot-core/src/composition/exportVisualCompositionHtml.ts`
 - Modify: `packages/motion-copilot-core/src/index.ts`
 - Test: `packages/motion-copilot-core/test/frameMorph.test.ts`
 
 **Interfaces:**
+
 - Consumes:
   - `ZeroVisualNodeOverride[]`
 - Produces:
@@ -164,7 +168,7 @@ Add to `packages/motion-copilot-core/test/frameMorph.test.ts`:
 ```ts
 it("creates scoped CSS for high-fidelity node overrides", () => {
   const css = createZeroVisualNodeOverrideCss([
-    { nodeId: '28:12', x: 10, y: 20, width: 120, height: 32, radius: 16, opacity: 0.5 }
+    { nodeId: "28:12", x: 10, y: 20, width: 120, height: 32, radius: 16, opacity: 0.5 }
   ]);
 
   expect(css).toContain('[data-node-id="28:12"]');
@@ -264,7 +268,9 @@ it("exportVisualCompositionHtml embeds high-fidelity node override CSS", () => {
   composition.document.visualSource.nodeOverrides = [{ nodeId: "a", x: 16, width: 96, radius: 8 }];
 
   const html = exportCompositionHtml(composition.document.composition!, composition.document);
-  expect(html).toContain('[data-node-id="a"]{left:16px!important;width:96px!important;border-radius:8px!important;}');
+  expect(html).toContain(
+    '[data-node-id="a"]{left:16px!important;width:96px!important;border-radius:8px!important;}'
+  );
 });
 ```
 
@@ -285,10 +291,12 @@ Expected: 50+ tests pass and no type errors.
 ### Task 3: Apply Override CSS in High-Fidelity Preview
 
 **Files:**
+
 - Modify: `apps/motion-copilot/src/features/visualStage/VisualStage.tsx`
 - Test: `apps/motion-copilot/src/features/visualStage/VisualStage.test.tsx`
 
 **Interfaces:**
+
 - Consumes:
   - `overrideCss?: string`
 - Produces:
@@ -300,12 +308,7 @@ Add to `apps/motion-copilot/src/features/visualStage/VisualStage.test.tsx`:
 
 ```tsx
 it("injects high-fidelity override CSS into the iframe preview", () => {
-  render(
-    <VisualStage
-      snapshot={snapshot}
-      overrideCss={'[data-node-id="28:11"]{left:12px!important;}'}
-    />
-  );
+  render(<VisualStage snapshot={snapshot} overrideCss={'[data-node-id="28:11"]{left:12px!important;}'} />);
 
   const iframe = document.querySelector<HTMLIFrameElement>("iframe.visual-stage");
   expect(iframe?.srcdoc).toContain('[data-node-id="28:11"]{left:12px!important;}');
@@ -339,7 +342,7 @@ export function buildVisualStageSrcDoc(
   highlightedNodeId?: string,
   motionCss = "",
   overrideCss = ""
-): string
+): string;
 ```
 
 Insert `${overrideCss}` before `${motionCss}` in the style block.
@@ -370,11 +373,13 @@ Expected: PASS and no type errors.
 ### Task 4: Add Selected Zero Node Edit Controls
 
 **Files:**
+
 - Modify: `apps/motion-copilot/src/features/frameMorph/FrameMorphPanel.tsx`
 - Modify: `apps/motion-copilot/src/styles.css`
 - Test: `apps/motion-copilot/src/App.test.tsx`
 
 **Interfaces:**
+
 - Consumes:
   - `savedVisualSource.nodeOverrides`
   - selected `visualNodeId`
@@ -479,7 +484,9 @@ When `visualNodeId` is selected and `visualComposition.document.visualSource.kin
         aria-label="高保真节点 X"
         type="number"
         value={current.x ?? 0}
-        onChange={(event) => updateSelectedNodeOverride({ x: overrideNumberValue(event.target.value, current.x ?? 0) })}
+        onChange={(event) =>
+          updateSelectedNodeOverride({ x: overrideNumberValue(event.target.value, current.x ?? 0) })
+        }
       />
     </label>
     <label className="field">
@@ -488,7 +495,9 @@ When `visualNodeId` is selected and `visualComposition.document.visualSource.kin
         aria-label="高保真节点 Y"
         type="number"
         value={current.y ?? 0}
-        onChange={(event) => updateSelectedNodeOverride({ y: overrideNumberValue(event.target.value, current.y ?? 0) })}
+        onChange={(event) =>
+          updateSelectedNodeOverride({ y: overrideNumberValue(event.target.value, current.y ?? 0) })
+        }
       />
     </label>
   </div>
@@ -501,7 +510,9 @@ When `visualNodeId` is selected and `visualComposition.document.visualSource.kin
         min={1}
         value={current.width ?? 1}
         onChange={(event) =>
-          updateSelectedNodeOverride({ width: Math.max(1, overrideNumberValue(event.target.value, current.width ?? 1)) })
+          updateSelectedNodeOverride({
+            width: Math.max(1, overrideNumberValue(event.target.value, current.width ?? 1))
+          })
         }
       />
     </label>
@@ -513,7 +524,9 @@ When `visualNodeId` is selected and `visualComposition.document.visualSource.kin
         min={1}
         value={current.height ?? 1}
         onChange={(event) =>
-          updateSelectedNodeOverride({ height: Math.max(1, overrideNumberValue(event.target.value, current.height ?? 1)) })
+          updateSelectedNodeOverride({
+            height: Math.max(1, overrideNumberValue(event.target.value, current.height ?? 1))
+          })
         }
       />
     </label>
@@ -527,7 +540,9 @@ When `visualNodeId` is selected and `visualComposition.document.visualSource.kin
         min={0}
         value={current.radius ?? 0}
         onChange={(event) =>
-          updateSelectedNodeOverride({ radius: Math.max(0, overrideNumberValue(event.target.value, current.radius ?? 0)) })
+          updateSelectedNodeOverride({
+            radius: Math.max(0, overrideNumberValue(event.target.value, current.radius ?? 0))
+          })
         }
       />
     </label>
@@ -555,7 +570,11 @@ Add this updater in `FrameMorphPanel.tsx` before rendering the edit panel:
 
 ```ts
 function updateSelectedNodeOverride(patch: Partial<ZeroVisualNodeOverride>): void {
-  if (!visualNodeId || !visualComposition?.document.visualSource || visualComposition.document.visualSource.kind !== "zero-visual-morph") {
+  if (
+    !visualNodeId ||
+    !visualComposition?.document.visualSource ||
+    visualComposition.document.visualSource.kind !== "zero-visual-morph"
+  ) {
     return;
   }
   const source = visualComposition.document.visualSource;
@@ -612,10 +631,12 @@ Expected: PASS and no type errors.
 ### Task 5: Wire Overrides Into Preview Playback
 
 **Files:**
+
 - Modify: `apps/motion-copilot/src/features/frameMorph/FrameMorphPanel.tsx`
 - Test: `apps/motion-copilot/src/App.test.tsx`
 
 **Interfaces:**
+
 - Consumes:
   - `createZeroVisualNodeOverrideCss(source.nodeOverrides)`
   - `VisualStage overrideCss`
@@ -675,7 +696,7 @@ const visualOverrideCss =
 For every high-fidelity `VisualStage` in the panel, add:
 
 ```tsx
-overrideCss={visualOverrideCss}
+overrideCss = { visualOverrideCss };
 ```
 
 Keep existing `motionCss` unchanged.
@@ -697,11 +718,13 @@ Expected: PASS and no type errors.
 ### Task 6: Export and Persistence End-to-End
 
 **Files:**
+
 - Modify: `apps/motion-copilot/src/App.test.tsx`
 - Modify: `packages/motion-copilot-core/test/frameMorph.test.ts`
 - Modify only implementation files if these tests reveal missing wiring.
 
 **Interfaces:**
+
 - Consumes:
   - Workspace save/load
   - `exportCompositionHtml`
@@ -771,6 +794,7 @@ cd ../../apps/motion-copilot
 ```
 
 Expected:
+
 - Core frame morph tests pass.
 - App tests pass.
 - Typecheck passes.
@@ -781,10 +805,12 @@ Expected:
 ### Task 7: Manual QA Checklist for Real Device
 
 **Files:**
+
 - No code files unless bugs are found.
 - Optional documentation update: `docs/2026-06-30-motion-copilot-high-fidelity-editing-qa.md`
 
 **Interfaces:**
+
 - Consumes:
   - Local Motion Copilot app on port 5177.
   - Zero high-fidelity frame morph fixture or real imported design.
@@ -809,18 +835,21 @@ Use the “帧间” panel high-fidelity import. Load the same problematic real-
 - [ ] **Step 3: Select a Zero node**
 
 Click a visible node in high-fidelity preview. Expected:
+
 - Node highlight appears.
 - High-fidelity edit panel shows x/y/width/height/radius/opacity controls.
 
 - [ ] **Step 4: Edit geometry**
 
 Change:
+
 - X by `+10`
 - Width by `+20`
 - Radius to `12`
 - Opacity to `0.8`
 
 Expected:
+
 - Preview updates immediately.
 - No unrelated node moves.
 - Motion preview still plays.
@@ -828,12 +857,14 @@ Expected:
 - [ ] **Step 5: Refresh report**
 
 Expected:
+
 - Report is marked stale after edits.
 - After refresh, report does not show the six collapsed status fragments as unresolved.
 
 - [ ] **Step 6: Export HTML**
 
 Expected:
+
 - Exported HTML contains override CSS.
 - Opening exported HTML shows the edited high-fidelity node geometry.
 - `motion-report` is present if a report cache exists.
@@ -841,6 +872,7 @@ Expected:
 - [ ] **Step 7: Regression check low-fidelity**
 
 Use legacy low-fidelity or normal layer editing:
+
 - Add image layer.
 - Drag it.
 - Resize it.

@@ -1,5 +1,11 @@
 import { getAppMotionPreset, type AppMotionPresetId } from "../preset/appMotionPresets";
-import type { CompositionIssue, CompositionStep, CompositionTiming, MotionDocument, MotionLayer } from "../schema/document";
+import type {
+  CompositionIssue,
+  CompositionStep,
+  CompositionTiming,
+  MotionDocument,
+  MotionLayer
+} from "../schema/document";
 import { evaluateComposition } from "../composition/evaluateComposition";
 
 export type CompositionDraftExplanation = {
@@ -62,7 +68,12 @@ function selectedEditableLayer(document: MotionDocument, layers: MotionLayer[]):
   return layers.find((layer) => layer.id === document.selectedLayerId);
 }
 
-function presetStep(document: MotionDocument, spec: DraftStepSpec, index: number, idPrefix: string): CompositionStep {
+function presetStep(
+  document: MotionDocument,
+  spec: DraftStepSpec & { layer: MotionLayer },
+  index: number,
+  idPrefix: string
+): CompositionStep {
   const preset = getAppMotionPreset(spec.presetId);
   const patch = preset.apply(document);
   const layer = spec.layer;
@@ -72,7 +83,8 @@ function presetStep(document: MotionDocument, spec: DraftStepSpec, index: number
     presetId: preset.id,
     label: preset.label,
     target: "selected-layer",
-    ...(layer ? { layerId: layer.id, layerName: layer.name } : {}),
+    layerId: layer.id,
+    layerName: layer.name,
     timing: spec.timing,
     delayMs: spec.delayMs,
     durationMs: patch.timeline?.durationMs ?? 240,
@@ -96,40 +108,48 @@ function modalDraft(layers: MotionLayer[]): DraftStepSpec[] {
 
   return [
     ...(container
-      ? [{
-          presetId: "modal-feedback" as const,
-          layer: container,
-          timing: "sequential" as const,
-          delayMs: 0,
-          reason: "先让主体容器进场，建立弹层的空间焦点。"
-        }]
+      ? [
+          {
+            presetId: "modal-feedback" as const,
+            layer: container,
+            timing: "sequential" as const,
+            delayMs: 0,
+            reason: "先让主体容器进场，建立弹层的空间焦点。"
+          }
+        ]
       : []),
     ...(title && title.id !== container?.id
-      ? [{
-          presetId: "enter-screen" as const,
-          layer: title,
-          timing: "parallel" as const,
-          delayMs: 80,
-          reason: "标题稍后进入，让用户先感知层级，再读取信息。"
-        }]
+      ? [
+          {
+            presetId: "enter-screen" as const,
+            layer: title,
+            timing: "parallel" as const,
+            delayMs: 80,
+            reason: "标题稍后进入，让用户先感知层级，再读取信息。"
+          }
+        ]
       : []),
     ...(body
-      ? [{
-          presetId: "enter-screen" as const,
-          layer: body,
-          timing: "parallel" as const,
-          delayMs: 40,
-          reason: "正文跟随标题错峰出现，避免信息瞬间堆叠。"
-        }]
+      ? [
+          {
+            presetId: "enter-screen" as const,
+            layer: body,
+            timing: "parallel" as const,
+            delayMs: 40,
+            reason: "正文跟随标题错峰出现，避免信息瞬间堆叠。"
+          }
+        ]
       : []),
     ...(button
-      ? [{
-          presetId: "like-bounce" as const,
-          layer: button,
-          timing: "parallel" as const,
-          delayMs: 60,
-          reason: "按钮最后轻弹，提示可操作区域但不抢主内容。"
-        }]
+      ? [
+          {
+            presetId: "like-bounce" as const,
+            layer: button,
+            timing: "parallel" as const,
+            delayMs: 60,
+            reason: "按钮最后轻弹，提示可操作区域但不抢主内容。"
+          }
+        ]
       : [])
   ];
 }
@@ -139,22 +159,26 @@ function loadingDraft(layers: MotionLayer[]): DraftStepSpec[] {
   const text = firstLayer(layers, "text") ?? layers.find((layer) => layer.id !== image?.id);
   return [
     ...(image
-      ? [{
-          presetId: "skeleton-loading" as const,
-          layer: image,
-          timing: "sequential" as const,
-          delayMs: 0,
-          reason: "先用骨架屏保持视点稳定，避免加载期布局跳动。"
-        }]
+      ? [
+          {
+            presetId: "skeleton-loading" as const,
+            layer: image,
+            timing: "sequential" as const,
+            delayMs: 0,
+            reason: "先用骨架屏保持视点稳定，避免加载期布局跳动。"
+          }
+        ]
       : []),
     ...(text
-      ? [{
-          presetId: "loading-to-success" as const,
-          layer: text,
-          timing: "parallel" as const,
-          delayMs: 260,
-          reason: "成功态在骨架之后淡入，给用户明确完成反馈。"
-        }]
+      ? [
+          {
+            presetId: "loading-to-success" as const,
+            layer: text,
+            timing: "parallel" as const,
+            delayMs: 260,
+            reason: "成功态在骨架之后淡入，给用户明确完成反馈。"
+          }
+        ]
       : [])
   ];
 }
@@ -164,22 +188,26 @@ function switchDraft(layers: MotionLayer[]): DraftStepSpec[] {
   const secondary = layers.find((layer) => layer.id !== selected?.id);
   return [
     ...(selected
-      ? [{
-          presetId: "move-inside" as const,
-          layer: selected,
-          timing: "sequential" as const,
-          delayMs: 0,
-          reason: "选中态先做屏幕内移动，表达位置变化而不打断结构。"
-        }]
+      ? [
+          {
+            presetId: "move-inside" as const,
+            layer: selected,
+            timing: "sequential" as const,
+            delayMs: 0,
+            reason: "选中态先做屏幕内移动，表达位置变化而不打断结构。"
+          }
+        ]
       : []),
     ...(secondary
-      ? [{
-          presetId: "horizontal-switch" as const,
-          layer: secondary,
-          timing: "parallel" as const,
-          delayMs: 0,
-          reason: "内容层同步横向切换，让导航和内容节奏对齐。"
-        }]
+      ? [
+          {
+            presetId: "horizontal-switch" as const,
+            layer: secondary,
+            timing: "parallel" as const,
+            delayMs: 0,
+            reason: "内容层同步横向切换，让导航和内容节奏对齐。"
+          }
+        ]
       : [])
   ];
 }
@@ -187,26 +215,30 @@ function switchDraft(layers: MotionLayer[]): DraftStepSpec[] {
 function buttonDraft(layers: MotionLayer[]): DraftStepSpec[] {
   const button = findLayer(layers, /按钮|button|确认|立即|查看|完成/) ?? layers[0];
   return button
-    ? [{
-        presetId: "like-bounce",
-        layer: button,
-        timing: "sequential",
-        delayMs: 0,
-        reason: "按钮使用短促缩放反馈，强化点击确认感。"
-      }]
+    ? [
+        {
+          presetId: "like-bounce",
+          layer: button,
+          timing: "sequential",
+          delayMs: 0,
+          reason: "按钮使用短促缩放反馈，强化点击确认感。"
+        }
+      ]
     : [];
 }
 
 function defaultDraft(layers: MotionLayer[]): DraftStepSpec[] {
   const layer = layers[0];
   return layer
-    ? [{
-        presetId: "enter-screen",
-        layer,
-        timing: "sequential",
-        delayMs: 0,
-        reason: "默认使用进入屏幕动效，先保证内容出现节奏清晰。"
-      }]
+    ? [
+        {
+          presetId: "enter-screen",
+          layer,
+          timing: "sequential",
+          delayMs: 0,
+          reason: "默认使用进入屏幕动效，先保证内容出现节奏清晰。"
+        }
+      ]
     : [];
 }
 
@@ -245,11 +277,21 @@ export function assembleDraftFromSpecs(
   const idPrefix = `draft-${promptHash(input.prompt)}-${input.existingSteps?.length ?? 0}`;
   const existingKeys = new Set((input.existingSteps ?? []).map(conflictKey));
   const corrections: CompositionDraftCorrection[] = [];
-  const retainedSpecs = specs.filter((spec) => {
+  const warnings: string[] = [];
+  const layers = selectableLayers(input.document);
+  const fallbackLayer =
+    selectedEditableLayer(input.document, layers) ?? specsForPrompt(input.prompt, layers)[0]?.layer;
+  const resolvedSpecs = specs.flatMap<DraftStepSpec & { layer: MotionLayer }>((spec) => {
+    const layer = layers.find((item) => item.id === spec.layer?.id) ?? fallbackLayer;
+    if (layer) return [{ ...spec, layer }];
+    warnings.push(`已跳过「${getAppMotionPreset(spec.presetId).label}」：当前文档没有可用的可编辑图层。`);
+    return [];
+  });
+  const retainedSpecs = resolvedSpecs.filter((spec) => {
     const preset = getAppMotionPreset(spec.presetId);
     const key = conflictKey({
       target: "selected-layer",
-      ...(spec.layer ? { layerId: spec.layer.id } : {}),
+      layerId: spec.layer.id,
       slot: preset.slot
     });
     if (!existingKeys.has(key)) return true;
@@ -267,7 +309,10 @@ export function assembleDraftFromSpecs(
   return {
     steps,
     summary: steps.length > 0 ? `已生成 ${steps.length} 个结构化编排片段` : "没有新增编排片段",
-    warnings: steps.length > 0 ? [] : ["当前描述命中的动效都已存在于时间轴。"],
+    warnings: [
+      ...warnings,
+      ...(steps.length === 0 && corrections.length > 0 ? ["当前描述命中的动效都已存在于时间轴。"] : [])
+    ],
     explanations: steps.map((step, index) => {
       const spec = retainedSpecs[index]!;
       return {

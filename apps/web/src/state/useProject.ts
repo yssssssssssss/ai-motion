@@ -2,12 +2,22 @@ import { useState, useCallback } from "react";
 import type { MotionManifest, MotionPatch, MotionSource } from "@motion-tool/core";
 import { createEmptyPatch, type MotionProject } from "./projectStore";
 
-function createProject(source: MotionSource, manifest: MotionManifest): MotionProject {
+function createProject(
+  source: MotionSource,
+  manifest: MotionManifest,
+  initialPatch?: MotionPatch
+): MotionProject {
+  const paramIds = new Set(manifest.params.map((param) => param.id));
   return {
     id: `${source.id}-project`,
     source,
     manifest,
-    patch: createEmptyPatch(manifest)
+    patch: {
+      ...createEmptyPatch(manifest),
+      values: Object.fromEntries(
+        Object.entries(initialPatch?.values ?? {}).filter(([id]) => paramIds.has(id))
+      )
+    }
   };
 }
 
@@ -15,9 +25,12 @@ function createProject(source: MotionSource, manifest: MotionManifest): MotionPr
 export function useProject() {
   const [project, setProject] = useState<MotionProject | null>(null);
 
-  const startProject = useCallback((source: MotionSource, manifest: MotionManifest) => {
-    setProject(createProject(source, manifest));
-  }, []);
+  const startProject = useCallback(
+    (source: MotionSource, manifest: MotionManifest, initialPatch?: MotionPatch) => {
+      setProject(createProject(source, manifest, initialPatch));
+    },
+    []
+  );
 
   const updateParam = useCallback((paramId: string, value: unknown) => {
     setProject((current) => {

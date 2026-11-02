@@ -273,8 +273,8 @@
 
 ## 状态记录
 
-| 日期 | 状态 | 说明 |
-| --- | --- | --- |
-| 2026-06-06 | 进行中 | 已创建可编辑、可追踪 todolist。 |
-| 2026-06-06 | Milestone 1 首段完成 | 已完成 MotionRecipe 类型/schema、3 个内置 recipe、语义到 recipe request、manifest 级 apply、生成链路接入、recipe 门禁和核心回归测试。HTML/CSS/JS 注入仍待后续实现。 |
-| 2026-06-06 | 全部完成 | 已完成内置 recipe 扩展、语义 V2/schema/prompt、本地低置信 fallback、HTML/CSS/JS recipe apply、参考案例提取/cache、跨组件迁移、编辑器 recipe/图层/参数面板、门禁与安全校验，并通过全量测试、typecheck、build 和 dev server 重启验证。 |
+| 日期       | 状态                 | 说明                                                                                                                                                                                                                                 |
+| ---------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-06-06 | 进行中               | 已创建可编辑、可追踪 todolist。                                                                                                                                                                                                      |
+| 2026-06-06 | Milestone 1 首段完成 | 已完成 MotionRecipe 类型/schema、3 个内置 recipe、语义到 recipe request、manifest 级 apply、生成链路接入、recipe 门禁和核心回归测试。HTML/CSS/JS 注入仍待后续实现。                                                                  |
+| 2026-06-06 | 全部完成             | 已完成内置 recipe 扩展、语义 V2/schema/prompt、本地低置信 fallback、HTML/CSS/JS recipe apply、参考案例提取/cache、跨组件迁移、编辑器 recipe/图层/参数面板、门禁与安全校验，并通过全量测试、typecheck、build 和 dev server 重启验证。 |

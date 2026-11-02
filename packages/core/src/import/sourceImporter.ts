@@ -1,7 +1,10 @@
 import type { MotionSource, SourceFile } from "../library/componentLibrary";
+import { z } from "zod";
+import { motionManifestSchema } from "../manifest/schema";
+import type { MotionManifest, MotionPatch } from "../manifest/types";
 
 export type ImportWarning = {
-  code: "missing-entry" | "unsupported-file" | "unsafe-content" | "sub-directory-entry";
+  code: "missing-entry" | "unsupported-file" | "unsafe-content" | "sub-directory-entry" | "ignored-project";
   message: string;
 };
 
@@ -9,6 +12,80 @@ export type ImportResult = {
   source: MotionSource;
   warnings: ImportWarning[];
 };
+
+export type EditablePackageImport = ImportResult & {
+  manifest: MotionManifest;
+  metadata: Record<string, unknown>;
+  patch: MotionPatch | null;
+};
+
+const patchSchema = z.object({
+  id: z.string(),
+  sourceManifestId: z.string(),
+  values: z.record(z.unknown())
+});
+
+function parseJson(content: string | undefined): unknown {
+  try {
+    return JSON.parse(content ?? "");
+  } catch {
+    return null;
+  }
+}
+
+function packageManifestPath(files: Record<string, string>): string | undefined {
+  return (
+    Object.keys(files).find((path) => path === "motion.manifest.json") ??
+    Object.keys(files).find((path) => /^[^/]+\/motion\.manifest\.json$/.test(path))
+  );
+}
+
+function readPackageManifest(
+  files: Record<string, string>
+): { root: string; manifest: MotionManifest } | null {
+  const path = packageManifestPath(files);
+  if (!path) return null;
+  const result = motionManifestSchema.safeParse(parseJson(files[path]));
+  if (!result.success) return null;
+  const root = path.slice(0, -"motion.manifest.json".length);
+  if (!Object.hasOwn(files, root + result.data.runtime.entry)) return null;
+  return { root, manifest: result.data as MotionManifest };
+}
+
+export function importEditablePackageFromFiles(files: Record<string, string>): EditablePackageImport | null {
+  const project = readPackageManifest(files);
+  if (!project) return null;
+  const { root, manifest } = project;
+  const projectFiles = new Set(["motion.manifest.json", "metadata.json", "motion.patch.json"]);
+  const sourceFiles = Object.fromEntries(
+    Object.entries(files)
+      .filter(([path]) => path.startsWith(root) && !projectFiles.has(path.slice(root.length)))
+      .map(([path, content]) => [path.slice(root.length), content])
+  );
+  const imported = importMotionSourceFromFiles(sourceFiles);
+  const patchResult = patchSchema.safeParse(parseJson(files[root + "motion.patch.json"]));
+  const patch = patchResult.success ? patchResult.data : null;
+  const metadata = parseJson(files[root + "metadata.json"]);
+  return {
+    ...imported,
+    warnings: imported.warnings.filter((warning) => warning.code !== "sub-directory-entry"),
+    source: { ...imported.source, kind: manifest.sourceKind, entry: manifest.runtime.entry },
+    manifest: {
+      ...manifest,
+      // 导出的源码已包含补丁，只更新编辑基线。
+      params: manifest.params.map((param) =>
+        patch && Object.hasOwn(patch.values, param.id)
+          ? { ...param, default: patch.values[param.id], value: patch.values[param.id] }
+          : param
+      )
+    },
+    metadata:
+      metadata && typeof metadata === "object" && !Array.isArray(metadata)
+        ? (metadata as Record<string, unknown>)
+        : {},
+    patch
+  };
+}
 
 function fileKind(path: string): SourceFile["kind"] {
   if (path.endsWith(".html")) return "html";
@@ -89,6 +166,12 @@ function findEntry(paths: string[]): { entry: string; isSubDirectory: boolean } 
 export function importMotionSourceFromFiles(files: Record<string, string>): ImportResult {
   const paths = Object.keys(files);
   const warnings: ImportWarning[] = [...scanUnsafeContent(files)];
+  if (packageManifestPath(files) && !readPackageManifest(files)) {
+    warnings.push({
+      code: "ignored-project",
+      message: "项目文件已忽略：motion.manifest.json 损坏、格式无效或缺少运行入口，已重新扫描源码"
+    });
+  }
 
   const entryResult = findEntry(paths);
   if (!entryResult) {

@@ -60,7 +60,9 @@ External command example:
 
 function splitArgs(value) {
   if (!value) return [];
-  return value.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)?.map((item) => item.replace(/^(['"])(.*)\1$/, "$2")) ?? [];
+  return (
+    value.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)?.map((item) => item.replace(/^(['"])(.*)\1$/, "$2")) ?? []
+  );
 }
 
 function toolArgs(template, tool, nodeId) {
@@ -75,7 +77,9 @@ function argsTemplateForTool(tool) {
 function requiredToolArgsTemplate(tool) {
   const template = argsTemplateForTool(tool);
   if (!template) {
-    throw new Error(`Missing argument template for ${tool}. Set ZERO_MCP_TOOL_ARGS or ZERO_MCP_TOOL_ARGS_${tool.toUpperCase()}.`);
+    throw new Error(
+      `Missing argument template for ${tool}. Set ZERO_MCP_TOOL_ARGS or ZERO_MCP_TOOL_ARGS_${tool.toUpperCase()}.`
+    );
   }
   return template;
 }
@@ -179,7 +183,9 @@ async function runScreenshotBestEffort(callTool, retryDelayMs) {
       if (hasUsablePayload(screenshot)) return screenshot;
     } catch (error) {
       if (attempt >= attempts) {
-        console.error(`get_screenshot failed after ${attempts} attempts, degrading to empty: ${errorText(error)}`);
+        console.error(
+          `get_screenshot failed after ${attempts} attempts, degrading to empty: ${errorText(error)}`
+        );
         break;
       }
     }

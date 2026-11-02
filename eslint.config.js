@@ -66,6 +66,7 @@ export default tseslint.config(
         clearTimeout: "readonly",
         Buffer: "readonly",
         // Chrome CDP evaluation snippets embedded in verification scripts
+        window: "readonly",
         document: "readonly",
         Image: "readonly"
       }

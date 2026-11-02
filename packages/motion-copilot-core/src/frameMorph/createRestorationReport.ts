@@ -18,7 +18,10 @@ function hashString(input: string): string {
   return Math.abs(hash).toString(36);
 }
 
-function computeInputHash(from: ZeroVisualSnapshot | FrameSnapshot, to: ZeroVisualSnapshot | FrameSnapshot): string {
+function computeInputHash(
+  from: ZeroVisualSnapshot | FrameSnapshot,
+  to: ZeroVisualSnapshot | FrameSnapshot
+): string {
   const fromDigest = snapshotDigest(from);
   const toDigest = snapshotDigest(to);
   return hashString(fromDigest + "|" + toDigest);
@@ -27,7 +30,8 @@ function computeInputHash(from: ZeroVisualSnapshot | FrameSnapshot, to: ZeroVisu
 function snapshotDigest(snap: ZeroVisualSnapshot | FrameSnapshot): string {
   if ("elements" in snap) {
     const elParts = snap.elements.map(
-      (el) => `${el.nodeId}:${el.kind}:${el.x},${el.y},${el.w},${el.h}:${el.text ?? ""}:${el.style?.background ?? ""}:${el.style?.radius ?? ""}`
+      (el) =>
+        `${el.nodeId}:${el.kind}:${el.x},${el.y},${el.w},${el.h}:${el.text ?? ""}:${el.style?.background ?? ""}:${el.style?.radius ?? ""}`
     );
     return `${snap.frameId}:${snap.name}:${snap.elements.length}:${elParts.join(";")}`;
   }
@@ -40,7 +44,10 @@ function snapshotDigest(snap: ZeroVisualSnapshot | FrameSnapshot): string {
   return `${snap.frameId}:${snap.name}:${snap.nodes.length}:h${htmlHash}:c${cssHash}:a${assetHash}:${nodeParts.join(";")}`;
 }
 
-function computeBindingHash(bindings: VisualMotionBindingResult | FrameElementMatchResult, userOverrides?: UserBindingOverride[]): string {
+function computeBindingHash(
+  bindings: VisualMotionBindingResult | FrameElementMatchResult,
+  userOverrides?: UserBindingOverride[]
+): string {
   let base: string;
   if ("bindings" in bindings) {
     const keys = bindings.bindings.map((b) => `${b.nodeId}-${b.toNodeId}:${b.confidence}`).join(",");
@@ -53,7 +60,9 @@ function computeBindingHash(bindings: VisualMotionBindingResult | FrameElementMa
     base = keys + `:e${bindings.enter.length}:x${bindings.exit.length}:u${bindings.unresolved.length}`;
   }
   if (userOverrides && userOverrides.length > 0) {
-    const overridePart = userOverrides.map((o) => `${o.fromNodeId}:${o.action}:${o.toNodeId ?? ""}`).join(",");
+    const overridePart = userOverrides
+      .map((o) => `${o.fromNodeId}:${o.action}:${o.toNodeId ?? ""}`)
+      .join(",");
     base += `:ov(${overridePart})`;
   }
   return hashString(base);
@@ -63,7 +72,9 @@ function isFrameSnapshot(snap: ZeroVisualSnapshot | FrameSnapshot): snap is Fram
   return "elements" in snap;
 }
 
-function isVisualBindingResult(b: VisualMotionBindingResult | FrameElementMatchResult): b is VisualMotionBindingResult {
+function isVisualBindingResult(
+  b: VisualMotionBindingResult | FrameElementMatchResult
+): b is VisualMotionBindingResult {
   return "bindings" in b;
 }
 
@@ -85,11 +96,17 @@ function computeNodeCoverage(
   if (isVisualBindingResult(bindings)) {
     const fromCovered = bindings.bindings.length + bindings.exit.length + (bindings.ignored?.length ?? 0);
     const toCovered = bindings.bindings.length + bindings.enter.length;
-    value = Math.min(100, Math.round(((fromCovered / Math.max(fromCount, 1)) + (toCovered / Math.max(toCount, 1))) * 50));
+    value = Math.min(
+      100,
+      Math.round((fromCovered / Math.max(fromCount, 1) + toCovered / Math.max(toCount, 1)) * 50)
+    );
   } else {
     const fromCovered = bindings.matches.length + bindings.exit.length;
     const toCovered = bindings.matches.length + bindings.enter.length;
-    value = Math.min(100, Math.round(((fromCovered / Math.max(fromCount, 1)) + (toCovered / Math.max(toCount, 1))) * 50));
+    value = Math.min(
+      100,
+      Math.round((fromCovered / Math.max(fromCount, 1) + toCovered / Math.max(toCount, 1)) * 50)
+    );
   }
 
   const unresolvedCount = isVisualBindingResult(bindings)
@@ -99,8 +116,8 @@ function computeNodeCoverage(
   if (unresolvedCount > 0) {
     const unresolvedItems = isVisualBindingResult(bindings) ? bindings.unresolved : bindings.unresolved;
     for (const u of unresolvedItems) {
-      const nodeId = "fromNodeId" in u ? u.fromNodeId : ("fromKey" in u ? u.fromKey : undefined);
-      const fallbackId = "toNodeId" in u ? u.toNodeId : ("toKey" in u ? u.toKey : undefined);
+      const nodeId = "fromNodeId" in u ? u.fromNodeId : "fromKey" in u ? u.fromKey : undefined;
+      const fallbackId = "toNodeId" in u ? u.toNodeId : "toKey" in u ? u.toKey : undefined;
       issues.push({
         id: `node-unresolved-${nodeId ?? fallbackId ?? "unknown"}`,
         severity: unresolvedCount > totalNodes * 0.2 ? "error" : "warning",
@@ -210,7 +227,7 @@ function computeLayerOrderConfidence(
   }
 
   const sorted = [...bindings.bindings].sort(
-    (a, b) => (a.fromBounds.y - b.fromBounds.y) || (a.fromBounds.x - b.fromBounds.x)
+    (a, b) => a.fromBounds.y - b.fromBounds.y || a.fromBounds.x - b.fromBounds.x
   );
 
   let inversions = 0;
@@ -267,7 +284,8 @@ function computeMatchConfidence(
       ? bindings.bindings.find((b) => b.confidence === _c)
       : bindings.matches.find((m) => m.confidence === _c);
     if (binding) {
-      const nodeId = "nodeId" in binding ? binding.nodeId : ("fromKey" in binding ? binding.fromKey : undefined);
+      const nodeId =
+        "nodeId" in binding ? binding.nodeId : "fromKey" in binding ? binding.fromKey : undefined;
       issues.push({
         id: `match-low-${nodeId ?? "unknown"}`,
         severity: _c < 40 ? "error" : "warning",

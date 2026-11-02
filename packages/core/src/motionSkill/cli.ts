@@ -38,7 +38,10 @@ function parseCsvLine(line: string): string[] {
 }
 
 function parseCsv(text: string): Record<string, unknown>[] {
-  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const lines = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
   const headers = parseCsvLine(lines[0] ?? "").map((header) => header.trim());
 
   return lines.slice(1).map((line) => {
@@ -80,7 +83,11 @@ for (const [family, pack] of Object.entries(result.packs)) {
   writeJson(join(familyDir, "tokens.json"), { tokens: pack.tokens });
   writeJson(join(familyDir, "recipes.json"), { recipes: pack.recipes });
   writeJson(join(familyDir, "previews.json"), { previews: [] });
-  writeFileSync(join(familyDir, "skill.md"), skillMarkdown(pack.manifest.name, pack.manifest.version), "utf8");
+  writeFileSync(
+    join(familyDir, "skill.md"),
+    skillMarkdown(pack.manifest.name, pack.manifest.version),
+    "utf8"
+  );
 }
 
 writeFileSync(join(OUTPUT_DIR, "compile-report.md"), `${result.report}\n`, "utf8");

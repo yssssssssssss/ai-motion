@@ -67,7 +67,8 @@ function screenshotInfoFromMcpPayload(value: unknown): ScreenshotInfo {
     for (const item of value) {
       if (isRecord(item) && typeof item.text === "string") {
         const next = screenshotInfoFromMcpPayload(item.text);
-        if (next.url || next.width != null || next.height != null) textInfo = { ...(textInfo ?? { url: "" }), ...next };
+        if (next.url || next.width != null || next.height != null)
+          textInfo = { ...(textInfo ?? { url: "" }), ...next };
       }
       if (
         isRecord(item) &&
@@ -230,14 +231,20 @@ function styleFromClassToken(token: string): string | undefined {
   if (token === "border-none") return styleDeclaration("border", "none");
 
   const textSize: Record<string, string> = {
-    "text-xs": "12px", "text-sm": "14px", "text-base": "16px", "text-lg": "18px",
-    "text-xl": "20px", "text-2xl": "24px", "text-3xl": "30px", "text-4xl": "36px"
+    "text-xs": "12px",
+    "text-sm": "14px",
+    "text-base": "16px",
+    "text-lg": "18px",
+    "text-xl": "20px",
+    "text-2xl": "24px",
+    "text-3xl": "30px",
+    "text-4xl": "36px"
   };
   if (textSize[token]) return styleDeclaration("font-size", textSize[token]!);
 
   const shadowMap: Record<string, string> = {
     "shadow-sm": "0 1px 2px rgba(0,0,0,0.05)",
-    "shadow": "0 1px 3px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06)",
+    shadow: "0 1px 3px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06)",
     "shadow-md": "0 4px 6px rgba(0,0,0,0.1),0 2px 4px rgba(0,0,0,0.06)",
     "shadow-lg": "0 10px 15px rgba(0,0,0,0.1),0 4px 6px rgba(0,0,0,0.05)",
     "shadow-xl": "0 20px 25px rgba(0,0,0,0.1),0 10px 10px rgba(0,0,0,0.04)",
@@ -287,7 +294,9 @@ function styleFromClassToken(token: string): string | undefined {
   const arbitrary = token.match(/^\[([a-z-]+):(.+)]$/);
   if (arbitrary) return styleDeclaration(arbitrary[1] ?? "", arbitrary[2] ?? "");
 
-  const bracketValue = token.match(/^(left|top|right|bottom|w|h|text|rounded|bg|border|gap|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|min-w|max-w|min-h|max-h|opacity|z)-\[(.+)]$/);
+  const bracketValue = token.match(
+    /^(left|top|right|bottom|w|h|text|rounded|bg|border|gap|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|min-w|max-w|min-h|max-h|opacity|z)-\[(.+)]$/
+  );
   if (bracketValue) {
     const property = bracketValue[1] ?? "";
     const value = bracketValue[2] ?? "";
@@ -322,20 +331,30 @@ function styleFromClassToken(token: string): string | undefined {
     return styleDeclaration(property, value);
   }
 
-  const numericSpacing = token.match(/^(gap|gap-x|gap-y|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr)-(\d+(?:\.\d+)?)$/);
+  const numericSpacing = token.match(
+    /^(gap|gap-x|gap-y|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr)-(\d+(?:\.\d+)?)$/
+  );
   if (numericSpacing) {
     const prefix = numericSpacing[1] ?? "";
     const px = `${Number(numericSpacing[2]) * 4}px`;
     const spacingMap: Record<string, string> = {
-      gap: `gap:${px}`, "gap-x": `column-gap:${px}`, "gap-y": `row-gap:${px}`,
-      p: `padding:${px}`, px: `padding-left:${px};padding-right:${px}`,
+      gap: `gap:${px}`,
+      "gap-x": `column-gap:${px}`,
+      "gap-y": `row-gap:${px}`,
+      p: `padding:${px}`,
+      px: `padding-left:${px};padding-right:${px}`,
       py: `padding-top:${px};padding-bottom:${px}`,
-      pt: `padding-top:${px}`, pb: `padding-bottom:${px}`,
-      pl: `padding-left:${px}`, pr: `padding-right:${px}`,
-      m: `margin:${px}`, mx: `margin-left:${px};margin-right:${px}`,
+      pt: `padding-top:${px}`,
+      pb: `padding-bottom:${px}`,
+      pl: `padding-left:${px}`,
+      pr: `padding-right:${px}`,
+      m: `margin:${px}`,
+      mx: `margin-left:${px};margin-right:${px}`,
       my: `margin-top:${px};margin-bottom:${px}`,
-      mt: `margin-top:${px}`, mb: `margin-bottom:${px}`,
-      ml: `margin-left:${px}`, mr: `margin-right:${px}`
+      mt: `margin-top:${px}`,
+      mb: `margin-bottom:${px}`,
+      ml: `margin-left:${px}`,
+      mr: `margin-right:${px}`
     };
     if (spacingMap[prefix]) return spacingMap[prefix];
   }
@@ -365,7 +384,10 @@ function styleFromClassToken(token: string): string | undefined {
 type StyleFromClassNameResult = { css: string; unknownTokens: string[] };
 
 function styleFromClassName(className: string): StyleFromClassNameResult {
-  const tokens = className.split(/\s+/).map((t) => t.trim()).filter(Boolean);
+  const tokens = className
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
   const cssParts: string[] = [];
   const unknownTokens: string[] = [];
   for (const token of tokens) {
@@ -393,9 +415,7 @@ function normalizeStyleObject(value: string): string {
 function resolvePositionedContents(style: string): string {
   const parts = style.split(";");
   if (!parts.some((part) => part.trim() === "display:contents")) return style;
-  const positioned = parts.some((part) =>
-    /^position:\s*(absolute|relative|fixed|sticky)$/.test(part.trim())
-  );
+  const positioned = parts.some((part) => /^position:\s*(absolute|relative|fixed|sticky)$/.test(part.trim()));
   if (!positioned) return style;
   return parts.map((part) => (part.trim() === "display:contents" ? "display:block" : part)).join(";");
 }
@@ -525,7 +545,9 @@ function parseMetadataNodes(metadata: string): MetadataNode[] {
 
 function textByNodeIdFromHtml(html: string): Map<string, string> {
   const result = new Map<string, string>();
-  for (const match of html.matchAll(/<(?:p|span)\b[^>]*\bdata-node-id="([^"]+)"[^>]*>([\s\S]*?)<\/(?:p|span)>/g)) {
+  for (const match of html.matchAll(
+    /<(?:p|span)\b[^>]*\bdata-node-id="([^"]+)"[^>]*>([\s\S]*?)<\/(?:p|span)>/g
+  )) {
     const nodeId = match[1];
     const rawText = match[2];
     if (!nodeId || rawText == null) continue;
@@ -604,14 +626,8 @@ export function createZeroVisualSnapshotFromMcp(input: ZeroMcpVisualSnapshotInpu
   const screenshot = screenshotInfoFromMcpPayload(input.screenshot);
   const assets = extractAssetDeclarations(context);
   const assetRadius = radiusByAssetUrl(assets);
-  const rightExtent = metadataNodes.reduce(
-    (max, node) => Math.max(max, node.bounds.x + node.bounds.w),
-    0
-  );
-  const bottomExtent = metadataNodes.reduce(
-    (max, node) => Math.max(max, node.bounds.y + node.bounds.h),
-    0
-  );
+  const rightExtent = metadataNodes.reduce((max, node) => Math.max(max, node.bounds.x + node.bounds.w), 0);
+  const bottomExtent = metadataNodes.reduce((max, node) => Math.max(max, node.bounds.y + node.bounds.h), 0);
   const contentWidth = Math.max(rootNode?.bounds.w ?? 1, rightExtent, 1);
   const contentHeight = Math.max(rootNode?.bounds.h ?? 1, bottomExtent, 1);
   const width = Math.max(contentWidth, screenshot.width ?? 0, 1);
@@ -619,7 +635,16 @@ export function createZeroVisualSnapshotFromMcp(input: ZeroMcpVisualSnapshotInpu
   const offsetX = Math.max(0, (width - contentWidth) / 2);
   const offsetY = Math.max(0, (height - contentHeight) / 2);
   _unknownTokenCollector = new Map();
-  const html = staticHtmlFromContext(context, assets, contentWidth, contentHeight, width, height, offsetX, offsetY);
+  const html = staticHtmlFromContext(
+    context,
+    assets,
+    contentWidth,
+    contentHeight,
+    width,
+    height,
+    offsetX,
+    offsetY
+  );
   const unknownStyleTokens: Array<{ nodeId?: string; tokens: string[] }> = [];
   for (const [id, tokens] of _unknownTokenCollector) {
     if (tokens.length > 0) unknownStyleTokens.push({ ...(id !== "_root" ? { nodeId: id } : {}), tokens });
@@ -656,7 +681,7 @@ export function createZeroVisualSnapshotFromMcp(input: ZeroMcpVisualSnapshotInpu
     screenshotUrl: screenshot.url,
     html,
     css: [
-      '.zero-visual-stage,.zero-visual-stage *{box-sizing:border-box;}',
+      ".zero-visual-stage,.zero-visual-stage *{box-sizing:border-box;}",
       '.zero-visual-stage{font-family:"PingFang SC","PingFang-SC",Arial,sans-serif;font-size:12px;color:#000;}',
       ".zero-visual-stage p{margin:0;display:flex;align-items:center;}",
       ".zero-visual-stage img{display:block;}",

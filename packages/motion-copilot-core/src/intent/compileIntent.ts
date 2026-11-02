@@ -43,7 +43,11 @@ export function compileIntent(input: CompileIntentInput): MotionDocumentPatch {
 
   if (/q弹|弹性|回弹|活泼|spring|\bq\b/.test(prompt)) {
     return {
-      element: { role, size, initial: { y: role === "button" ? 0 : 18, scale: role === "button" ? 1 : 0.94 } },
+      element: {
+        role,
+        size,
+        initial: { y: role === "button" ? 0 : 18, scale: role === "button" ? 1 : 0.94 }
+      },
       timeline: { ...baseTimeline, easing: createSpringEasing(), durationMs: role === "button" ? 160 : 280 }
     };
   }
@@ -51,21 +55,37 @@ export function compileIntent(input: CompileIntentInput): MotionDocumentPatch {
   if (/快|fast|迅速/.test(prompt)) {
     return {
       element: { role, size },
-      timeline: { ...baseTimeline, durationMs: role === "button" ? 120 : 180, easing: createClassicEasing("sharp") }
+      timeline: {
+        ...baseTimeline,
+        durationMs: role === "button" ? 120 : 180,
+        easing: createClassicEasing("sharp")
+      }
     };
   }
 
   if (/慢|舒缓|slow/.test(prompt)) {
     return {
       element: { role, size },
-      timeline: { ...baseTimeline, durationMs: size === "large" ? 380 : 320, easing: createClassicEasing("standard") }
+      timeline: {
+        ...baseTimeline,
+        durationMs: size === "large" ? 380 : 320,
+        easing: createClassicEasing("standard")
+      }
     };
   }
 
   if (/丝滑|高级|克制|smooth|calm/.test(prompt)) {
     return {
-      element: { role, size, initial: { y: role === "button" ? 0 : 12, scale: role === "button" ? 1 : 0.98 } },
-      timeline: { ...baseTimeline, durationMs: role === "button" ? 150 : 240, easing: createClassicEasing("decelerate") }
+      element: {
+        role,
+        size,
+        initial: { y: role === "button" ? 0 : 12, scale: role === "button" ? 1 : 0.98 }
+      },
+      timeline: {
+        ...baseTimeline,
+        durationMs: role === "button" ? 150 : 240,
+        easing: createClassicEasing("decelerate")
+      }
     };
   }
 

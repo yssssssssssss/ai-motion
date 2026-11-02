@@ -278,13 +278,7 @@ type ZeroNodeCandidate = {
   preview?: string;
 };
 
-type ZeroLayerMotionRecipeCategory =
-  | "state"
-  | "expand"
-  | "list"
-  | "navigation"
-  | "overlay"
-  | "content";
+type ZeroLayerMotionRecipeCategory = "state" | "expand" | "list" | "navigation" | "overlay" | "content";
 ```
 
 避免新增复杂全局状态。候选节点可以从现有 snapshot 或 bridge 返回中派生。
@@ -389,4 +383,3 @@ node scripts/verify-zero-visual-export.mjs --html export.html --from from.png --
 ## 14. 推荐开发顺序
 
 先做 Phase 1，再做 Phase 2，最后做 Phase 3。原因是首尾帧选择体验直接影响用户能否使用；recipe 扩展依赖当前选择和生成链路；harness 升级用于把 recipe 扩展的质量固化下来。
-

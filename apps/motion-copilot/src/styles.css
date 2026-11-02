@@ -934,33 +934,33 @@ button:disabled {
 @keyframes mc-free-lift {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translate(var(--mc-layer-x-from, 0px), var(--mc-layer-y-from, 18px));
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(0, 0);
   }
 }
 
 @keyframes mc-free-slide-left {
   from {
     opacity: 0;
-    transform: translateX(-28px);
+    transform: translate(var(--mc-layer-x-from, -28px), var(--mc-layer-y-from, 0px));
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate(0, 0);
   }
 }
 
 @keyframes mc-free-slide-right {
   from {
     opacity: 0;
-    transform: translateX(28px);
+    transform: translate(var(--mc-layer-x-from, 28px), var(--mc-layer-y-from, 0px));
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate(0, 0);
   }
 }
 

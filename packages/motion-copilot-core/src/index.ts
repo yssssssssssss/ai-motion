@@ -1,6 +1,7 @@
 export * from "./schema/document";
 export * from "./schema/defaults";
 export * from "./intent/compileIntent";
+export * from "./intent/applyPromptIntent";
 export * from "./intent/generateCompositionDraft";
 export * from "./intent/generateCompositionDraftLLM";
 export * from "./guideline/evaluateGuidelines";
@@ -62,4 +63,7 @@ export * from "./zeroLayerMorph/zeroMotionSceneClassifier";
 export * from "./zeroLayerMorph/zeroMotionSpec";
 export * from "./zeroLayerMorph/zeroMotionInteractionPattern";
 export * from "./runtime/progress";
+export * from "./runtime/layerMotion";
 export * from "./preset/appMotionPresets";
+
+export * from "./composition/mergeRecompiledSteps";

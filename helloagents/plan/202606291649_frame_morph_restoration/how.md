@@ -3,12 +3,14 @@
 ## 技术方案
 
 ### 核心技术
+
 - React 19 + TypeScript 5.8 + Vite。
 - `packages/motion-copilot-core` 承载纯函数能力：快照规范化、节点匹配、对象识别、评分报告、时间轴生成。
 - `apps/motion-copilot` 承载交互能力：报告展示、匹配编辑、对象图层、预览联动。
 - 继续复用 `ZeroVisualSnapshot`、`VisualStage`、`CompositionTrack`、`MotionDocument.visualSource`。
 
 ### 实现要点
+
 1. 新增 `RestorationReport`，从快照、绑定结果、生成文档、视觉源中计算质量诊断。
 2. 新增 `FrameObjectModel`，把节点聚合成对象：button、status-pill、label-group、container、text、asset。
 3. 改造帧间面板，将 matched / enter / exit / unresolved 从计数展示升级为可编辑列表。
@@ -37,6 +39,7 @@ flowchart TD
 ## 架构决策 ADR
 
 ### ADR-001: 高保真结果层优先，原生可编辑逐步增强
+
 **上下文:** 低保真路径能编辑，但难以完整还原设计稿；高保真路径能还原，但编辑能力依赖代理层。  
 **决策:** 保持高保真 `VisualStage` 为结果层，代理层和对象模型只负责选择、参数、时间轴、局部编辑。  
 **理由:** 结果视觉正确是动效工具的底线，不能为了“全可编辑”牺牲首尾帧还原。  
@@ -44,6 +47,7 @@ flowchart TD
 **影响:** 需要在 UI 中清楚解释“视觉节点 / 代理图层 / 对象”的关系。
 
 ### ADR-002: 评分报告必须可行动，不做单纯分数
+
 **上下文:** 总分对用户有帮助，但不能定位具体问题。  
 **决策:** 每个扣分项必须包含 nodeId、字段、严重级别、原因、建议动作。  
 **理由:** 评分报告的价值在于指导修复和沉淀回归，不是制造一个漂亮分数。  
@@ -51,6 +55,7 @@ flowchart TD
 **影响:** 需要维护 issue schema，并在测试中验证关键问题能被报告出来。
 
 ### ADR-003: 匹配不可信时宁可待确认，不静默猜测
+
 **上下文:** 同名节点如 `文字 159` 容易误配，导致错误 morph。  
 **决策:** 低置信度或冲突匹配必须进入待确认，由用户或后续 AI 修正。  
 **理由:** 错误自动匹配比显式待确认更危险。  
@@ -60,7 +65,9 @@ flowchart TD
 ## API设计
 
 ### Core API: `createRestorationReport(input)`
+
 - **请求:**
+
 ```ts
 type CreateRestorationReportInput = {
   from: ZeroVisualSnapshot | FrameSnapshot;
@@ -70,7 +77,9 @@ type CreateRestorationReportInput = {
   objectModel?: FrameObjectModel;
 };
 ```
+
 - **响应:**
+
 ```ts
 type RestorationReport = {
   score: number;
@@ -117,12 +126,14 @@ score = round(
 - 如果 `inputHash` 或 `bindingHash` 变化，旧报告只能标记为 stale，不能继续作为当前质量结论。
 
 ### Core API: `buildFrameObjectModel(snapshot)`
+
 - **请求:** `ZeroVisualSnapshot | FrameSnapshot`
 - **响应:** `FrameObjectModel`
 - **说明:** P0 阶段只做 text / container / asset 三类纯几何识别（parent-child 包含关系 + bounds 尺寸比例）。button / status-pill / label-group 归为 P1 阶段，可接 AI 语义分类。
 - **性能约束:** 节点数 <1000 时须在 50ms 内完成；实现后必须跑 benchmark 验证，不达标则做惰性计算或剪枝优化。
 
 ### App UI: 帧间质量面板
+
 - 默认展示 issue 分级汇总（error/warning/info 各几条）和关键风险条目。
 - 总分作为辅助信息放二级展示，不作为主指标。
 - 支持点击 issue 定位到 preview 节点、对象图层、时间轴片段。
@@ -146,14 +157,7 @@ type RestorationIssue = {
   suggestion: string;
 };
 
-type FrameObjectKind =
-  | "button"
-  | "status-pill"
-  | "label-group"
-  | "container"
-  | "text"
-  | "asset"
-  | "unknown";
+type FrameObjectKind = "button" | "status-pill" | "label-group" | "container" | "text" | "asset" | "unknown";
 
 type FrameObject = {
   id: string;
@@ -208,19 +212,21 @@ export type VisualCompositionSource = {
 
 ### 与已有 `MorphIssue` 的边界
 
-| 类型 | 职责 | 产生阶段 | 展示位置 |
-|------|------|----------|----------|
-| `MorphIssue` | 时间轴编排问题（track 缺失、timing 冲突、easing 不合理） | `compileMorphPlan` / `evaluateMorphPlan` | 时间轴面板 |
-| `RestorationIssue` | 导入还原质量问题（样式丢失、节点覆盖不足、层级错乱、匹配不可信） | `createRestorationReport` | 质量面板 |
+| 类型               | 职责                                                             | 产生阶段                                 | 展示位置   |
+| ------------------ | ---------------------------------------------------------------- | ---------------------------------------- | ---------- |
+| `MorphIssue`       | 时间轴编排问题（track 缺失、timing 冲突、easing 不合理）         | `compileMorphPlan` / `evaluateMorphPlan` | 时间轴面板 |
+| `RestorationIssue` | 导入还原质量问题（样式丢失、节点覆盖不足、层级错乱、匹配不可信） | `createRestorationReport`                | 质量面板   |
 
 两者并存，不合并。
 
 ## 安全与性能
+
 - **安全:** `VisualStage` 继续使用 iframe sandbox，不允许远程 JS；报告只处理快照结构，不执行用户 HTML。
 - **性能:** 报告计算必须是纯函数，节点数小于 1000 时在 50ms 内完成；复杂视觉 diff 放到显式 QA 脚本，不阻塞主 UI。
 - **降级:** metadata-only 输入仍走低保真/调试路径，并明确提示不可标记为高保真。
 
 ## 测试与部署
+
 - **单元测试:** 覆盖报告评分、对象识别、匹配置信度、样式缺失、层级顺序。
 - **集成测试:** 覆盖帧间面板从 Zero fixture 生成、报告展示、issue 定位、手动修正、导出。
 - **真机回归:** 将状态条样例作为标准 fixture，确保圆角背景、绿点绿字层级、点击选中、高保真 SVG 背景长期不回退。

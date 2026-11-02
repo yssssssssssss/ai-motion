@@ -1,3 +1,6 @@
+import { execFile } from "node:child_process";
+import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildCopilotServerConfig } from "./serverConfig";
 
@@ -6,6 +9,7 @@ const SNAPSHOT_SCRIPT = "/repo/scripts/zero-frame-snapshot-fixture.mjs";
 const VISUAL_SCRIPT = "/repo/scripts/zero-visual-snapshot-fixture.mjs";
 const LAYER_SCRIPT = "/repo/scripts/zero-layer-snapshot-fixture.mjs";
 const MCP_LAYER_BRIDGE = "/repo/scripts/zero-mcp-layer-bridge.mjs";
+const MCP_VISUAL_BRIDGE = "/repo/scripts/zero-mcp-visual-bridge.mjs";
 
 function build(env: Record<string, string>) {
   return buildCopilotServerConfig(env, { scriptsDir: SCRIPTS_DIR });
@@ -63,6 +67,72 @@ describe("buildCopilotServerConfig", () => {
   });
 
   describe("zeroVisualConfig", () => {
+    it.each([
+      [undefined, undefined, [VISUAL_SCRIPT, "--node-id", "{nodeId}"]],
+      ["http://example.test/mcp", undefined, [MCP_VISUAL_BRIDGE, "--node-id", "{nodeId}"]],
+      [undefined, "custom.mjs --json", ["custom.mjs", "--json", "--node-id", "{nodeId}"]],
+      ["http://example.test/mcp", "custom.mjs --json", ["custom.mjs", "--json", "--node-id", "{nodeId}"]],
+      [undefined, "custom.mjs {nodeId}", ["custom.mjs", "{nodeId}"]],
+      ["http://example.test/mcp", "custom.mjs {nodeId}", ["custom.mjs", "{nodeId}"]]
+    ])("selects visual args for URL %s and explicit args %s", (url, args, expected) => {
+      const config = build({
+        ...(url ? { ZERO_MCP_HTTP_URL: url } : {}),
+        ...(args ? { ZERO_MCP_VISUAL_ARGS: args } : {})
+      });
+      expect(config.zeroVisualConfig.visualArgs).toEqual(expected);
+      expect(config.zeroConfig.snapshotArgs).toEqual([SNAPSHOT_SCRIPT, "--node-id", "{nodeId}"]);
+    });
+
+    it("runs the configured visual bridge against a local fake HTTP MCP endpoint", async () => {
+      const calls: Array<{ name: string; arguments: { nodeId: string } }> = [];
+      const server = createServer(async (req, res) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        calls.push(payload.params);
+        res.writeHead(200, { "Content-Type": "text/event-stream" });
+        res.end(
+          `data: ${JSON.stringify({ jsonrpc: "2.0", id: payload.id, result: { content: [{ type: "text", text: payload.params.name }] } })}\n\n`
+        );
+      });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          server.once("error", reject);
+          server.listen(0, "127.0.0.1", resolve);
+        });
+        const address = server.address();
+        if (!address || typeof address === "string") throw new Error("Missing test server port");
+        const { zeroVisualConfig } = buildCopilotServerConfig(
+          { ZERO_MCP_HTTP_URL: `http://127.0.0.1:${address.port}/mcp` },
+          { scriptsDir: fileURLToPath(new URL("../../../../scripts", import.meta.url)) }
+        );
+        const output = await new Promise<string>((resolve, reject) => {
+          execFile(
+            zeroVisualConfig.visualCommand!,
+            zeroVisualConfig.visualArgs!.map((arg) => arg.replaceAll("{nodeId}", "99:1")),
+            { env: { ...process.env, ...zeroVisualConfig.commandEnv } },
+            (error, stdout) => (error ? reject(error) : resolve(stdout))
+          );
+        });
+        expect(JSON.parse(output)).toMatchObject({
+          nodeId: "99:1",
+          designContext: { content: [{ text: "get_design_context" }] },
+          designMetadata: { content: [{ text: "get_design_metadata" }] },
+          screenshot: { content: [{ text: "get_screenshot" }] }
+        });
+        expect(calls.map((call) => call.name).sort()).toEqual([
+          "get_design_context",
+          "get_design_metadata",
+          "get_screenshot"
+        ]);
+        expect(calls.every((call) => call.arguments.nodeId === "99:1")).toBe(true);
+      } finally {
+        if (server.listening)
+          await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve()))
+          );
+      }
+    });
     it("falls back to node + visual fixture with {nodeId} injected", () => {
       const { zeroVisualConfig } = build({});
       expect(zeroVisualConfig.visualCommand).toBe(process.execPath);

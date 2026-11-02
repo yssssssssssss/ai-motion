@@ -28,7 +28,10 @@ function applyHtmlText(content: string, selector: string, value: unknown): strin
   const pattern = new RegExp(
     `(<[^>]+data-motion=["']${escapeRegExp(key)}["'][^>]*>)([\\s\\S]*?)(<\\/[^>]+>)`
   );
-  return content.replace(pattern, `$1${escapeHtmlText(value)}$3`);
+  return content.replace(
+    pattern,
+    (_match, open: string, _text: string, close: string) => `${open}${escapeHtmlText(value)}${close}`
+  );
 }
 
 function applyAttribute(content: string, selector: string, attribute: string, value: unknown): string {
@@ -125,7 +128,7 @@ function applyCssProperty(content: string, selector: string, property: string, v
     `(${escapeRegExp(selector)}\\s*\\{[^}]*?${escapeRegExp(property)}\\s*:\\s*)[^;]+`,
     "gm"
   );
-  return content.replace(pattern, `$1${value}`);
+  return content.replace(pattern, (_match, prefix: string) => `${prefix}${value}`);
 }
 
 function applyTarget(content: string, target: MotionTarget, param: MotionParam, value: unknown): string {

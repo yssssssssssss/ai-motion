@@ -1,11 +1,10 @@
-import type {
-  MotionComponent,
-  ReferenceGuidedGenerationResult
-} from "@motion-tool/core";
+import type { MotionComponent, ReferenceGuidedGenerationResult } from "@motion-tool/core";
 
 export type ReferenceGuidedGenerationClientResponse = ReferenceGuidedGenerationResult;
 
-async function readPayload(response: Response): Promise<Partial<ReferenceGuidedGenerationClientResponse> & { error?: string }> {
+async function readPayload(
+  response: Response
+): Promise<Partial<ReferenceGuidedGenerationClientResponse> & { error?: string }> {
   const text = await response.text();
   if (!text.trim()) return {};
 

@@ -665,7 +665,7 @@ export function exportZeroLayerCompositionHtml(document: MotionDocument, track: 
     [data-zero-legacy-tail]{opacity:0;}
     [data-zero-layer-id] > img,[data-zero-layer-skin] > img{display:block;width:100%;height:100%;object-fit:contain;}
     [data-zero-layer-kind="text"] span{display:block;width:100%;overflow:hidden;text-overflow:clip;white-space:pre;}
-    ${hasMotionPlan ? motionPlanCss(exportSource, track, playbackDurationMs) : motionCss(exportSource, track, new Set(), playbackDurationMs)}
+    ${(hasMotionPlan ? motionPlanCss(exportSource, track, playbackDurationMs) : motionCss(exportSource, track, new Set(), playbackDurationMs)).replaceAll("</", "\\3c /")}
     @media (prefers-reduced-motion: reduce){.mc-zero-layer-from{display:none!important;}[data-zero-tail-fallback]{display:block!important;}[data-zero-legacy-tail]{opacity:1!important;}[data-zero-layer-id],[data-zero-layer-skin]{animation:none!important;}}
   </style>
 </head>

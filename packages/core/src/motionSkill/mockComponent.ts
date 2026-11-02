@@ -1289,7 +1289,10 @@ function layerImageTarget(selector: string): MotionLayer["targets"][number] {
   };
 }
 
-function atomicLayerVisibility(recipe: MotionSkillRecipe): { backgroundImage: boolean; foregroundImage: boolean } {
+function atomicLayerVisibility(recipe: MotionSkillRecipe): {
+  backgroundImage: boolean;
+  foregroundImage: boolean;
+} {
   if (recipe.family === "content-loading" && recipe.variant === "global") {
     return { backgroundImage: false, foregroundImage: false };
   }

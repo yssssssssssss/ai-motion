@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   appMotionPresets,
   applyDocumentPatch,
+  applyPromptIntent,
   applyAppMotionPreset,
   clampProgress,
   computeCompositionStepWindows,
@@ -22,6 +23,8 @@ import {
   exportStandaloneHtml,
   layerById,
   layerIdFromNodeId,
+  layerMotionOffset,
+  mergeRecompiledSteps,
   primaryElement,
   selectedLayer,
   updateMotionPlanTrackFromCompositionSteps,
@@ -29,7 +32,6 @@ import {
   type AppMotionPresetDefinition,
   type AppMotionPresetId,
   type ClassicEasingPreset,
-  type CompositionDraftGeneration,
   type CompositionStep,
   type CompositionTrack,
   type EasingSpec,
@@ -49,10 +51,12 @@ import {
   type ZeroLayerMorphSource,
   type ZeroLayerNodeOverride,
   type ZeroLayerSnapshot,
+  type VisualCompositionReportCache,
   type VisualMotionBindingResult,
   type VisualMotionCompositionResult,
   type ZeroVisualSnapshot
 } from "@motion-copilot/core";
+import { createProjectState, useProjectState } from "./state/projectState";
 import { generateDraftViaService } from "./services/generateDraftClient";
 import { FrameMorphPanel } from "./features/frameMorph/FrameMorphPanel";
 import { MotionPlanEditor } from "./features/zeroLayerMorph/MotionPlanEditor";
@@ -576,16 +580,20 @@ type LayerMotionCssProperties = React.CSSProperties & {
   "--mc-layer-opacity-from"?: number;
   "--mc-layer-opacity-to"?: number;
   "--mc-layer-scale-from"?: number;
+  "--mc-layer-x-from"?: string;
+  "--mc-layer-y-from"?: string;
 };
 
 function layerMotionStyle(layer: MotionLayer): LayerMotionCssProperties {
+  const offset = layerMotionOffset(layer.motion);
   return layer.motion
     ? {
         animationDuration: `${layer.motion.durationMs}ms`,
         animationDelay: `${layer.motion.delayMs}ms`,
         "--mc-layer-opacity-from": layer.motion.opacityFrom ?? 0,
         "--mc-layer-opacity-to": layer.motion.opacityTo ?? 1,
-        "--mc-layer-scale-from": layer.motion.scaleFrom ?? 0.92
+        "--mc-layer-scale-from": layer.motion.scaleFrom ?? 0.92,
+        ...(offset ? { "--mc-layer-x-from": `${offset.x}px`, "--mc-layer-y-from": `${offset.y}px` } : {})
       }
     : {};
 }
@@ -2647,6 +2655,8 @@ function Inspector({
   onLoad,
   onApplyFrameMorphComposition,
   onApplyVisualMotionComposition,
+  onUpdateVisualMotionComposition,
+  onUpdateVisualRestorationReport,
   onApplyZeroLayerMotionComposition,
   onUpdateZeroLayerSource,
   onApplySuggestion,
@@ -2667,6 +2677,8 @@ function Inspector({
   onLoad: (document: MotionDocument) => void;
   onApplyFrameMorphComposition: (result: FrameMorphCompositionResult) => void;
   onApplyVisualMotionComposition: (result: VisualMotionCompositionResult) => void;
+  onUpdateVisualMotionComposition: (result: VisualMotionCompositionResult) => void;
+  onUpdateVisualRestorationReport: (cache: VisualCompositionReportCache) => void;
   onApplyZeroLayerMotionComposition: (result: ZeroLayerMotionCompositionResult) => void;
   onUpdateZeroLayerSource: (source: ZeroLayerMorphSource) => void;
   onApplySuggestion: (suggestion: GuidelineSuggestion) => void;
@@ -2674,6 +2686,7 @@ function Inspector({
 }) {
   const element = primaryElement(document);
   const layer = selectedLayer(document);
+  const layerOffset = layerMotionOffset(layer?.motion);
   const [frameWorkspaceMode, setFrameWorkspaceMode] = useState<FrameMotionWorkspaceMode>("zeroNative");
   const documentWithComposition = useMemo(
     () => ({ ...document, composition: compositionTrack }),
@@ -2880,6 +2893,9 @@ function Inspector({
                 mode={frameWorkspaceMode === "visual" ? "visual" : "legacy"}
                 onApplyComposition={onApplyFrameMorphComposition}
                 onApplyVisualComposition={onApplyVisualMotionComposition}
+                onUpdateVisualComposition={onUpdateVisualMotionComposition}
+                onUpdateRestorationReport={onUpdateVisualRestorationReport}
+                compositionTrack={compositionTrack}
                 {...(document.visualSource?.kind === "zero-visual-morph"
                   ? { savedVisualSource: document.visualSource }
                   : {})}
@@ -3622,6 +3638,7 @@ function Inspector({
                           <label className="field">
                             <span>入场方向</span>
                             <select
+                              disabled={!layerOffset}
                               value={layer.motion?.direction ?? ""}
                               onChange={(event) =>
                                 patchLayer({
@@ -3636,25 +3653,30 @@ function Inspector({
                               }
                             >
                               <option value="">默认</option>
-                              <option value="up">上</option>
-                              <option value="down">下</option>
-                              <option value="left">左</option>
-                              <option value="right">右</option>
+                              <option value="up">从上方进入</option>
+                              <option value="down">从下方进入</option>
+                              <option value="left">从左侧进入</option>
+                              <option value="right">从右侧进入</option>
                             </select>
                           </label>
                           <label className="field">
                             <span>位移距离</span>
                             <input
+                              disabled={!layerOffset}
                               type="number"
                               min="0"
                               step="2"
-                              value={layer.motion?.distance ?? 18}
+                              value={
+                                layer.motion?.distance ??
+                                (layerOffset ? Math.hypot(layerOffset.x, layerOffset.y) : 18)
+                              }
                               onChange={(event) =>
                                 patchLayer({ id: layer.id, motion: { distance: Number(event.target.value) } })
                               }
                             />
                           </label>
                         </div>
+                        {!layerOffset ? <small>当前动效不含位移</small> : null}
                         <div className="field-row">
                           <label className="field">
                             <span>缩放起始</span>
@@ -3806,11 +3828,29 @@ function Inspector({
 
 export function App() {
   const [savedWorkspace] = useState(readSavedWorkspace);
-  const [motionDocument, setMotionDocument] = useState(() =>
-    withGuidelines(savedWorkspace?.document ?? createBlankDocument())
+  const {
+    document: motionDocument,
+    steps: compositionSteps,
+    selectedStepId: selectedCompositionStepId,
+    hasStarted,
+    lastDraftGeneration,
+    epoch,
+    setMotionDocument,
+    setCompositionSteps,
+    setSelectedCompositionStepId,
+    setHasStarted,
+    replaceProject,
+    applyDraft
+  } = useProjectState(() =>
+    createProjectState({
+      document: withGuidelines(savedWorkspace?.document ?? createBlankDocument()),
+      steps: savedWorkspace?.compositionSteps,
+      hasStarted: savedWorkspace?.hasStarted
+    })
   );
+  const projectEpochRef = useRef(epoch);
+  projectEpochRef.current = epoch;
   const [prompt, setPrompt] = useState(savedWorkspace?.prompt ?? defaultPrompt);
-  const [hasStarted, setHasStarted] = useState(savedWorkspace?.hasStarted ?? false);
   const [playhead, setPlayhead] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
@@ -3820,10 +3860,6 @@ export function App() {
       ? "selected-layer"
       : (savedWorkspace?.presetTarget ?? "selected-layer")
   );
-  const [compositionSteps, setCompositionSteps] = useState<CompositionStep[]>(
-    savedWorkspace?.compositionSteps ?? savedWorkspace?.document.composition?.steps ?? []
-  );
-  const [selectedCompositionStepId, setSelectedCompositionStepId] = useState<string | undefined>(undefined);
   const [presetFilter, setPresetFilter] = useState("");
   const [activePresetTab, setActivePresetTab] = useState<PresetLibraryTabId>("recommended");
   const [interactionMode, setInteractionMode] = useState<"playback" | "gesture">("playback");
@@ -3831,10 +3867,9 @@ export function App() {
   const [projectNotice, setProjectNotice] = useState<string | undefined>(
     savedWorkspace?.hasStarted ? "已恢复上次自动保存的项目" : undefined
   );
-  const [lastDraftGeneration, setLastDraftGeneration] = useState<CompositionDraftGeneration | undefined>(
-    undefined
-  );
-  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const [autosaveFailed, setAutosaveFailed] = useState(false);
+  const [generatingEpoch, setGeneratingEpoch] = useState<number | undefined>(undefined);
+  const isGeneratingDraft = generatingEpoch === epoch;
   const [compositionHeight, setCompositionHeight] = useState(defaultCompositionHeight);
   const [draggingLayerListId, setDraggingLayerListId] = useState<string | undefined>(undefined);
   const [layerListDropTargetId, setLayerListDropTargetId] = useState<string | undefined>(undefined);
@@ -3874,6 +3909,7 @@ export function App() {
     | undefined
   >(undefined);
   const storageSaveRef = useRef<number | undefined>(undefined);
+  const previousHasStartedRef = useRef(hasStarted);
 
   const compositionTrack: CompositionTrack = useMemo(
     () => evaluateComposition(compositionSteps),
@@ -3959,12 +3995,7 @@ export function App() {
   }
 
   function removeLayer(layerId: string) {
-    setCompositionSteps((current) => current.filter((step) => step.layerId !== layerId));
-    setSelectedCompositionStepId((current) => {
-      const selectedStep = compositionSteps.find((step) => step.id === current);
-      return selectedStep?.layerId === layerId ? undefined : current;
-    });
-    setMotionDocument((current) => {
+    function removeDocumentLayer(current: MotionDocument) {
       const next = applyDocumentPatch(current, { removeLayerId: layerId });
       if (current.visualSource?.kind === "zero-visual-morph") {
         const hasVisualLayers = next.layers.some((layer) => layer.editable && isZeroVisualLayerId(layer.id));
@@ -3975,7 +4006,23 @@ export function App() {
         return hasLayerNodes ? next : clearZeroLayerSource(next);
       }
       return next;
+    }
+    if (compositionSteps.length > 0 && compositionSteps.every((step) => step.layerId === layerId)) {
+      replaceProject((current) => ({
+        ...current,
+        document: removeDocumentLayer(current.document),
+        steps: [],
+        selectedStepId: undefined,
+        lastDraftGeneration: undefined
+      }));
+      return;
+    }
+    setCompositionSteps((current) => current.filter((step) => step.layerId !== layerId));
+    setSelectedCompositionStepId((current) => {
+      const selectedStep = compositionSteps.find((step) => step.id === current);
+      return selectedStep?.layerId === layerId ? undefined : current;
     });
+    setMotionDocument(removeDocumentLayer);
   }
 
   function duplicateLayer(layerId: string) {
@@ -4201,40 +4248,54 @@ export function App() {
     if (isGeneratingDraft) return;
     const baseDocument = hasStarted ? motionDocument : createExampleDocument();
     const nextDocument = withGuidelines(
-      applyDocumentPatch(baseDocument, compileIntent({ prompt, base: baseDocument }))
+      hasStarted
+        ? applyPromptIntent(baseDocument, prompt)
+        : applyDocumentPatch(baseDocument, compileIntent({ prompt, base: baseDocument }))
     );
 
-    setMotionDocument(nextDocument);
-    setHasStarted(true);
-    setIsGeneratingDraft(true);
+    const requestEpoch = epoch;
+    const startingDocument = hasStarted ? motionDocument : nextDocument;
+    if (!hasStarted) {
+      setMotionDocument(nextDocument);
+      setHasStarted(true);
+    }
+    setGeneratingEpoch(requestEpoch);
     setProjectNotice("正在生成编排…");
 
-    let result;
     try {
-      result = await generateDraftViaService({
+      const result = await generateDraftViaService({
         prompt,
         document: nextDocument,
         existingSteps: compositionSteps
       });
+      applyDraft({
+        epoch: requestEpoch,
+        draft: result.draft,
+        document: (current) =>
+          current === startingDocument ? nextDocument : withGuidelines(applyPromptIntent(current, prompt))
+      });
+      if (projectEpochRef.current !== requestEpoch) return;
+      setProjectNotice(result.draft.warnings[0] ?? `${result.message} ${result.draft.summary}`.trim());
+      clearLoopTimer();
+      setPlayhead(0);
+      setIsPlaying(false);
+    } catch {
+      if (projectEpochRef.current === requestEpoch) {
+        setProjectNotice("生成失败，项目内容已保留，请重试。");
+      }
     } finally {
-      setIsGeneratingDraft(false);
+      setGeneratingEpoch((current) => (current === requestEpoch ? undefined : current));
     }
-
-    const draft = result.draft;
-    setCompositionSteps((current) => [...current, ...draft.steps]);
-    if (draft.steps[0]) setSelectedCompositionStepId(draft.steps[0].id);
-    setLastDraftGeneration(draft);
-    setProjectNotice(draft.warnings[0] ?? `${result.message} ${draft.summary}`.trim());
-    clearLoopTimer();
-    setPlayhead(0);
-    setIsPlaying(false);
   }
 
   function applyFrameMorphComposition(result: FrameMorphCompositionResult) {
-    setMotionDocument(result.document);
-    setCompositionSteps(result.steps);
-    setSelectedCompositionStepId(result.steps[0]?.id);
-    setHasStarted(true);
+    replaceProject({
+      document: result.document,
+      steps: result.steps,
+      selectedStepId: result.steps[0]?.id,
+      hasStarted: true,
+      lastDraftGeneration: undefined
+    });
     setRightTab("property");
     setProjectNotice(`${result.intent.summary}，已映射到 ${result.steps.length} 个图层时间线片段。`);
     clearLoopTimer();
@@ -4243,21 +4304,69 @@ export function App() {
   }
 
   function applyVisualMotionComposition(result: VisualMotionCompositionResult) {
-    setMotionDocument(result.document);
-    setCompositionSteps(result.steps);
-    setSelectedCompositionStepId(result.steps[0]?.id);
-    setHasStarted(true);
+    replaceProject({
+      document: result.document,
+      steps: result.steps,
+      selectedStepId: result.steps[0]?.id,
+      hasStarted: true,
+      lastDraftGeneration: undefined
+    });
     setProjectNotice(`${result.summary}，已映射到 ${result.steps.length} 个高保真控制片段。`);
     clearLoopTimer();
     setPlayhead(0);
     setIsPlaying(false);
   }
 
+  function updateVisualMotionComposition(result: VisualMotionCompositionResult) {
+    const visualSource = result.document.visualSource;
+    if (visualSource?.kind !== "zero-visual-morph") return;
+    const steps = mergeRecompiledSteps(compositionSteps, [
+      ...result.steps,
+      ...compositionSteps.filter((step) => !isZeroVisualStep(step))
+    ]);
+    setCompositionSteps(steps);
+    setSelectedCompositionStepId((current) =>
+      steps.some((step) => step.id === current) ? current : steps[0]?.id
+    );
+    setMotionDocument((current) => {
+      if (current.visualSource?.kind !== "zero-visual-morph") return current;
+      const layers = [
+        ...result.document.layers,
+        ...current.layers.filter((layer) => !isZeroVisualLayerId(layer.id))
+      ];
+      const selectedLayerId = layers.some((layer) => layer.id === current.selectedLayerId)
+        ? current.selectedLayerId
+        : result.document.selectedLayerId;
+      const { selectedLayerId: _selectedLayerId, ...document } = current;
+      return {
+        ...document,
+        layers,
+        ...(selectedLayerId ? { selectedLayerId } : {}),
+        visualSource,
+        composition: evaluateComposition(steps)
+      };
+    });
+  }
+
+  function updateVisualRestorationReport(cache: VisualCompositionReportCache) {
+    setMotionDocument((current) =>
+      current.visualSource?.kind === "zero-visual-morph"
+        ? {
+            ...current,
+            visualSource: { ...current.visualSource, restorationReportCache: cache }
+          }
+        : current
+    );
+  }
+
   function applyZeroLayerMotionComposition(result: ZeroLayerMotionCompositionResult) {
-    setMotionDocument(result.document);
-    setCompositionSteps(result.steps);
-    setSelectedCompositionStepId(result.steps[0]?.id);
-    setHasStarted(true);
+    replaceProject({
+      document: result.document,
+      steps: result.steps,
+      selectedStepId: result.steps[0]?.id,
+      hasStarted: true,
+      lastDraftGeneration: undefined
+    });
     setProjectNotice(`${result.summary}，已映射到 ${result.steps.length} 个 Zero 图层片段。`);
     clearLoopTimer();
     setPlayhead(0);
@@ -4296,6 +4405,24 @@ export function App() {
   }
 
   function removeCompositionStep(stepId: string) {
+    if (compositionSteps.length === 1 && compositionSteps[0]?.id === stepId) {
+      replaceProject((current) => {
+        const removed = current.steps.find((step) => step.id === stepId);
+        return {
+          ...current,
+          document:
+            removed && isZeroVisualStep(removed)
+              ? clearZeroVisualState(current.document)
+              : removed && isZeroLayerStep(removed)
+                ? clearZeroLayerState(current.document)
+                : current.document,
+          steps: [],
+          selectedStepId: undefined,
+          lastDraftGeneration: undefined
+        };
+      });
+      return;
+    }
     setCompositionSteps((current) => {
       const next = current.filter((s) => s.id !== stepId);
       if (selectedCompositionStepId === stepId) setSelectedCompositionStepId(next[0]?.id);
@@ -4423,16 +4550,18 @@ export function App() {
   }
 
   function applyCompositionToDocument() {
-    setMotionDocument((current) => {
-      let doc = current;
-      for (const step of compositionSteps) {
+    replaceProject((current) => {
+      let document = current.document;
+      for (const step of current.steps) {
         const target: AppMotionPresetTarget = step.target;
         if (target === "selected-layer" && step.layerId) {
-          doc = { ...doc, selectedLayerId: step.layerId };
+          document = { ...document, selectedLayerId: step.layerId };
         }
-        doc = withGuidelines(applyAppMotionPreset(doc, step.presetId as AppMotionPresetId, { target }));
+        document = withGuidelines(
+          applyAppMotionPreset(document, step.presetId as AppMotionPresetId, { target })
+        );
       }
-      return { ...doc, composition: compositionTrack };
+      return { ...current, document: { ...document, composition: evaluateComposition(current.steps) } };
     });
     clearLoopTimer();
     setPlayhead(0);
@@ -4441,26 +4570,30 @@ export function App() {
 
   function clearComposition() {
     clearLoopTimer();
-    setCompositionSteps([]);
-    setSelectedCompositionStepId(undefined);
-    setLastDraftGeneration(undefined);
-    setMotionDocument((document) =>
-      document.visualSource?.kind === "zero-visual-morph"
-        ? clearZeroVisualState(document)
-        : document.visualSource?.kind === "zero-layer-morph"
-          ? clearZeroLayerState(document)
-          : document
-    );
+    replaceProject((current) => ({
+      ...current,
+      steps: [],
+      selectedStepId: undefined,
+      lastDraftGeneration: undefined,
+      document:
+        current.document.visualSource?.kind === "zero-visual-morph"
+          ? clearZeroVisualState(current.document)
+          : current.document.visualSource?.kind === "zero-layer-morph"
+            ? clearZeroLayerState(current.document)
+            : current.document
+    }));
   }
 
   function createBlankProject() {
-    setMotionDocument(createBlankDocument());
+    replaceProject({
+      document: createBlankDocument(),
+      steps: [],
+      selectedStepId: undefined,
+      lastDraftGeneration: undefined,
+      hasStarted: true
+    });
     setPrompt("");
-    setCompositionSteps([]);
-    setSelectedCompositionStepId(undefined);
-    setLastDraftGeneration(undefined);
     setPresetTarget("selected-layer");
-    setHasStarted(true);
     setSuggestionStatus({});
     clearLoopTimer();
     setPlayhead(0);
@@ -4470,12 +4603,14 @@ export function App() {
 
   function loadDocument(document: MotionDocument) {
     const normalizedDocument = normalizeMotionDocument(document);
-    setMotionDocument(withGuidelines(normalizedDocument));
-    setHasStarted(true);
+    replaceProject({
+      document: withGuidelines(normalizedDocument),
+      steps: normalizedDocument.composition?.steps ?? [],
+      selectedStepId: normalizedDocument.composition?.steps[0]?.id,
+      lastDraftGeneration: undefined,
+      hasStarted: true
+    });
     setSuggestionStatus({});
-    setCompositionSteps(normalizedDocument.composition?.steps ?? []);
-    setSelectedCompositionStepId(normalizedDocument.composition?.steps[0]?.id);
-    setLastDraftGeneration(undefined);
     clearLoopTimer();
     setPlayhead(0);
     setIsPlaying(false);
@@ -4623,13 +4758,15 @@ export function App() {
           : "规范动效";
 
   useEffect(() => {
+    const wasStarted = previousHasStartedRef.current;
+    previousHasStartedRef.current = hasStarted;
     if (storageSaveRef.current) {
       window.clearTimeout(storageSaveRef.current);
       storageSaveRef.current = undefined;
     }
     try {
       if (!hasStarted) {
-        globalThis.localStorage?.removeItem(workspaceStorageKey);
+        if (wasStarted) globalThis.localStorage?.removeItem(workspaceStorageKey);
         return;
       }
       storageSaveRef.current = window.setTimeout(() => {
@@ -4643,12 +4780,13 @@ export function App() {
             presetTarget
           };
           globalThis.localStorage?.setItem(workspaceStorageKey, JSON.stringify(snapshot));
+          setAutosaveFailed(false);
         } catch {
-          // 自动保存不能影响创作主流程。
+          setAutosaveFailed(true);
         }
       }, 250);
     } catch {
-      // 自动保存不能影响创作主流程。
+      setAutosaveFailed(true);
     }
     return () => {
       if (storageSaveRef.current) window.clearTimeout(storageSaveRef.current);
@@ -4747,6 +4885,9 @@ export function App() {
             <div className="project-status">
               <strong>本地自动保存</strong>
               <span>{projectNotice ?? "修改后会自动保存到当前浏览器"}</span>
+              {autosaveFailed ? (
+                <p role="alert">自动保存失败。请在“属性”面板点击“导出项目”，避免丢失当前修改。</p>
+              ) : null}
               <button type="button" onClick={clearSavedProject}>
                 清除自动保存
               </button>
@@ -5088,6 +5229,8 @@ export function App() {
         onLoad={loadDocument}
         onApplyFrameMorphComposition={applyFrameMorphComposition}
         onApplyVisualMotionComposition={applyVisualMotionComposition}
+        onUpdateVisualMotionComposition={updateVisualMotionComposition}
+        onUpdateVisualRestorationReport={updateVisualRestorationReport}
         onApplyZeroLayerMotionComposition={applyZeroLayerMotionComposition}
         onUpdateZeroLayerSource={updateZeroLayerSource}
         onApplySuggestion={applySuggestion}

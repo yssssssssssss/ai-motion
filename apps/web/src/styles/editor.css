@@ -36,7 +36,7 @@
   backdrop-filter: blur(18px) saturate(180%);
 }
 
-.editor-header button {
+.editor-header button:not(.primary-action) {
   background: #ffffff;
 }
 

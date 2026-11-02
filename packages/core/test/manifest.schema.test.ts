@@ -70,7 +70,9 @@ describe("motionManifestSchema", () => {
           default: 5,
           status: "confirmed",
           constraints: { min: 0, max: 10, step: 0.5, unit: "vmin" },
-          targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--scene-pad" }]
+          targets: [
+            { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--scene-pad" }
+          ]
         }
       ]
     });

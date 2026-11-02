@@ -226,8 +226,9 @@ export type {
 export { createReferenceGuidedComponent } from "./generation/referenceGuidedGeneration";
 
 // ---- import / analyze / export ----
-export type { ImportWarning, ImportResult } from "./import/sourceImporter";
-export { importMotionSourceFromFiles } from "./import/sourceImporter";
+export type { ImportWarning, ImportResult, EditablePackageImport } from "./import/sourceImporter";
+export { importMotionSourceFromFiles, importEditablePackageFromFiles } from "./import/sourceImporter";
+export { resolveLocalAssetPath } from "./import/resolveLocalAssetPath";
 export { scanSourceForParams } from "./analyze/ruleScanner";
 export { scanSourceForLayers } from "./analyze/layerScanner";
 export { suggestParams } from "./analyze/paramAdvisor";

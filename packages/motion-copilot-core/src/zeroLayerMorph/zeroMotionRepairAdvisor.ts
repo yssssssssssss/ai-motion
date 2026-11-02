@@ -48,7 +48,8 @@ export function createZeroMotionRepairAdvice(input: {
     });
   }
   if (failures.has("under-motion") || failures.has("recipe-diff-too-small")) {
-    const candidate = input.recommendation?.candidates.find((item) => item.recipeId === "content-stagger") ??
+    const candidate =
+      input.recommendation?.candidates.find((item) => item.recipeId === "content-stagger") ??
       input.recommendation?.candidates.find((item) => item.recipeId === "mask-reveal");
     actions.push({
       id: "increase-motion-salience",
@@ -92,8 +93,8 @@ export function createZeroMotionRepairAdvice(input: {
       : "当前推荐方案未发现明显风险。";
   const userFacingMessage =
     failureList.length > 0
-      ? actions[0]?.description ?? "当前动效存在可优化点，建议先查看推荐动作。"
-      : input.recommendation?.summary ?? "当前动效可以直接预览和导出。";
+      ? (actions[0]?.description ?? "当前动效存在可优化点，建议先查看推荐动作。")
+      : (input.recommendation?.summary ?? "当前动效可以直接预览和导出。");
 
   return {
     schemaVersion: "motion-copilot.zero-motion-repair-advice.v1",
