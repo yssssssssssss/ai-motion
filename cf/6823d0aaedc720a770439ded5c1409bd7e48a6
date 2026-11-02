@@ -1,0 +1,22 @@
+docs/worktree-development.md
+  s_24f2d7c62775bf::t_06b93372075cd5 25
+  s_24f2d7c62775bf::t_c9fed22fb977f1 8-9
+  s_24f2d7c62775bf::t_1542e6693712db 13
+  s_24f2d7c62775bf::t_be8c1a4db4d5a8 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "cf6823d0aaedc720a770439ded5c1409bd7e48a6",
+  "prompts": {},
+  "sessions": {
+    "s_24f2d7c62775bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e924937b-c402-45ab-892a-6dfbf2cae420",
+        "model": "unknown"
+      },
+      "human_author": "heyunshen <heyunshen@SZMAC-F7F7KPQ2.local>"
+    }
+  }
+}
