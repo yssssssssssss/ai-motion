@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyZeroLayerMotionRecipe,
   compileMotionPlanFromRecipe,
   compileZeroLayerMotionBindings,
   computeCompositionStepWindows,
   createClassicEasing,
   deriveCompositionFromMotionPlan,
+  evaluateComposition,
+  fillMissingMatchedMotionPlanTracks,
+  fillMotionPlanGeometryFromComposition,
   normalizeZeroLayerSnapshot,
   patchMotionPlanTrack,
   updateMotionPlanTrackFromCompositionSteps,
@@ -132,6 +136,35 @@ describe("MotionPlan recipe adapter", () => {
     expect(plan.tracks[0]?.keyframes[0]).toMatchObject({ offset: 0, x: 99 });
   });
 
+  it("drops the stale stage duration of replaced rule tracks", () => {
+    const source = makeSource();
+    const step = recipeStep(source.bindingResult.bindings[0]!.layerId);
+
+    const plan = compileMotionPlanFromRecipe({
+      source,
+      steps: [step],
+      existingPlan: {
+        schemaVersion: "motion-copilot.motion-plan.v1",
+        stageDurationMs: 1000,
+        tracks: [
+          {
+            layerId: step.layerId!,
+            nodeId: "card",
+            kind: "morph",
+            keyframes: [
+              { offset: 0, x: 0 },
+              { offset: 1, x: 8 }
+            ],
+            timing: { delayMs: 0, durationMs: 1000 },
+            source: "rule"
+          }
+        ]
+      }
+    });
+
+    expect(plan.stageDurationMs).toBe(210);
+  });
+
   it("persists an edited compatibility step as user-owned while preserving other user tracks", () => {
     const source = makeSource();
     const step = recipeStep(source.bindingResult.bindings[0]!.layerId);
@@ -164,6 +197,7 @@ describe("MotionPlan recipe adapter", () => {
       x: 36
     });
     expect(plan.tracks.find((track) => track.layerId === "other-layer")?.source).toBe("user");
+    expect(plan.stageDurationMs).toBe(290);
   });
 
   it("patches only the selected track and promotes it to a user override", () => {
@@ -212,6 +246,44 @@ describe("MotionPlan recipe adapter", () => {
       source: "rule",
       timing: { delayMs: 80, durationMs: 120 }
     });
+    expect(plan.stageDurationMs).toBe(292);
+  });
+
+  it("keeps unplanned fallback layers at their original absolute start", () => {
+    const planned = recipeStep("planned-layer");
+    const fallback: CompositionStep = {
+      ...recipeStep("fallback-layer"),
+      id: "fallback-step",
+      timing: "sequential",
+      delayMs: 30,
+      durationMs: 180
+    };
+    const fullSteps = [{ ...planned, delayMs: 80, durationMs: 200 }, fallback];
+    const restored = deriveCompositionFromMotionPlan(
+      {
+        schemaVersion: "motion-copilot.motion-plan.v1",
+        stageDurationMs: 280,
+        tracks: [
+          {
+            layerId: "planned-layer",
+            nodeId: "card",
+            kind: "morph",
+            source: "user",
+            timing: { delayMs: 80, durationMs: 200 },
+            keyframes: [
+              { offset: 0, x: 0 },
+              { offset: 1, x: 8 }
+            ]
+          }
+        ]
+      },
+      fullSteps
+    );
+
+    expect(computeCompositionStepWindows(restored)).toEqual([
+      { stepId: "card-morph", start: 80, end: 280 },
+      { stepId: "fallback-step", start: 310, end: 490 }
+    ]);
   });
 
   it("carries step metadata through the MotionPlan compatibility view without casts", () => {
@@ -226,5 +298,168 @@ describe("MotionPlan recipe adapter", () => {
 
     expect(restored[0]?.metadata?.zeroLayerTransformOrigin).toBe("top center");
     expect(restored[0]?.metadata?.zeroLayerExpressionStrategy).toBe("scale-origin");
+  });
+
+  it("bakes the selected Zero expression stops into the persisted track", () => {
+    const source = makeSource();
+    const step: CompositionStep = {
+      ...recipeStep(source.bindingResult.bindings[0]!.layerId),
+      metadata: { zeroLayerExpressionStrategy: "content-cross-replace" }
+    };
+
+    const plan = compileMotionPlanFromRecipe({ source, steps: [step] });
+
+    expect(plan.tracks[0]?.keyframes).toEqual([
+      { offset: 0, x: 0, y: 0, width: 100, height: 40, scale: 0.94, opacity: 0.2 },
+      { offset: 0.42, x: 3.04, y: -1.52, width: 107.6, height: 43.04, scale: 0.9628, opacity: 0.28 },
+      { offset: 0.74, x: 6.56, y: -3.28, width: 116.4, height: 46.56, scale: 0.9892, opacity: 0.72 },
+      { offset: 1, x: 8, y: -4, width: 120, height: 48, scale: 1, opacity: 1 }
+    ]);
+  });
+
+  it("persists the spring-expand main track as spring physics", () => {
+    const source = makeSource();
+    source.from.nodeId = "from-frame";
+    source.to.nodeId = "to-frame";
+    source.from.layers[0]!.fills = [{ type: "solid", color: "#ffffff" }];
+    source.to.layers[0]!.fills = [{ type: "solid", color: "#ffffff" }];
+
+    const result = applyZeroLayerMotionRecipe(source, "spring-expand");
+    const mainStep = result.steps.find((step) => step.label === "弹性主容器");
+    const motionPlan =
+      result.document.visualSource?.kind === "zero-layer-morph"
+        ? result.document.visualSource.motionPlan
+        : undefined;
+
+    expect(motionPlan?.tracks.find((track) => track.layerId === mainStep?.layerId)?.physics).toEqual({
+      type: "spring",
+      stiffness: 220,
+      damping: 22
+    });
+  });
+
+  it("recovers matched geometry for a sparse restored plan without a composition projection", () => {
+    const source = makeSource();
+    const layerId = source.bindingResult.bindings[0]!.layerId;
+    source.nodeOverrides = [
+      { frame: "from", nodeId: "card", x: 16, width: 96 },
+      { frame: "to", nodeId: "card", x: 28, width: 132 }
+    ];
+
+    const plan = fillMotionPlanGeometryFromComposition(
+      {
+        schemaVersion: "motion-copilot.motion-plan.v1",
+        stageDurationMs: 240,
+        tracks: [
+          {
+            layerId,
+            nodeId: "card",
+            kind: "morph",
+            source: "user",
+            timing: { delayMs: 0, durationMs: 240 },
+            keyframes: [
+              { offset: 0, opacity: 0.4 },
+              { offset: 1, opacity: 1 }
+            ]
+          }
+        ]
+      },
+      undefined,
+      source
+    );
+
+    expect(plan.tracks[0]?.keyframes[0]).toMatchObject({ x: 0, y: 0, width: 96, height: 40 });
+    expect(plan.tracks[0]?.keyframes.at(-1)).toMatchObject({ x: 12, y: -4, width: 132, height: 48 });
+  });
+
+  it("rebases a synthesized matched fallback track to node overrides", () => {
+    const source = makeSource();
+    const layerId = source.bindingResult.bindings[0]!.layerId;
+    source.nodeOverrides = [
+      { frame: "from", nodeId: "card", x: 16, width: 96 },
+      { frame: "to", nodeId: "card", x: 28, width: 132 }
+    ];
+    const step = recipeStep(layerId);
+
+    const plan = fillMissingMatchedMotionPlanTracks(undefined, evaluateComposition([step]), source);
+
+    expect(plan.tracks[0]?.keyframes[0]).toMatchObject({ x: 0, y: 0, width: 96, height: 40 });
+    expect(plan.tracks[0]?.keyframes.at(-1)).toMatchObject({ x: 12, y: -4, width: 132, height: 48 });
+  });
+
+  it("keeps user-owned geometry while filling only its missing matched properties", () => {
+    const source = makeSource();
+    const layerId = source.bindingResult.bindings[0]!.layerId;
+    source.nodeOverrides = [
+      { frame: "from", nodeId: "card", x: 16, width: 96 },
+      { frame: "to", nodeId: "card", x: 28, width: 132 }
+    ];
+
+    const plan = fillMotionPlanGeometryFromComposition(
+      {
+        schemaVersion: "motion-copilot.motion-plan.v1",
+        stageDurationMs: 240,
+        tracks: [
+          {
+            layerId,
+            nodeId: "card",
+            kind: "morph",
+            source: "user",
+            timing: { delayMs: 0, durationMs: 240 },
+            keyframes: [
+              { offset: 0, x: 0, width: 100 },
+              { offset: 0.5, x: 4, width: 110 },
+              { offset: 1, x: 8, width: 120 }
+            ]
+          }
+        ]
+      },
+      undefined,
+      source
+    );
+
+    expect(plan.tracks[0]?.keyframes).toEqual([
+      { offset: 0, x: 0, y: 0, width: 100, height: 40 },
+      { offset: 0.5, x: 4, width: 110 },
+      { offset: 1, x: 8, y: -4, width: 120, height: 48 }
+    ]);
+  });
+
+  it("preserves an interior pulse when rebasing generated matched endpoints", () => {
+    const source = makeSource();
+    const layerId = source.bindingResult.bindings[0]!.layerId;
+    source.nodeOverrides = [
+      { frame: "from", nodeId: "card", x: 16, width: 96 },
+      { frame: "to", nodeId: "card", x: 28, width: 132 }
+    ];
+
+    const plan = fillMotionPlanGeometryFromComposition(
+      {
+        schemaVersion: "motion-copilot.motion-plan.v1",
+        stageDurationMs: 240,
+        tracks: [
+          {
+            layerId,
+            nodeId: "card",
+            kind: "morph",
+            source: "rule",
+            timing: { delayMs: 0, durationMs: 240 },
+            keyframes: [
+              { offset: 0, x: 0, width: 100 },
+              { offset: 0.5, x: 4, width: 120 },
+              { offset: 1, x: 0, width: 100 }
+            ]
+          }
+        ]
+      },
+      undefined,
+      source
+    );
+
+    expect(plan.tracks[0]?.keyframes).toEqual([
+      { offset: 0, x: 0, y: 0, width: 96, height: 40 },
+      { offset: 0.5, x: 10, width: 134 },
+      { offset: 1, x: 12, y: -4, width: 132, height: 48 }
+    ]);
   });
 });

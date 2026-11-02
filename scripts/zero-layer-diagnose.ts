@@ -15,7 +15,7 @@ import {
   createZeroMotionOrderPlan,
   evaluateZeroMotionSalience,
   normalizeZeroLayerSnapshot,
-  recommendZeroLayerRecipes,
+  recommendZeroLayerRecipesForSource,
   zeroLayerMotionRecipes,
   type ZeroLayerDiagnosticReport,
   type ZeroLayerDiagnosticSource,
@@ -233,7 +233,10 @@ function formatRecipeSamplesPretty(report: ZeroLayerRecipeSampleReport): string 
     .join("\n");
   const risks = report.risks.length
     ? report.risks
-        .map((risk) => `- [${risk.severity}] ${risk.code}${risk.recipeId ? ` ${risk.recipeId}` : ""}: ${risk.message}`)
+        .map(
+          (risk) =>
+            `- [${risk.severity}] ${risk.code}${risk.recipeId ? ` ${risk.recipeId}` : ""}: ${risk.message}`
+        )
         .join("\n")
     : "- none";
 
@@ -356,7 +359,12 @@ function formatHarnessPretty(input: {
     lines.push("", "Order Plan:", `- ${input.orderPlan.summary}`);
     for (const [group, items] of Object.entries(input.orderPlan.groups)) {
       if (items.length === 0) continue;
-      lines.push(`- ${group}: ${items.slice(0, 4).map((item) => item.name).join(" / ")}`);
+      lines.push(
+        `- ${group}: ${items
+          .slice(0, 4)
+          .map((item) => item.name)
+          .join(" / ")}`
+      );
     }
   }
   if (input.expressionStrategies?.length) {
@@ -409,7 +417,7 @@ async function main(): Promise<void> {
 
   let from: ZeroLayerSnapshot;
   let to: ZeroLayerSnapshot;
-  let source: ZeroLayerDiagnosticSource = "unknown";
+  let source: ZeroLayerDiagnosticSource;
   let bridge: string | undefined;
 
   if (fromFile || toFile) {
@@ -449,10 +457,9 @@ async function main(): Promise<void> {
     diagnosticReport: report
   };
   if (recipeSamples) {
-    const sampleReport = createZeroLayerRecipeSampleReport(
-      sourceForHarness,
-      { ...(recipeIds ? { recipeIds } : {}) }
-    );
+    const sampleReport = createZeroLayerRecipeSampleReport(sourceForHarness, {
+      ...(recipeIds ? { recipeIds } : {})
+    });
     const output =
       args.pretty === true ? formatRecipeSamplesPretty(sampleReport) : JSON.stringify(sampleReport, null, 2);
     const outPath = stringArg(args, "out");
@@ -470,7 +477,9 @@ async function main(): Promise<void> {
   const spec = shouldEmitHarness ? buildZeroMotionSpec(sourceForHarness) : undefined;
   const recommendation =
     spec && (recommendRecipes || emitSalience || emitRepairAdvice)
-      ? recommendZeroLayerRecipes(spec, { ...(sceneOverride ? { sceneOverride } : {}) })
+      ? recommendZeroLayerRecipesForSource(sourceForHarness, spec, {
+          ...(sceneOverride ? { sceneOverride } : {})
+        })
       : undefined;
   const roles = shouldEmitHarness ? classifyZeroLayerRoles(sourceForHarness) : undefined;
   const selectedRecipeResult =
@@ -488,7 +497,11 @@ async function main(): Promise<void> {
     spec && (emitSalience || emitRepairAdvice)
       ? evaluateZeroMotionSalience({
           spec,
-          ...(selectedRecipeResult?.steps ? { steps: selectedRecipeResult.steps } : {})
+          ...(selectedRecipeResult?.steps ? { steps: selectedRecipeResult.steps } : {}),
+          ...(selectedRecipeResult?.document.visualSource?.kind === "zero-layer-morph" &&
+          selectedRecipeResult.document.visualSource.motionPlan
+            ? { motionPlan: selectedRecipeResult.document.visualSource.motionPlan }
+            : {})
         })
       : undefined;
   const repairAdvice =

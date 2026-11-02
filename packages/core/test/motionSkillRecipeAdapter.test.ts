@@ -234,7 +234,9 @@ describe("motion skill recipe adapter", () => {
       now: 1717747200000
     });
     const sourceText = component.source.files.map((file) => file.content).join("\n");
-    const binding = component.manifest.motionRecipes?.[0]!;
+    const binding = component.manifest.motionRecipes?.[0];
+
+    if (!binding) throw new Error("Expected generated component to include a motion recipe.");
 
     expect(component.source.origin).toBe("generated");
     expect(component.manifest.motionSkill).toMatchObject({
@@ -796,7 +798,11 @@ describe("motion skill recipe adapter", () => {
     expect(componentByRecipe["horizontal-switch.channel-tab.enter"]?.manifest.layers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "foregroundLayer", replaceable: false }),
-        expect.objectContaining({ id: "channelTabIconLayer1", paramId: "channelTabIcon1", replaceable: true }),
+        expect.objectContaining({
+          id: "channelTabIconLayer1",
+          paramId: "channelTabIcon1",
+          replaceable: true
+        }),
         expect.objectContaining({ id: "channelTabIconLayer6", paramId: "channelTabIcon6", replaceable: true })
       ])
     );
@@ -900,10 +906,10 @@ describe("motion skill recipe adapter", () => {
     );
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain("font-weight: 600;");
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain(
-      "--tabbar-icon-active: url(\"data:image/svg+xml,"
+      '--tabbar-icon-active: url("data:image/svg+xml,'
     );
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain(
-      "--tabbar-icon-active-detail: url(\"data:image/svg+xml,"
+      '--tabbar-icon-active-detail: url("data:image/svg+xml,'
     );
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain(
       "background-image: var(--tabbar-icon-active);"
@@ -934,12 +940,18 @@ describe("motion skill recipe adapter", () => {
       "select(Math.min(activeIndex + 1, items.length - 1));"
     );
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain("horizontal-switch-tabbar-selection");
-    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain("@keyframes horizontal-switch-tabbar-icon-5");
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain(
+      "@keyframes horizontal-switch-tabbar-icon-5"
+    );
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain("translateX(245.6px)");
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain("--stage-height: 140px");
-    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain("border-top: 2px solid currentColor;");
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain(
+      "border-top: 2px solid currentColor;"
+    );
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain("box-shadow: inset 0 -4px 0 #fff;");
-    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain(".motion-switch-tabbar-shell::before");
+    expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain(
+      ".motion-switch-tabbar-shell::before"
+    );
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).not.toContain(".motion-switch-joy-agent::before");
     expect(cssByRecipe["horizontal-switch.tabbar.enter"]).toContain(
       '<button class="is-active" type="button" data-tabbar-index="0" aria-pressed="true"><b></b><em>文案</em></button>'
@@ -1060,7 +1072,7 @@ describe("motion skill recipe adapter", () => {
     expect(sourceText).toContain("aspect-ratio: 640 / 448;");
     expect(sourceText).toContain("content-loading-global-mark");
     expect(sourceText).toContain("content-loading-global-highlight");
-    expect(sourceText).toContain("viewBox=\"-320 -224 640 448\"");
+    expect(sourceText).toContain('viewBox="-320 -224 640 448"');
     expect(sourceText).toContain(
       ".motion-skill-content-loading-global {\n  background: transparent;\n  border-radius: 0;\n  box-shadow: none;\n  overflow: visible;"
     );

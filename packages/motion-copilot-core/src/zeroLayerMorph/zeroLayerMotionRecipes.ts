@@ -1,10 +1,21 @@
 import { evaluateComposition } from "../composition/evaluateComposition";
-import { createClassicEasing, type CompositionStep, type MotionDocument } from "../schema/document";
+import {
+  createClassicEasing,
+  createSpringEasing,
+  type CompositionStep,
+  type MotionDocument
+} from "../schema/document";
 import {
   compileZeroLayerMotionComposition,
   type ZeroLayerMotionCompositionResult
 } from "./compileZeroLayerMotionComposition";
-import { compileMotionPlanFromRecipe, deriveCompositionFromMotionPlan } from "./compileMotionPlan";
+import {
+  compileMotionPlanFromRecipe,
+  deriveCompositionFromMotionPlan,
+  fillMotionPlanGeometryFromComposition
+} from "./compileMotionPlan";
+import { isLowConfidenceZeroLayerBinding } from "./compileZeroLayerMotionBindings";
+import { deriveZeroLayerDiagnosticGate } from "./createZeroLayerDiagnosticReport";
 import { layerIdForNode } from "./layerId";
 import {
   adaptZeroLayerRecipeParameters,
@@ -67,8 +78,38 @@ export const zeroLayerMotionRecipes: ZeroLayerMotionRecipe[] = zeroLayerRecipeMa
   ({ id, label, summary, category }) => ({ id, label, summary, category })
 );
 
+export function zeroLayerDiagnosticGateForSource(source: ZeroLayerMorphSource) {
+  const report = source.diagnosticReport;
+  return report ? (report.gate ?? deriveZeroLayerDiagnosticGate(report)) : undefined;
+}
+
+export function zeroLayerNativeRecipeBlockReason(source: ZeroLayerMorphSource): string | undefined {
+  const gate = zeroLayerDiagnosticGateForSource(source);
+  if (
+    !gate ||
+    (gate.status !== "blocked" &&
+      gate.strategy !== "manual-fix-required" &&
+      gate.strategy !== "screenshot-fallback")
+  ) {
+    return undefined;
+  }
+  return `Zero 原生图层动效已被质量门禁阻止（${gate.strategy}）：${gate.summary}`;
+}
+
 function layerArea(node: ZeroLayerNode | undefined): number {
   return node ? node.bounds.w * node.bounds.h : 0;
+}
+
+function hasVisiblePaint(node: ZeroLayerNode | undefined): node is ZeroLayerNode {
+  if (!node || !node.visible || node.opacity <= 0.01) return false;
+  if (node.kind === "image" || node.kind === "text" || node.assetId || node.renderMode === "image") {
+    return true;
+  }
+  if (node.fills?.some((fill) => (fill.opacity ?? 1) > 0.01)) return true;
+  if (node.strokes?.some((stroke) => (stroke.opacity ?? 1) > 0.01 && (stroke.width ?? 1) > 0)) {
+    return true;
+  }
+  return Boolean(node.effects?.length);
 }
 
 function buildNodeIndex(source: ZeroLayerMorphSource): Map<string, ZeroLayerNode> {
@@ -84,11 +125,26 @@ function buildNodeIndex(source: ZeroLayerMorphSource): Map<string, ZeroLayerNode
   return nodes;
 }
 
-function findMainLayerId(source: ZeroLayerMorphSource): string | undefined {
+function findMainLayerId(source: ZeroLayerMorphSource, spec?: ZeroMotionSpec): string | undefined {
+  const dominantBinding = source.bindingResult.bindings.find(
+    (binding) => binding.layerId === spec?.topology.dominantLayerId
+  );
+  if (dominantBinding) {
+    const fromNode = source.from.layers.find((node) => node.nodeId === dominantBinding.nodeId);
+    const toNode = source.to.layers.find((node) => node.nodeId === dominantBinding.toNodeId);
+    const isRoot =
+      dominantBinding.nodeId === source.from.nodeId || dominantBinding.toNodeId === source.to.nodeId;
+    if (!isRoot && (hasVisiblePaint(fromNode) || hasVisiblePaint(toNode))) {
+      return dominantBinding.layerId;
+    }
+  }
   let main: { layerId: string; area: number } | undefined;
   for (const binding of source.bindingResult.bindings) {
     const fromNode = source.from.layers.find((node) => node.nodeId === binding.nodeId);
-    const area = Math.max(layerArea(fromNode), binding.fromBounds.w * binding.fromBounds.h);
+    const toNode = source.to.layers.find((node) => node.nodeId === binding.toNodeId);
+    const isRoot = binding.nodeId === source.from.nodeId || binding.toNodeId === source.to.nodeId;
+    if (isRoot || (!hasVisiblePaint(fromNode) && !hasVisiblePaint(toNode))) continue;
+    const area = Math.max(layerArea(fromNode), layerArea(toNode));
     if (!main || area > main.area) main = { layerId: binding.layerId, area };
   }
   return main?.layerId;
@@ -175,16 +231,26 @@ function corridorMatchedStep(step: CompositionStep): CompositionStep {
   };
 }
 
-function withSequentialFirst(steps: CompositionStep[]): CompositionStep[] {
-  return steps.map((step, index) => ({
-    ...step,
-    timing: index === 0 ? "sequential" : "parallel",
-    delayMs: step.delayMs ?? 0
-  }));
+function orderByAbsoluteStartTime(steps: CompositionStep[]): CompositionStep[] {
+  return steps
+    .map((step, index) => ({ step, index, start: Math.max(0, step.delayMs ?? 0) }))
+    .sort((left, right) => left.start - right.start || left.index - right.index)
+    .map(({ step }) => step);
+}
+
+function encodeAbsoluteStartTimes(steps: CompositionStep[]): CompositionStep[] {
+  const ordered = orderByAbsoluteStartTime(steps);
+  let previousStart = 0;
+  return ordered.map((step, index) => {
+    const start = Math.max(0, step.delayMs ?? 0);
+    const delayMs = index === 0 ? start : start - previousStart;
+    previousStart = start;
+    return { ...step, timing: "parallel", delayMs };
+  });
 }
 
 function smoothMorphSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       if (step.id.startsWith("zero-layer-enter")) {
         return {
@@ -219,7 +285,7 @@ function smoothMorphSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function springExpandSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const isMain = step.layerId === context.mainLayerId && step.id.startsWith("zero-layer-match");
       if (isMain) {
@@ -229,7 +295,7 @@ function springExpandSteps(context: RecipeContext): CompositionStep[] {
             label: "弹性主容器",
             delayMs: 0,
             durationMs: 420,
-            easing: createClassicEasing("sharp")
+            easing: createSpringEasing({ stiffness: 220, damping: 22 })
           },
           "spring-settle"
         );
@@ -269,7 +335,7 @@ function springExpandSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function statusSwitchSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const node = step.layerId ? context.nodeByLayerId.get(step.layerId) : undefined;
       const isText = node?.kind === "text";
@@ -330,7 +396,7 @@ function statusSwitchSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function containerFirstSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const node = stepNode(step, context);
       const isMain =
@@ -372,10 +438,14 @@ function containerFirstSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function contentStaggerSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const order = semanticOrder(step, context);
-      const delayMs = Math.min(semanticDelay(step, context, order * 45), 220);
+      const group = orderItemForStep(context.orderPlan, step)?.group;
+      const delayMs =
+        group === "foundation" || group === "structure"
+          ? step.delayMs
+          : Math.min(semanticDelay(step, context, order * 45), 220);
       if (step.id.startsWith("zero-layer-enter")) {
         return {
           ...step,
@@ -412,7 +482,7 @@ function contentStaggerSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function maskRevealSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const node = stepNode(step, context);
       const isText = node?.kind === "text";
@@ -464,7 +534,7 @@ function maskRevealSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function dropdownRevealSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const node = stepNode(step, context);
       const order = spatialIndex(step, context);
@@ -512,7 +582,7 @@ function dropdownRevealSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function anchoredPopoverSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const order = spatialIndex(step, context);
       if (step.id.startsWith("zero-layer-enter")) {
@@ -551,7 +621,7 @@ function anchoredPopoverSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function focusGuideSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const isMain = step.layerId === context.mainLayerId;
       if (step.id.startsWith("zero-layer-enter")) {
@@ -590,7 +660,7 @@ function focusGuideSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function axisExpandSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const dx = Math.abs(step.animate?.x ?? 0);
       const dy = Math.abs(step.animate?.y ?? 0);
@@ -642,7 +712,7 @@ function axisExpandSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function listReorderSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const order = spatialIndex(step, context);
       if (step.id.startsWith("zero-layer-enter")) {
@@ -681,7 +751,7 @@ function listReorderSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function tabIndicatorSlideSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const role = semanticRole(step, context);
       const order = semanticOrder(step, context);
@@ -732,7 +802,7 @@ function tabIndicatorSlideSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function cardExpandRevealSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const role = semanticRole(step, context);
       const order = semanticOrder(step, context);
@@ -782,7 +852,7 @@ function cardExpandRevealSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function listInsertPushSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const order = semanticOrder(step, context);
       if (step.id.startsWith("zero-layer-enter")) {
@@ -830,7 +900,7 @@ function listInsertPushSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function bottomSheetRiseSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const role = semanticRole(step, context);
       const order = semanticOrder(step, context);
@@ -880,7 +950,7 @@ function bottomSheetRiseSteps(context: RecipeContext): CompositionStep[] {
 }
 
 function contentReplaceSteps(context: RecipeContext): CompositionStep[] {
-  return withSequentialFirst(
+  return orderByAbsoluteStartTime(
     context.baseSteps.map((step) => {
       const order = semanticOrder(step, context);
       const role = semanticRole(step, context);
@@ -982,28 +1052,49 @@ export function applyZeroLayerMotionRecipe(
   recipeId: ZeroLayerMotionRecipeId,
   options: ZeroLayerMotionRecipeApplyOptions = {}
 ): ZeroLayerMotionCompositionResult {
+  const blockReason = zeroLayerNativeRecipeBlockReason(source);
+  if (blockReason) throw new Error(blockReason);
+
   const base = compileZeroLayerMotionComposition({
     from: source.from,
     to: source.to,
     bindingResult: source.bindingResult,
+    downgradeLowConfidenceMatches: source.bindingResult.bindings.some(isLowConfidenceZeroLayerBinding),
     ...(source.diagnosticReport ? { diagnosticReport: source.diagnosticReport } : {})
   });
-  const orderPlan = createZeroMotionOrderPlan(source, base.steps, options.spec);
+  const compiledSource = base.document.visualSource;
+  const recipeSource: ZeroLayerMorphSource =
+    compiledSource?.kind === "zero-layer-morph"
+      ? {
+          ...compiledSource,
+          ...(source.nodeOverrides ? { nodeOverrides: source.nodeOverrides } : {}),
+          ...(source.motionPlan ? { motionPlan: source.motionPlan } : {})
+        }
+      : source;
+  if (!source.motionPlan) delete recipeSource.motionPlan;
+  const orderPlan = createZeroMotionOrderPlan(recipeSource, base.steps, options.spec);
   const context: RecipeContext = {
     baseSteps: base.steps,
-    nodeByLayerId: buildNodeIndex(source),
-    mainLayerId: findMainLayerId(source),
+    nodeByLayerId: buildNodeIndex(recipeSource),
+    mainLayerId: findMainLayerId(recipeSource, options.spec),
     orderPlan
   };
   const adaptedParameters =
     options.adaptedParameters ??
     (options.spec ? adaptZeroLayerRecipeParameters(options.spec, recipeId) : undefined);
-  const computedRecipeSteps = adaptedParameters
-    ? applyZeroLayerRecipeAdaptedParameters(recipeSteps(recipeId, context), adaptedParameters, { orderPlan })
-    : recipeSteps(recipeId, context);
-  const motionPlan = compileMotionPlanFromRecipe({ source, steps: computedRecipeSteps });
+  const recipeAbsoluteSteps = recipeSteps(recipeId, context);
+  const computedRecipeSteps = encodeAbsoluteStartTimes(
+    adaptedParameters
+      ? applyZeroLayerRecipeAdaptedParameters(recipeAbsoluteSteps, adaptedParameters, { orderPlan })
+      : recipeAbsoluteSteps
+  );
+  const motionPlan = fillMotionPlanGeometryFromComposition(
+    compileMotionPlanFromRecipe({ source: recipeSource, steps: computedRecipeSteps }),
+    undefined,
+    recipeSource
+  );
   const steps = deriveCompositionFromMotionPlan(motionPlan, computedRecipeSteps);
-  const document = withSteps(base.document, steps, { ...source, motionPlan });
+  const document = withSteps(base.document, steps, { ...recipeSource, motionPlan });
   return {
     document,
     steps,

@@ -228,14 +228,14 @@ export function HomeRoute({
   const [generationStatus, setGenerationStatus] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const nonAtomicComponents = useMemo(
-    () => components.filter(isNonAtomicMotionComponent),
-    [components]
-  );
+  const nonAtomicComponents = useMemo(() => components.filter(isNonAtomicMotionComponent), [components]);
   const firstAtomicElement = motionSkillElements.find((element) => element.active) ?? motionSkillElements[0];
   const [atomicElementId, setAtomicElementId] = useState(firstAtomicElement?.id ?? "");
   const [atomicVariant, setAtomicVariant] = useState(firstAtomicElement?.variants[0] ?? "");
-  const firstAtomicTriggerRule = atomicMotionTriggerRule(firstAtomicElement?.id ?? "", firstAtomicElement?.variants[0]);
+  const firstAtomicTriggerRule = atomicMotionTriggerRule(
+    firstAtomicElement?.id ?? "",
+    firstAtomicElement?.variants[0]
+  );
   const [atomicTrigger, setAtomicTrigger] = useState<MotionTrigger>(firstAtomicTriggerRule.defaultTrigger);
 
   const aiMatchIds = useMemo(
@@ -278,9 +278,6 @@ export function HomeRoute({
       return;
     }
 
-    let overlayStartedAt = Date.now();
-    let slowTimer: number | undefined;
-
     flushSync(() => {
       setIsGenerationOverlayOpen(true);
       setGenerationOverlayPhase("compact");
@@ -288,9 +285,9 @@ export function HomeRoute({
       setGenerationStatus(null);
     });
     await waitForGenerationOverlayFirstFrame();
-    overlayStartedAt = Date.now();
+    const overlayStartedAt = Date.now();
     setIsGenerating(true);
-    slowTimer = window.setTimeout(() => setIsGenerationSlow(true), SLOW_GENERATION_OVERLAY_MS);
+    const slowTimer = window.setTimeout(() => setIsGenerationSlow(true), SLOW_GENERATION_OVERLAY_MS);
     try {
       const generationCandidates = await loadControlledGenerationCandidates({
         brief,
@@ -308,9 +305,7 @@ export function HomeRoute({
     } catch (error) {
       setGenerationStatus(error instanceof Error ? error.message : "参考生成失败");
     } finally {
-      if (slowTimer !== undefined) {
-        window.clearTimeout(slowTimer);
-      }
+      window.clearTimeout(slowTimer);
       await keepGenerationOverlayVisibleSince(overlayStartedAt);
       setIsGenerationOverlayOpen(false);
       setGenerationOverlayPhase("compact");

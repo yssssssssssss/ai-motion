@@ -1,5 +1,6 @@
 import type { CompositionStep } from "../schema/document";
 import type { ZeroLayerRecipeAdaptedParameters } from "./adaptZeroLayerRecipeParameters";
+import type { MotionPlan } from "./schema";
 import type { ZeroMotionSpec } from "./zeroMotionSpec";
 
 export type ZeroMotionSalienceReport = {
@@ -32,20 +33,38 @@ function opacityDelta(steps: CompositionStep[] | undefined): number {
   );
 }
 
+function planOpacityDelta(motionPlan: MotionPlan): number {
+  return Math.max(
+    0,
+    ...motionPlan.tracks.map((track) => {
+      const values = track.keyframes.map((keyframe) => keyframe.opacity ?? 1);
+      return values.length > 0 ? Math.max(...values) - Math.min(...values) : 0;
+    })
+  );
+}
+
+function planDelay(motionPlan: MotionPlan): number {
+  const delays = motionPlan.tracks.map((track) => track.timing.delayMs);
+  return delays.length > 1 ? Math.max(...delays) - Math.min(...delays) : 0;
+}
+
 export function evaluateZeroMotionSalience(input: {
   spec: ZeroMotionSpec;
   steps?: CompositionStep[];
+  motionPlan?: MotionPlan;
   adaptedParameters?: ZeroLayerRecipeAdaptedParameters;
 }): ZeroMotionSalienceReport {
-  const { spec, steps, adaptedParameters } = input;
+  const { spec, steps, motionPlan, adaptedParameters } = input;
   const factors = {
     positionDelta: clamp((spec.deltas.averageMoveDistance / 48) * 100),
     sizeDelta: clamp(
       ((Math.abs(spec.deltas.dominantWidthDelta) + Math.abs(spec.deltas.dominantHeightDelta)) / 120) * 100
     ),
-    opacityDelta: clamp(opacityDelta(steps) * 100),
+    opacityDelta: clamp((motionPlan ? planOpacityDelta(motionPlan) : opacityDelta(steps)) * 100),
     enterExit: clamp(((spec.topology.enterCount + spec.topology.exitCount) / 5) * 100),
-    stagger: clamp(((adaptedParameters?.staggerMs ?? maxDelay(steps)) / 72) * 100),
+    stagger: clamp(
+      ((motionPlan ? planDelay(motionPlan) : (adaptedParameters?.staggerMs ?? maxDelay(steps))) / 72) * 100
+    ),
     areaChange: clamp(Math.abs(spec.deltas.dominantAreaDeltaRatio) * 100)
   };
   const score = clamp(

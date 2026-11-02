@@ -84,7 +84,7 @@ export function PreviewFrame({
       },
       mode: "editor"
     });
-  }, [source, manifest, imageValuesKey]);
+  }, [source, manifest, patch]);
   const iframeKey = `${manifest?.id ?? "empty"}:${imageValuesKey}`;
 
   const postPlaybackState = useCallback(() => {

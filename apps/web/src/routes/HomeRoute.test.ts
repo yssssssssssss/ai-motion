@@ -16,7 +16,9 @@ describe("HomeRoute reference-guided generation wiring", () => {
       "generateReferenceGuidedComponent({ brief, components: generationCandidates })"
     );
     expect(homeRouteSource).not.toContain("正在基于 Top 3 参考案例生成...");
-    expect(homeRouteSource).not.toContain("generateControlledComponent({ brief, components: generationCandidates })");
+    expect(homeRouteSource).not.toContain(
+      "generateControlledComponent({ brief, components: generationCandidates })"
+    );
     expect(homeRouteSource).not.toContain("generateControlledComponent({ brief, components })");
   });
 
@@ -42,7 +44,9 @@ describe("HomeRoute reference-guided generation wiring", () => {
   it("keeps generation results as drafts and shows an in-between progress overlay", () => {
     expect(homeRouteSource).toContain("AtomicMotionPanel");
     expect(homeRouteSource).toContain("generateAtomicMotionComponent");
-    expect(homeRouteSource).toContain("atomicMotionTriggerRule(firstAtomicElement?.id ?? \"\", firstAtomicElement?.variants[0])");
+    expect(homeRouteSource).toMatch(
+      /atomicMotionTriggerRule\(\s*firstAtomicElement\?\.id \?\? "",\s*firstAtomicElement\?\.variants\[0\]\s*\)/
+    );
     expect(homeRouteSource).toContain("function selectAtomicVariant(variant: string)");
     expect(homeRouteSource).toContain("atomicMotionTriggerRule(atomicElementId, variant)");
     expect(homeRouteSource).toContain("atomicMotionPanel=");
@@ -57,9 +61,9 @@ describe("HomeRoute reference-guided generation wiring", () => {
     expect(homeRouteSource).toContain("GENERATION_OVERLAY_REVEAL_MS");
     expect(homeRouteSource).toContain("isGenerationOverlayOpen");
     expect(homeRouteSource).toContain("generationOverlayPhase");
-    expect(homeRouteSource).toContain("setGenerationOverlayPhase(\"compact\")");
-    expect(homeRouteSource).toContain("setGenerationOverlayPhase(\"expanding\")");
-    expect(homeRouteSource).toContain("setGenerationOverlayPhase(\"revealing\")");
+    expect(homeRouteSource).toContain('setGenerationOverlayPhase("compact")');
+    expect(homeRouteSource).toContain('setGenerationOverlayPhase("expanding")');
+    expect(homeRouteSource).toContain('setGenerationOverlayPhase("revealing")');
     expect(homeRouteSource).toContain("isSlow={isGenerationSlow}");
     expect(homeStyles).toContain(".generation-editor-loading-shell.is-slow");
     expect(homeRouteSource).toContain("flushSync");
@@ -72,7 +76,9 @@ describe("HomeRoute reference-guided generation wiring", () => {
     expect(homeRouteSource).toContain("generationStatus={isGenerationOverlayOpen ? null : generationStatus}");
     expect(homeRouteSource).toContain("onGeneratedComponentReady(component)");
     expect(homeRouteSource).toContain("onSelectVariant={selectAtomicVariant}");
-    expect(homeRouteSource).not.toContain("allowedTriggers={atomicMotionTriggerRule(atomicElementId, atomicVariant).allowedTriggers}");
+    expect(homeRouteSource).not.toContain(
+      "allowedTriggers={atomicMotionTriggerRule(atomicElementId, atomicVariant).allowedTriggers}"
+    );
     expect(homeRouteSource).not.toContain("onSelectTrigger={setAtomicTrigger}");
     expect(homeRouteSource).toContain("setIsGenerationOverlayOpen(false)");
     expect(homeRouteSource).not.toContain("isOpen={isGenerating}");

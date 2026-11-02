@@ -53,11 +53,21 @@ export default tseslint.config(
   },
   {
     // 配置/脚本文件
-    files: ["**/*.config.{js,ts,mjs}", "scripts/**/*.{js,mjs}"],
+    files: ["**/*.config.{js,ts,mjs}", "scripts/**/*.{js,mjs,ts}"],
     languageOptions: {
       globals: {
+        // Node.js 20 runtime
         process: "readonly",
-        console: "readonly"
+        console: "readonly",
+        URL: "readonly",
+        fetch: "readonly",
+        AbortController: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        Buffer: "readonly",
+        // Chrome CDP evaluation snippets embedded in verification scripts
+        document: "readonly",
+        Image: "readonly"
       }
     }
   }

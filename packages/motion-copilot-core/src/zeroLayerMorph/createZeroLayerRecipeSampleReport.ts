@@ -1,13 +1,21 @@
 import type { Bounds } from "../frameMorph/schema";
-import type { CompositionStep, MotionState } from "../schema/document";
+import type { CompositionStep } from "../schema/document";
+import { fillMotionPlanGeometryFromComposition, motionPlanPlaybackDurationMs } from "./compileMotionPlan";
 import { layerIdForNode } from "./layerId";
+import { sampleMotionPlan, type SampledMotionPlanTrack } from "./motionPlanRuntime";
 import {
   adaptZeroLayerRecipeParameters,
   type ZeroLayerRecipeAdaptedParameters
 } from "./adaptZeroLayerRecipeParameters";
 import { evaluateZeroMotionSalience } from "./zeroMotionSalience";
 import { buildZeroMotionSpec, type ZeroMotionSpec } from "./zeroMotionSpec";
-import type { ZeroLayerMotionBinding, ZeroLayerMotionBindingResult, ZeroLayerMorphSource } from "./schema";
+import type {
+  MotionPlan,
+  MotionKeyframe,
+  ZeroLayerMotionBinding,
+  ZeroLayerMotionBindingResult,
+  ZeroLayerMorphSource
+} from "./schema";
 import {
   applyZeroLayerMotionRecipe,
   zeroLayerMotionRecipes,
@@ -20,6 +28,11 @@ import {
 } from "./zeroLayerRecipeManifests";
 import { createZeroMotionOrderPlan, orderItemForStep } from "./zeroMotionOrdering";
 import { zeroLayerExpressionStrategyForStep } from "./zeroLayerExpressionStrategies";
+import {
+  resolveZeroLayerNodeOverride,
+  sampleZeroLayerSkinMix,
+  zeroLayerAppearanceDiffers
+} from "./zeroLayerAppearance";
 
 export type ZeroLayerRecipeSampleRiskCode =
   | "MATCHED_CORRIDOR_OVERFLOW"
@@ -98,123 +111,123 @@ export type ZeroLayerRecipeSampleReport = {
 const defaultSamplePoints = [0, 0.25, 0.5, 0.75, 1];
 const epsilon = 0.001;
 
-function lerp(from: number, to: number, progress: number): number {
-  return from + (to - from) * progress;
-}
-
-function clamp(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-function numberState(state: MotionState | undefined, key: keyof MotionState, fallback: number): number {
+function numberFrame(
+  state: MotionKeyframe | undefined,
+  key: Exclude<keyof MotionKeyframe, "offset" | "easing">,
+  fallback: number
+): number {
   const value = state?.[key];
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-function boundsAt(base: Bounds, step: CompositionStep, progress: number): Bounds {
-  const motionProgress = motionProgressAt(step, progress);
-  const fromX = numberState(step.initial, "x", 0);
-  const fromY = numberState(step.initial, "y", 0);
-  const fromWidth = numberState(step.initial, "width", base.w);
-  const fromHeight = numberState(step.initial, "height", base.h);
-  const toX = numberState(step.animate, "x", fromX);
-  const toY = numberState(step.animate, "y", fromY);
-  const toWidth = numberState(step.animate, "width", fromWidth);
-  const toHeight = numberState(step.animate, "height", fromHeight);
-
+function boundsFromMotionPlan(base: Bounds, state: SampledMotionPlanTrack["state"]): Bounds {
   return {
-    x: base.x + lerp(fromX, toX, motionProgress),
-    y: base.y + lerp(fromY, toY, motionProgress),
-    w: lerp(fromWidth, toWidth, motionProgress),
-    h: lerp(fromHeight, toHeight, motionProgress)
+    x: base.x + (state.x ?? 0),
+    y: base.y + (state.y ?? 0),
+    w: state.width ?? base.w,
+    h: state.height ?? base.h
   };
 }
 
-function opacityAt(step: CompositionStep, progress: number): number {
-  if (step.id.startsWith("zero-layer-match")) {
-    return expressionOpacityAt(step, progress);
+function bindingByLayerId(
+  source: ZeroLayerMorphSource,
+  bindingResult: ZeroLayerMotionBindingResult
+): Map<string, ZeroLayerMotionBinding> {
+  const result = new Map<string, ZeroLayerMotionBinding>();
+  for (const binding of bindingResult.bindings) {
+    const fromNode = source.from.layers.find((node) => node.nodeId === binding.nodeId);
+    const toNode = source.to.layers.find((node) => node.nodeId === binding.toNodeId);
+    result.set(binding.layerId, {
+      ...binding,
+      fromBounds: fromNode
+        ? resolveZeroLayerNodeOverride(fromNode, source.nodeOverrides, "from").bounds
+        : binding.fromBounds,
+      toBounds: toNode
+        ? resolveZeroLayerNodeOverride(toNode, source.nodeOverrides, "to").bounds
+        : binding.toBounds
+    });
   }
-  const from = numberState(step.initial, "opacity", 1);
-  const to = numberState(step.animate, "opacity", from);
-  return lerp(from, to, progress);
+  return result;
 }
 
-function motionProgressAt(step: CompositionStep, progress: number): number {
-  if (!step.id.startsWith("zero-layer-match")) return progress;
-  const strategy = zeroLayerExpressionStrategyForStep(step);
-  const percent = clamp(progress) * 100;
-  const stops = [...strategy.stops].sort((a, b) => a.percent - b.percent);
-  const first = stops[0];
-  const last = stops[stops.length - 1];
-  if (!first || !last) return progress;
-  if (percent <= first.percent) return first.progress;
-  if (percent >= last.percent) return last.progress;
-  for (let index = 1; index < stops.length; index += 1) {
-    const previous = stops[index - 1]!;
-    const next = stops[index]!;
-    if (percent > next.percent) continue;
-    const span = Math.max(1, next.percent - previous.percent);
-    return lerp(previous.progress, next.progress, (percent - previous.percent) / span);
-  }
-  return last.progress;
-}
-
-function expressionOpacityAt(step: CompositionStep, progress: number): number {
-  const strategy = zeroLayerExpressionStrategyForStep(step);
-  const percent = clamp(progress) * 100;
-  const stops = [...strategy.stops].sort((a, b) => a.percent - b.percent);
-  const opacityForStop = (stop: (typeof stops)[number]) =>
-    stop.opacity ??
-    lerp(numberState(step.initial, "opacity", 1), numberState(step.animate, "opacity", 1), stop.progress);
-  const first = stops[0];
-  const last = stops[stops.length - 1];
-  if (!first || !last) return opacityAt({ ...step, id: "" }, progress);
-  if (percent <= first.percent) return opacityForStop(first);
-  if (percent >= last.percent) return opacityForStop(last);
-  for (let index = 1; index < stops.length; index += 1) {
-    const previous = stops[index - 1]!;
-    const next = stops[index]!;
-    if (percent > next.percent) continue;
-    const span = Math.max(1, next.percent - previous.percent);
-    return lerp(opacityForStop(previous), opacityForStop(next), (percent - previous.percent) / span);
-  }
-  return opacityForStop(last);
-}
-
-function layerType(step: CompositionStep): ZeroLayerRecipeStepSample["type"] {
-  if (step.id.startsWith("zero-layer-match")) return "matched";
-  if (step.id.startsWith("zero-layer-enter")) return "enter";
-  if (step.id.startsWith("zero-layer-exit")) return "exit";
-  return "unknown";
-}
-
-function bindingByLayerId(bindingResult: ZeroLayerMotionBindingResult): Map<string, ZeroLayerMotionBinding> {
-  return new Map(bindingResult.bindings.map((binding) => [binding.layerId, binding]));
-}
-
-function baseBoundsForStep(
+function baseBoundsForLayer(
   source: ZeroLayerMorphSource,
   bindingResult: ZeroLayerMotionBindingResult,
-  step: CompositionStep
+  layerId: string
 ): { bounds: Bounds; nodeId?: string; toNodeId?: string } | undefined {
-  if (!step.layerId) return undefined;
-  const binding = bindingByLayerId(bindingResult).get(step.layerId);
+  const binding = bindingByLayerId(source, bindingResult).get(layerId);
   if (binding) return { bounds: binding.fromBounds, nodeId: binding.nodeId, toNodeId: binding.toNodeId };
 
-  const enterNode = bindingResult.enter.find((node) => layerIdForNode(node) === step.layerId);
-  if (enterNode) return { bounds: enterNode.bounds, nodeId: enterNode.nodeId };
+  const enterNode = bindingResult.enter.find((node) => layerIdForNode(node) === layerId);
+  if (enterNode) {
+    return {
+      bounds: resolveZeroLayerNodeOverride(enterNode, source.nodeOverrides, "to").bounds,
+      nodeId: enterNode.nodeId
+    };
+  }
 
-  const exitNode = bindingResult.exit.find((node) => layerIdForNode(node) === step.layerId);
-  if (exitNode) return { bounds: exitNode.bounds, nodeId: exitNode.nodeId };
+  const exitNode = bindingResult.exit.find((node) => layerIdForNode(node) === layerId);
+  if (exitNode) {
+    return {
+      bounds: resolveZeroLayerNodeOverride(exitNode, source.nodeOverrides, "from").bounds,
+      nodeId: exitNode.nodeId
+    };
+  }
 
   const sourceNode =
-    source.from.layers.find((node) => layerIdForNode(node) === step.layerId) ??
-    source.to.layers.find((node) => layerIdForNode(node) === step.layerId);
-  return sourceNode ? { bounds: sourceNode.bounds, nodeId: sourceNode.nodeId } : undefined;
+    source.from.layers.find((node) => layerIdForNode(node) === layerId) ??
+    source.to.layers.find((node) => layerIdForNode(node) === layerId);
+  if (!sourceNode) return undefined;
+  const frame = source.from.layers.includes(sourceNode) ? "from" : "to";
+  return {
+    bounds: resolveZeroLayerNodeOverride(sourceNode, source.nodeOverrides, frame).bounds,
+    nodeId: sourceNode.nodeId
+  };
 }
 
-function localProgress(step: CompositionStep, timeMs: number): number {
-  return clamp((timeMs - (step.delayMs ?? 0)) / Math.max(1, step.durationMs));
+function nodeOpacity(source: ZeroLayerMorphSource, frame: "from" | "to", nodeId: string | undefined): number {
+  if (!nodeId) return 1;
+  const snapshot = frame === "from" ? source.from : source.to;
+  const node = snapshot.layers.find((item) => item.nodeId === nodeId);
+  return node ? resolveZeroLayerNodeOverride(node, source.nodeOverrides, frame).opacity : 1;
+}
+
+function opacityBaseForSample(
+  source: ZeroLayerMorphSource,
+  bindingResult: ZeroLayerMotionBindingResult,
+  sample: SampledMotionPlanTrack
+): number {
+  const binding = bindingByLayerId(source, bindingResult).get(sample.layerId);
+  if (binding) {
+    const fromNode = source.from.layers.find((node) => node.nodeId === binding.nodeId);
+    const toNode = source.to.layers.find((node) => node.nodeId === binding.toNodeId);
+    const fromOpacity = nodeOpacity(source, "from", binding.nodeId);
+    const toOpacity = nodeOpacity(source, "to", binding.toNodeId);
+    if (!fromNode || !toNode) return fromOpacity + (toOpacity - fromOpacity) * sample.progress;
+    const fromAssets = new Map(source.from.assets.map((asset) => [asset.id, asset]));
+    const toAssets = new Map(source.to.assets.map((asset) => [asset.id, asset]));
+    if (!zeroLayerAppearanceDiffers(fromNode, toNode, fromAssets, toAssets)) {
+      return fromOpacity + (toOpacity - fromOpacity) * sample.progress;
+    }
+    const mix = sampleZeroLayerSkinMix(sample.progress);
+    const fromAlpha = fromOpacity * mix.from;
+    const toAlpha = toOpacity * mix.to;
+    return toAlpha + fromAlpha * (1 - toAlpha);
+  }
+  const enter = bindingResult.enter.find((node) => layerIdForNode(node) === sample.layerId);
+  if (enter) return nodeOpacity(source, "to", enter.nodeId);
+  const exit = bindingResult.exit.find((node) => layerIdForNode(node) === sample.layerId);
+  return nodeOpacity(source, "from", exit?.nodeId);
+}
+
+function layerTypeForId(
+  bindingResult: ZeroLayerMotionBindingResult,
+  layerId: string
+): ZeroLayerRecipeStepSample["type"] {
+  if (bindingResult.bindings.some((binding) => binding.layerId === layerId)) return "matched";
+  if (bindingResult.enter.some((node) => layerIdForNode(node) === layerId)) return "enter";
+  if (bindingResult.exit.some((node) => layerIdForNode(node) === layerId)) return "exit";
+  return "unknown";
 }
 
 function within(value: number, min: number, max: number): boolean {
@@ -329,29 +342,49 @@ function sampleRecipe(
 ): ZeroLayerRecipeSampleResult {
   const adaptedParameters = adaptZeroLayerRecipeParameters(spec, recipeId);
   const result = applyZeroLayerMotionRecipe(source, recipeId, { spec, adaptedParameters });
+  const resultSource =
+    result.document.visualSource?.kind === "zero-layer-morph" ? result.document.visualSource : source;
+  const persistedMotionPlan = resultSource.motionPlan;
+  if (!persistedMotionPlan) throw new Error(`${recipeId} did not compile a MotionPlan.`);
+  const motionPlan = fillMotionPlanGeometryFromComposition(
+    persistedMotionPlan,
+    result.document.composition,
+    resultSource
+  );
   const label = zeroLayerMotionRecipes.find((recipe) => recipe.id === recipeId)?.label ?? recipeId;
-  const durationMs = result.document.composition?.totalDurationMs ?? result.document.timeline.durationMs;
-  const salience = evaluateZeroMotionSalience({ spec, steps: result.steps, adaptedParameters });
-  const orderPlan = createZeroMotionOrderPlan(source, result.steps, spec);
-  const bindingsByLayerId = bindingByLayerId(result.bindingResult);
+  const durationMs = motionPlanPlaybackDurationMs(motionPlan, result.document.composition);
+  const salience = evaluateZeroMotionSalience({
+    spec,
+    motionPlan,
+    steps: result.steps,
+    adaptedParameters
+  });
+  const orderPlan = createZeroMotionOrderPlan(resultSource, result.steps, spec);
+  const bindingsByLayerId = bindingByLayerId(resultSource, result.bindingResult);
+  const stepByLayerId = new Map(
+    result.steps
+      .filter((step): step is CompositionStep & { layerId: string } => Boolean(step.layerId))
+      .map((step) => [step.layerId, step])
+  );
   const risks: ZeroLayerRecipeSampleRisk[] = [];
   const samples = samplePoints.map((progress) => {
     const timeMs = durationMs * progress;
-    const steps = result.steps
-      .map((step) => {
-        if (!step.layerId) return undefined;
-        const base = baseBoundsForStep(source, result.bindingResult, step);
+    const steps = sampleMotionPlan(motionPlan, timeMs)
+      .map((sample) => {
+        const base = baseBoundsForLayer(resultSource, result.bindingResult, sample.layerId);
         if (!base) return undefined;
+        const step = stepByLayerId.get(sample.layerId);
         const sampled: ZeroLayerRecipeStepSample = {
-          stepId: step.id,
-          layerId: step.layerId,
-          type: layerType(step),
+          stepId: step?.id ?? `motion-plan-${sample.layerId}`,
+          layerId: sample.layerId,
+          type: layerTypeForId(result.bindingResult, sample.layerId),
           ...(base.nodeId ? { nodeId: base.nodeId } : {}),
           ...(base.toNodeId ? { toNodeId: base.toNodeId } : {}),
-          bounds: boundsAt(base.bounds, step, localProgress(step, timeMs)),
-          opacity: opacityAt(step, localProgress(step, timeMs))
+          bounds: boundsFromMotionPlan(base.bounds, sample.state),
+          opacity:
+            opacityBaseForSample(resultSource, result.bindingResult, sample) * (sample.state.opacity ?? 1)
         };
-        const binding = bindingsByLayerId.get(step.layerId);
+        const binding = bindingsByLayerId.get(sample.layerId);
         if (binding) {
           const corridor = corridorRisk(recipeId, sampled, binding);
           if (corridor) risks.push(corridor);
@@ -366,9 +399,9 @@ function sampleRecipe(
     return { progress, timeMs, steps };
   });
 
-  risks.push(...orderRisks(recipeId, result.steps, orderPlan));
-  const signature = recipeMotionSignature(recipeId, result.steps);
-  const expressionRisk = manifestExpressionRisk(recipeId, signature, source);
+  risks.push(...orderRisks(recipeId, result.steps, orderPlan, motionPlan));
+  const signature = recipeMotionSignature(recipeId, result.steps, motionPlan);
+  const expressionRisk = manifestExpressionRisk(recipeId, signature, resultSource);
   if (expressionRisk) risks.push(expressionRisk);
   return {
     recipeId,
@@ -382,30 +415,34 @@ function sampleRecipe(
   };
 }
 
-function stepStart(step: CompositionStep): number {
-  return step.delayMs ?? 0;
+function stepStart(step: CompositionStep, motionPlan: MotionPlan): number {
+  if (!step.layerId) return 0;
+  return motionPlan.tracks.find((track) => track.layerId === step.layerId)?.timing.delayMs ?? 0;
 }
 
 function minStepStart(
   steps: CompositionStep[],
-  predicate: (step: CompositionStep) => boolean
+  predicate: (step: CompositionStep) => boolean,
+  motionPlan: MotionPlan
 ): number | undefined {
-  const starts = steps.filter(predicate).map(stepStart);
+  const starts = steps.filter(predicate).map((step) => stepStart(step, motionPlan));
   return starts.length > 0 ? Math.min(...starts) : undefined;
 }
 
 function maxStepStart(
   steps: CompositionStep[],
-  predicate: (step: CompositionStep) => boolean
+  predicate: (step: CompositionStep) => boolean,
+  motionPlan: MotionPlan
 ): number | undefined {
-  const starts = steps.filter(predicate).map(stepStart);
+  const starts = steps.filter(predicate).map((step) => stepStart(step, motionPlan));
   return starts.length > 0 ? Math.max(...starts) : undefined;
 }
 
 function orderRisks(
   recipeId: ZeroLayerMotionRecipeId,
   steps: CompositionStep[],
-  orderPlan: ReturnType<typeof createZeroMotionOrderPlan>
+  orderPlan: ReturnType<typeof createZeroMotionOrderPlan>,
+  motionPlan: MotionPlan
 ): ZeroLayerRecipeSampleRisk[] {
   const risks: ZeroLayerRecipeSampleRisk[] = [];
   const isContainer = (step: CompositionStep) => {
@@ -416,8 +453,8 @@ function orderRisks(
     const item = orderItemForStep(orderPlan, step);
     return item?.group === "enter-content" || item?.group === "emphasis";
   };
-  const containerStart = minStepStart(steps, isContainer);
-  const contentStart = minStepStart(steps, isContent);
+  const containerStart = minStepStart(steps, isContainer, motionPlan);
+  const contentStart = minStepStart(steps, isContent, motionPlan);
   if (containerStart != null && contentStart != null && contentStart < containerStart) {
     risks.push({
       code: "CONTENT_BEFORE_CONTAINER",
@@ -427,8 +464,8 @@ function orderRisks(
     });
   }
 
-  const lastExit = maxStepStart(steps, (step) => step.id.startsWith("zero-layer-exit"));
-  const firstEnter = minStepStart(steps, (step) => step.id.startsWith("zero-layer-enter"));
+  const lastExit = maxStepStart(steps, (step) => step.id.startsWith("zero-layer-exit"), motionPlan);
+  const firstEnter = minStepStart(steps, (step) => step.id.startsWith("zero-layer-enter"), motionPlan);
   if (lastExit != null && firstEnter != null && firstEnter < lastExit) {
     risks.push({
       code: "ENTER_BEFORE_EXIT",
@@ -438,7 +475,11 @@ function orderRisks(
     });
   }
 
-  const firstMask = minStepStart(steps, (step) => orderItemForStep(orderPlan, step)?.role === "mask");
+  const firstMask = minStepStart(
+    steps,
+    (step) => orderItemForStep(orderPlan, step)?.role === "mask",
+    motionPlan
+  );
   if (firstMask != null && contentStart != null && firstMask > contentStart) {
     risks.push({
       code: "MASK_AFTER_CONTENT",
@@ -450,7 +491,8 @@ function orderRisks(
 
   const firstDecorative = minStepStart(
     steps,
-    (step) => orderItemForStep(orderPlan, step)?.group === "decorative"
+    (step) => orderItemForStep(orderPlan, step)?.group === "decorative",
+    motionPlan
   );
   if (firstDecorative != null && contentStart != null && firstDecorative < contentStart) {
     risks.push({
@@ -474,21 +516,24 @@ function orderRisks(
 }
 
 function recipeSnapshotSignature(recipe: ZeroLayerRecipeSampleResult): string {
-  const mid = recipe.samples.find((sample) => sample.progress === 0.5) ?? recipe.samples[0];
   return [
     recipe.durationMs,
-    recipe.adaptedParameters?.summary ?? "",
-    ...(mid?.steps ?? []).map((step) =>
-      [
-        step.type,
-        step.layerId,
-        Math.round(step.bounds.x),
-        Math.round(step.bounds.y),
-        Math.round(step.bounds.w),
-        Math.round(step.bounds.h),
-        Math.round(step.opacity * 100)
-      ].join(":")
-    )
+    ...recipe.samples.flatMap((sample) => [
+      `p${Math.round(sample.progress * 1000)}`,
+      ...sample.steps
+        .map((step) =>
+          [
+            step.type,
+            step.layerId,
+            Math.round(step.bounds.x),
+            Math.round(step.bounds.y),
+            Math.round(step.bounds.w),
+            Math.round(step.bounds.h),
+            Math.round(step.opacity * 100)
+          ].join(":")
+        )
+        .sort()
+    ])
   ].join("|");
 }
 
@@ -500,7 +545,8 @@ function motionAxis(dxCount: number, dyCount: number): ZeroLayerRecipeMotionSign
 
 function recipeMotionSignature(
   recipeId: ZeroLayerMotionRecipeId,
-  steps: CompositionStep[]
+  steps: CompositionStep[],
+  motionPlan: MotionPlan
 ): ZeroLayerRecipeMotionSignature {
   let geometryStepCount = 0;
   let fadeOnlyStepCount = 0;
@@ -508,47 +554,49 @@ function recipeMotionSignature(
   let clipRevealCount = 0;
   let dxCount = 0;
   let dyCount = 0;
-  const delays = steps.map((step) => step.delayMs ?? 0);
+  const delays = motionPlan.tracks.map((track) => track.timing.delayMs);
   const expressionStrategies = [...new Set(steps.map((step) => zeroLayerExpressionStrategyForStep(step).id))];
   const durationBucket =
-    steps.length > 0
-      ? Math.round(steps.reduce((sum, step) => sum + step.durationMs, 0) / Math.max(1, steps.length) / 40) *
-        40
+    motionPlan.tracks.length > 0
+      ? Math.round(
+          motionPlan.tracks.reduce((sum, track) => sum + track.timing.durationMs, 0) /
+            motionPlan.tracks.length /
+            40
+        ) * 40
       : 0;
   const phaseSet = new Set(delays);
 
-  for (const step of steps) {
-    const ix = numberState(step.initial, "x", 0);
-    const iy = numberState(step.initial, "y", 0);
-    const ax = numberState(step.animate, "x", ix);
-    const ay = numberState(step.animate, "y", iy);
-    const iw = numberState(step.initial, "width", 0);
-    const ih = numberState(step.initial, "height", 0);
-    const aw = numberState(step.animate, "width", iw);
-    const ah = numberState(step.animate, "height", ih);
-    const is = numberState(step.initial, "scale", 1);
-    const as = numberState(step.animate, "scale", is);
-    const io = numberState(step.initial, "opacity", 1);
-    const ao = numberState(step.animate, "opacity", io);
+  for (const track of motionPlan.tracks) {
+    const initial = track.keyframes[0];
+    const animate = track.keyframes.at(-1);
+    const ix = numberFrame(initial, "x", 0);
+    const iy = numberFrame(initial, "y", 0);
+    const ax = numberFrame(animate, "x", ix);
+    const ay = numberFrame(animate, "y", iy);
+    const iw = numberFrame(initial, "width", 0);
+    const ih = numberFrame(initial, "height", 0);
+    const aw = numberFrame(animate, "width", iw);
+    const ah = numberFrame(animate, "height", ih);
+    const initialScale = numberFrame(initial, "scale", 1);
+    const animateScale = numberFrame(animate, "scale", initialScale);
+    const io = numberFrame(initial, "opacity", 1);
+    const ao = numberFrame(animate, "opacity", io);
     const hasGeometry =
       !sameNumber(ix, ax) ||
       !sameNumber(iy, ay) ||
       !sameNumber(iw, aw) ||
       !sameNumber(ih, ah) ||
-      !sameNumber(is, as);
+      !sameNumber(initialScale, animateScale);
     const hasOpacity = !sameNumber(io, ao);
     if (hasGeometry) geometryStepCount += 1;
     if (!hasGeometry && hasOpacity) fadeOnlyStepCount += 1;
     if (
-      step.id.startsWith("zero-layer-enter") &&
-      (!sameNumber(ix, ax) || !sameNumber(iy, ay) || !sameNumber(is, as))
+      track.kind === "enter" &&
+      (!sameNumber(ix, ax) || !sameNumber(iy, ay) || !sameNumber(initialScale, animateScale))
     ) {
       enterTransformCount += 1;
     }
-    if (
-      step.id.startsWith("zero-layer-enter") &&
-      ((iw > 0 && aw / iw > 1.45) || (ih > 0 && ah / ih > 1.45))
-    ) {
+    if (track.kind === "enter" && ((iw > 0 && aw / iw > 1.45) || (ih > 0 && ah / ih > 1.45))) {
       clipRevealCount += 1;
     }
     if (!sameNumber(ix, ax)) dxCount += 1;
@@ -592,17 +640,16 @@ export function createZeroLayerRecipeSampleReport(
   const recipeIds = options.recipeIds ?? zeroLayerMotionRecipes.map((recipe) => recipe.id);
   const spec = buildZeroMotionSpec(source);
   const recipes = recipeIds.map((recipeId) => sampleRecipe(source, recipeId, samplePoints, spec));
-  const signatures = new Set(recipes.map((recipe) => recipe.signature.signatureKey));
   const snapshotSignatures = new Set(recipes.map(recipeSnapshotSignature));
   const risks = [
     ...validateZeroLayerRecipeManifestRegistry().map(manifestValidationRisk),
     ...recipes.flatMap((recipe) => recipe.risks)
   ];
-  if (signatures.size < recipes.length || snapshotSignatures.size < recipes.length) {
+  if (snapshotSignatures.size < recipes.length) {
     risks.push({
       code: "RECIPE_DIFF_TOO_SMALL",
       severity: "warning",
-      message: `${recipes.length - Math.min(signatures.size, snapshotSignatures.size) + 1} Zero native recipes produce highly similar motion signatures or middle-frame samples.`
+      message: `${recipes.length - snapshotSignatures.size + 1} Zero native recipes produce highly similar sampled motion.`
     });
   }
   const topRecipes = recipes.slice(0, Math.min(3, recipes.length));
@@ -624,7 +671,7 @@ export function createZeroLayerRecipeSampleReport(
     risks,
     comparison: {
       recipeCount: recipes.length,
-      distinctSignatures: signatures.size
+      distinctSignatures: snapshotSignatures.size
     }
   };
 }

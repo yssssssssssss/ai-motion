@@ -2,7 +2,7 @@
 
 > 上级总揽：[../README.md](../README.md)
 > 目标：让 LLM 产出差异化 per-layer 编排，规则引擎降为 fallback + 物理约束校验。
-> 状态：⚪ 未开始（放最后，收益最大——需先有物理运行时与可编辑结构）
+> 状态：🟢 已完成
 
 ## 模块目标
 
@@ -10,14 +10,15 @@
 
 ## 规划的功能清单
 
-| #   | 功能                                                                         | 状态      |
-| --- | ---------------------------------------------------------------------------- | --------- |
-| 1   | generateMotionPlanLLM：结构快照+绑定 → per-layer track（json_schema strict） | ⚪ 未开始 |
-| 2   | 降级链：LLM 失败 → compileMotionPlan 规则兜底                                | ⚪ 未开始 |
-| 3   | 物理约束校验：LLM 输出过闸（不越界/时长合理/可播放）                         | ⚪ 未开始 |
-| 4   | fixture 回归：防 prompt/schema 退化                                          | ⚪ 未开始 |
+| #   | 功能                                                                           | 状态      |
+| --- | ------------------------------------------------------------------------------ | --------- |
+| 1   | MotionPlanDraft：结构快照+绑定 → 轨道选择、节奏与 personality（strict schema） | 🟢 已完成 |
+| 2   | 降级链：LLM 失败 → 保留 compileMotionPlan 规则方案                             | 🟢 已完成 |
+| 3   | 确定性 assembler：绑定 nodeId、约束时间窗和终态                                | 🟢 已完成 |
+| 4   | 中间态去重与 fixture 回归：拒绝仅标签或 easing 不同的候选                      | 🟢 已完成 |
 
-**关键文件（计划）**：`packages/motion-copilot-core/src/intent/generateMotionPlanLLM.ts`（新增，参考 `generateCompositionDraftLLM.ts`）。
+**关键文件**：`packages/motion-copilot-core/src/zeroLayerMorph/generateMotionPlanDraft.ts`、`apps/motion-copilot/src/dev-api/generateZeroMotionPlan.ts`、`apps/motion-copilot/src/services/generateZeroMotionPlanClient.ts`。
+**边界**：模型无法输出 nodeId、layerId、坐标、CSS 或关键帧；这些内容由 assembler 根据当前 MotionPlan 与绑定结果确定。任何网络、超时或 schema 异常都保留本地规则方案。
 **架构约束**（CLAUDE.md）：LLM 仅服务端；组装逻辑确定性共享；失败必须降级不破坏 UI。
 
 ---

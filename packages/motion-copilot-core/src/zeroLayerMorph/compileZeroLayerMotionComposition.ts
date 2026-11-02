@@ -7,6 +7,7 @@ import {
 } from "../schema/document";
 import { deriveZeroLayerObjects } from "./deriveZeroLayerObjects";
 import { deriveZeroLayerDiagnosticGate } from "./createZeroLayerDiagnosticReport";
+import { isLowConfidenceZeroLayerBinding } from "./compileZeroLayerMotionBindings";
 import { compileMotionPlanFromRecipe, deriveCompositionFromMotionPlan } from "./compileMotionPlan";
 import { layerIdForNode } from "./layerId";
 import type { ZeroLayerDiagnosticReport } from "./diagnosticSchema";
@@ -32,6 +33,7 @@ export type CompileZeroLayerMotionCompositionInput = {
   bindingResult: ZeroLayerMotionBindingResult;
   diagnosticReport?: ZeroLayerDiagnosticReport;
   durationMs?: number;
+  downgradeLowConfidenceMatches?: boolean;
 };
 
 const presetId = "zero-layer-morph";
@@ -195,11 +197,18 @@ function optimizeBindingResult(
   from: ZeroLayerSnapshot,
   to: ZeroLayerSnapshot,
   bindingResult: ZeroLayerMotionBindingResult,
-  report: ZeroLayerDiagnosticReport | undefined
+  report: ZeroLayerDiagnosticReport | undefined,
+  downgradeLowConfidenceMatches: boolean
 ): { bindingResult: ZeroLayerMotionBindingResult; optimizerReport?: ZeroLayerOptimizerReport } {
   const gate = report ? (report.gate ?? deriveZeroLayerDiagnosticGate(report)) : undefined;
-  if (!gate || gate.strategy !== "safe-fade-unmatched") return { bindingResult };
+  if (gate?.status === "blocked" || gate?.strategy === "manual-fix-required") return { bindingResult };
+  if (gate?.strategy !== "safe-fade-unmatched" && !downgradeLowConfidenceMatches) {
+    return { bindingResult };
+  }
   const lowConfidencePairs = riskNodePairs(report);
+  for (const binding of bindingResult.bindings.filter(isLowConfidenceZeroLayerBinding)) {
+    lowConfidencePairs.add(`${binding.nodeId}→${binding.toNodeId}`);
+  }
   if (lowConfidencePairs.size === 0) return { bindingResult };
 
   const bindings: ZeroLayerMotionBinding[] = [];
@@ -241,7 +250,7 @@ function optimizeBindingResult(
       unresolved: bindingResult.unresolved
     },
     optimizerReport: {
-      strategy: gate.strategy,
+      strategy: gate?.strategy ?? "safe-fade-unmatched",
       applied,
       skipped
     }
@@ -252,7 +261,13 @@ export function compileZeroLayerMotionComposition(
   input: CompileZeroLayerMotionCompositionInput
 ): ZeroLayerMotionCompositionResult {
   const durationMs = input.durationMs ?? 360;
-  const optimized = optimizeBindingResult(input.from, input.to, input.bindingResult, input.diagnosticReport);
+  const optimized = optimizeBindingResult(
+    input.from,
+    input.to,
+    input.bindingResult,
+    input.diagnosticReport,
+    input.downgradeLowConfidenceMatches ?? false
+  );
   const bindingResult = optimized.bindingResult;
   const layers: MotionLayer[] = [];
   const steps: CompositionStep[] = [];

@@ -47,36 +47,46 @@ function cubicBezierProgress(curve: [number, number, number, number], progress: 
   return 3 * inverse * inverse * t * y1 + 3 * inverse * t * t * y2 + t * t * t;
 }
 
-function springProgress(stiffness: number, damping: number, progress: number): number {
+function springProgress(stiffness: number, damping: number, progress: number, durationMs: number): number {
   if (progress <= 0) return 0;
   if (progress >= 1) return 1;
 
+  const elapsedSeconds = (progress * Math.max(0, durationMs)) / 1000;
   const naturalFrequency = Math.max(0.001, Math.sqrt(Math.max(0.001, stiffness)));
   const dampingRatio = Math.max(0, damping) / (2 * naturalFrequency);
+  let response: number;
   if (dampingRatio < 1) {
     const dampedFrequency = naturalFrequency * Math.sqrt(1 - dampingRatio * dampingRatio);
-    const envelope = Math.exp(-dampingRatio * naturalFrequency * progress);
-    return (
+    const envelope = Math.exp(-dampingRatio * naturalFrequency * elapsedSeconds);
+    response =
       1 -
       envelope *
-        (Math.cos(dampedFrequency * progress) +
-          ((dampingRatio * naturalFrequency) / dampedFrequency) * Math.sin(dampedFrequency * progress))
-    );
+        (Math.cos(dampedFrequency * elapsedSeconds) +
+          ((dampingRatio * naturalFrequency) / dampedFrequency) * Math.sin(dampedFrequency * elapsedSeconds));
+  } else if (dampingRatio === 1) {
+    response = 1 - (1 + naturalFrequency * elapsedSeconds) * Math.exp(-naturalFrequency * elapsedSeconds);
+  } else {
+    const root = Math.sqrt(dampingRatio * dampingRatio - 1);
+    const slow = -naturalFrequency * (dampingRatio - root);
+    const fast = -naturalFrequency * (dampingRatio + root);
+    response =
+      1 - (fast * Math.exp(slow * elapsedSeconds) - slow * Math.exp(fast * elapsedSeconds)) / (fast - slow);
   }
-  if (dampingRatio === 1) {
-    return 1 - (1 + naturalFrequency * progress) * Math.exp(-naturalFrequency * progress);
-  }
-  const root = Math.sqrt(dampingRatio * dampingRatio - 1);
-  const slow = -naturalFrequency * (dampingRatio - root);
-  const fast = -naturalFrequency * (dampingRatio + root);
-  return 1 - (fast * Math.exp(slow * progress) - slow * Math.exp(fast * progress)) / (fast - slow);
+
+  const tail = clamp((progress - 0.8) / 0.2);
+  const settled = tail * tail * (3 - 2 * tail);
+  return response + (1 - response) * settled;
 }
 
-function easingFor(frame: MotionKeyframe, physics: MotionPhysics | undefined): (progress: number) => number {
+function easingFor(
+  frame: MotionKeyframe,
+  physics: MotionPhysics | undefined,
+  durationMs: number
+): (progress: number) => number {
   if (frame.easing) return (progress) => cubicBezierProgress(frame.easing!, progress);
   if (physics?.type === "ease") return (progress) => cubicBezierProgress(physics.curve, progress);
   if (physics?.type === "spring")
-    return (progress) => springProgress(physics.stiffness, physics.damping, progress);
+    return (progress) => springProgress(physics.stiffness, physics.damping, progress, durationMs);
   return clamp;
 }
 
@@ -84,7 +94,8 @@ function valueAt(
   keyframes: MotionKeyframe[],
   key: (typeof stateKeys)[number],
   progress: number,
-  physics: MotionPhysics | undefined
+  physics: MotionPhysics | undefined,
+  durationMs: number
 ): number | undefined {
   let from: MotionKeyframe | undefined;
   let to: MotionKeyframe | undefined;
@@ -100,36 +111,79 @@ function valueAt(
   if (!to) return from[key];
   if (from === to || to.offset === from.offset) return from[key];
   const local = (progress - from.offset) / (to.offset - from.offset);
-  const eased = easingFor(from, physics)(local);
+  const eased = easingFor(from, physics, durationMs * (to.offset - from.offset))(local);
   const value = from[key]! + (to[key]! - from[key]!) * eased;
   return key === "opacity" ? clamp(value) : value;
+}
+
+function catmullRom(from: number, start: number, end: number, to: number, progress: number): number {
+  const squared = progress * progress;
+  const cubed = squared * progress;
+  return (
+    0.5 *
+    (2 * start +
+      (-from + end) * progress +
+      (2 * from - 5 * start + 4 * end - to) * squared +
+      (-from + 3 * start - 3 * end + to) * cubed)
+  );
 }
 
 function pathPointAt(path: LayerMotionTrack["path"], progress: number): { x: number; y: number } | undefined {
   const points = path?.points;
   if (!points?.length) return undefined;
   if (points.length === 1) return points[0];
-  const scaled = clamp(progress) * (points.length - 1);
-  const index = Math.min(points.length - 2, Math.floor(scaled));
-  const localProgress = scaled - index;
-  const from = points[index]!;
-  const to = points[index + 1]!;
-  return {
-    x: from.x + (to.x - from.x) * localProgress,
-    y: from.y + (to.y - from.y) * localProgress
-  };
+  const segments = points.slice(1).map((point, index) => {
+    const previous = points[index]!;
+    return Math.hypot(point.x - previous.x, point.y - previous.y);
+  });
+  const totalLength = segments.reduce((total, length) => total + length, 0);
+  if (totalLength === 0) return points[0];
+
+  const targetLength = clamp(progress) * totalLength;
+  let traversed = 0;
+  for (let index = 0; index < segments.length; index += 1) {
+    const segmentLength = segments[index]!;
+    if (targetLength > traversed + segmentLength && index < segments.length - 1) {
+      traversed += segmentLength;
+      continue;
+    }
+    const from = points[index]!;
+    const to = points[index + 1]!;
+    const localProgress = clamp(segmentLength === 0 ? 0 : (targetLength - traversed) / segmentLength);
+    if (points.length > 2) {
+      const previous = points[Math.max(0, index - 1)]!;
+      const next = points[Math.min(points.length - 1, index + 2)]!;
+      return {
+        x: catmullRom(previous.x, from.x, to.x, next.x, localProgress),
+        y: catmullRom(previous.y, from.y, to.y, next.y, localProgress)
+      };
+    }
+    return {
+      x: from.x + (to.x - from.x) * localProgress,
+      y: from.y + (to.y - from.y) * localProgress
+    };
+  }
+  return points.at(-1);
 }
 
 function sampleTrack(track: LayerMotionTrack, progress: number): MotionPlanRuntimeKeyframe {
   const state: MotionPlanRuntimeKeyframe = { offset: clamp(progress) };
   for (const key of stateKeys) {
-    const valueAtProgress = valueAt(track.keyframes, key, progress, track.physics);
+    const valueAtProgress = valueAt(track.keyframes, key, progress, track.physics, track.timing.durationMs);
     if (valueAtProgress != null) state[key] = valueAtProgress;
   }
-  const point = pathPointAt(track.path, progress);
+  const pathProgress = easingFor(track.keyframes[0]!, track.physics, track.timing.durationMs)(progress);
+  const point = pathPointAt(track.path, pathProgress);
   if (point) {
-    state.x = point.x;
-    state.y = point.y;
+    const pathStart = track.path?.points[0];
+    const pathEnd = track.path?.points.at(-1);
+    if (pathStart && pathEnd) {
+      const baselineProgress = clamp(pathProgress);
+      const baselineX = pathStart.x + (pathEnd.x - pathStart.x) * baselineProgress;
+      const baselineY = pathStart.y + (pathEnd.y - pathStart.y) * baselineProgress;
+      state.x = state.x == null ? point.x : state.x + point.x - baselineX;
+      state.y = state.y == null ? point.y : state.y + point.y - baselineY;
+    }
   }
   return state;
 }
@@ -152,8 +206,8 @@ export function sampleMotionPlan(value: MotionPlan | unknown, timeMs: number): S
 }
 
 /**
- * Bakes a MotionPlan into browser-neutral keyframes. Springs and polyline paths
- * are sampled so the preview, WAAPI player, and CSS fallback share one trajectory.
+ * Bakes a MotionPlan into browser-neutral keyframes. Easing, springs, and paths
+ * are sampled so the preview and CSS fallback share one trajectory.
  */
 export function compileMotionPlanKeyframes(
   value: MotionPlan | unknown,
@@ -163,7 +217,7 @@ export function compileMotionPlanKeyframes(
   const sampleCount = Math.max(2, Math.round(samplesPerTrack));
   return plan.tracks.map((track) => {
     const offsets = new Set(track.keyframes.map((frame) => frame.offset));
-    if (track.physics?.type === "spring" || track.path) {
+    if (track.physics || track.path || track.keyframes.some((frame) => frame.easing)) {
       for (let index = 0; index <= sampleCount; index += 1) offsets.add(index / sampleCount);
     }
     const keyframes = [...offsets]

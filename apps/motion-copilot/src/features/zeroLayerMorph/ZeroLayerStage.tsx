@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
-  compileMotionPlanKeyframes,
   computeCompositionStepWindows,
   easedProgress,
+  fillMissingMatchedMotionPlanTracks,
   layerIdFromNodeId,
+  motionPlanPlaybackDurationMs,
+  resolveZeroLayerNodeOverride,
+  sampleZeroLayerSkinMix,
   sampleMotionPlan,
   type CompositionStep,
   type CompositionTrack,
@@ -14,6 +17,7 @@ import {
   ZeroLayerNode,
   ZeroLayerNodeOverride,
   ZeroLayerSnapshot,
+  zeroLayerAppearanceDiffers,
   zeroLayerPaintStyle
 } from "@motion-copilot/core";
 
@@ -26,8 +30,17 @@ type LayerRenderItem = {
   zIndex: number;
   transform?: string | undefined;
   transformOrigin?: string | undefined;
+  borderRadius?: CSSProperties["borderRadius"] | undefined;
   opacityMultiplier?: number | undefined;
   motionLayerId?: string | undefined;
+  skins?: MatchedAppearanceSkin[] | undefined;
+};
+
+type MatchedAppearanceSkin = {
+  frame: RenderFrame;
+  node: ZeroLayerNode;
+  assets: Map<string, ZeroLayerAsset>;
+  weight: number;
 };
 
 type ZeroLayerStageProps = {
@@ -67,36 +80,6 @@ function assetMap(snapshot: ZeroLayerSnapshot): Map<string, ZeroLayerAsset> {
   return new Map(snapshot.assets.map((asset) => [asset.id, asset]));
 }
 
-function overrideFor(
-  nodeId: string,
-  overrides: ZeroLayerNodeOverride[] | undefined,
-  frame: RenderFrame
-): ZeroLayerNodeOverride | undefined {
-  return overrides?.find(
-    (override) => override.nodeId === nodeId && (override.frame === frame || override.frame === "both")
-  );
-}
-
-function resolveNode(
-  node: ZeroLayerNode,
-  overrides: ZeroLayerNodeOverride[] | undefined,
-  frame: RenderFrame
-): ZeroLayerNode {
-  const override = overrideFor(node.nodeId, overrides, frame);
-  if (!override) return node;
-  return {
-    ...node,
-    bounds: {
-      x: override.x ?? node.bounds.x,
-      y: override.y ?? node.bounds.y,
-      w: override.width ?? node.bounds.w,
-      h: override.height ?? node.bounds.h
-    },
-    opacity: override.opacity ?? node.opacity,
-    ...(override.cornerRadius != null ? { cornerRadius: override.cornerRadius } : {})
-  };
-}
-
 function layerStyle(item: LayerRenderItem, assets: Map<string, ZeroLayerAsset>): CSSProperties {
   const node = item.node;
   const opacity = node.opacity * (item.opacityMultiplier ?? 1);
@@ -115,10 +98,47 @@ function layerStyle(item: LayerRenderItem, assets: Map<string, ZeroLayerAsset>):
     transform: transform || undefined,
     transformOrigin: item.transformOrigin,
     overflow: node.clipsContent ? "hidden" : undefined,
-    borderRadius: node.kind === "ellipse" ? "50%" : node.cornerRadius,
+    borderRadius: item.borderRadius ?? (node.kind === "ellipse" ? "50%" : node.cornerRadius),
     boxSizing: "border-box",
     padding: 0,
     margin: 0,
+    display: item.skins ? "block" : node.kind === "text" ? "flex" : "block",
+    alignItems: !item.skins && node.kind === "text" ? "center" : undefined,
+    textAlign: item.skins ? undefined : node.textStyle?.textAlign,
+    fontFamily: item.skins ? undefined : node.textStyle?.fontFamily,
+    fontSize: item.skins ? undefined : node.textStyle?.fontSize,
+    fontWeight: item.skins ? undefined : node.textStyle?.fontWeight,
+    lineHeight: !item.skins && node.textStyle?.lineHeight ? `${node.textStyle.lineHeight}px` : undefined,
+    letterSpacing: item.skins ? undefined : node.textStyle?.letterSpacing,
+    fontStyle: item.skins ? undefined : node.textStyle?.fontStyle,
+    textDecoration: item.skins ? undefined : node.textStyle?.textDecoration,
+    textTransform: item.skins
+      ? undefined
+      : node.textStyle?.textCase === "upper"
+        ? "uppercase"
+        : node.textStyle?.textCase === "lower"
+          ? "lowercase"
+          : node.textStyle?.textCase === "capitalize"
+            ? "capitalize"
+            : undefined,
+    background: item.skins ? undefined : paint.background,
+    color: item.skins ? undefined : paint.color,
+    border: item.skins ? undefined : paint.border,
+    boxShadow: item.skins ? undefined : paint.boxShadow,
+    filter: item.skins ? undefined : paint.filter,
+    mixBlendMode: (item.skins ? undefined : paint.blendMode) as CSSProperties["mixBlendMode"]
+  };
+}
+
+function skinStyle(skin: MatchedAppearanceSkin): CSSProperties {
+  const node = skin.node;
+  const paint = zeroLayerPaintStyle(node, skin.assets);
+  return {
+    position: "absolute",
+    inset: 0,
+    opacity: node.opacity * skin.weight,
+    borderRadius: "inherit",
+    overflow: node.clipsContent ? "hidden" : undefined,
     display: node.kind === "text" ? "flex" : "block",
     alignItems: node.kind === "text" ? "center" : undefined,
     textAlign: node.textStyle?.textAlign,
@@ -142,20 +162,28 @@ function layerStyle(item: LayerRenderItem, assets: Map<string, ZeroLayerAsset>):
     border: paint.border,
     boxShadow: paint.boxShadow,
     filter: paint.filter,
-    mixBlendMode: paint.blendMode as CSSProperties["mixBlendMode"]
+    mixBlendMode: paint.blendMode as CSSProperties["mixBlendMode"],
+    pointerEvents: "none"
   };
+}
+
+function layerContent(node: ZeroLayerNode, assets: Map<string, ZeroLayerAsset>): ReactNode {
+  const asset = node.assetId ? assets.get(node.assetId) : undefined;
+  return asset && (node.renderMode === "image" || node.kind === "image") ? (
+    <img src={asset.url} alt="" />
+  ) : node.text ? (
+    <span>{node.text}</span>
+  ) : null;
 }
 
 function renderLayer(
   item: LayerRenderItem,
   assets: Map<string, ZeroLayerAsset>,
   selectedNodeId: string | undefined,
-  onNodeSelect: ((nodeId: string) => void) | undefined,
-  onMotionLayerElement?: ((layerId: string, element: HTMLButtonElement | null) => void) | undefined
+  onNodeSelect: ((nodeId: string) => void) | undefined
 ): ReactNode {
   const node = item.node;
   if (!node.visible) return null;
-  const asset = node.assetId ? assets.get(node.assetId) : undefined;
   const selected = selectedNodeId === node.nodeId;
   return (
     <button
@@ -166,18 +194,24 @@ function renderLayer(
       data-zero-base-rotation={node.rotation ?? 0}
       {...(item.motionLayerId ? { "data-motion-layer-id": item.motionLayerId } : {})}
       style={layerStyle(item, assets)}
-      ref={item.motionLayerId ? (element) => onMotionLayerElement?.(item.motionLayerId!, element) : undefined}
       onClick={(event) => {
         event.stopPropagation();
         onNodeSelect?.(node.nodeId);
       }}
       key={item.key}
     >
-      {asset && (node.renderMode === "image" || node.kind === "image") ? (
-        <img src={asset.url} alt="" />
-      ) : node.text ? (
-        <span>{node.text}</span>
-      ) : null}
+      {item.skins
+        ? item.skins.map((skin) => (
+            <div
+              data-zero-layer-skin={skin.frame}
+              data-zero-layer-kind={skin.node.kind}
+              style={skinStyle(skin)}
+              key={skin.frame}
+            >
+              {layerContent(skin.node, skin.assets)}
+            </div>
+          ))
+        : layerContent(node, assets)}
     </button>
   );
 }
@@ -197,10 +231,6 @@ function usePrefersReducedMotion(): boolean {
     return () => media.removeEventListener?.("change", onChange);
   }, []);
   return reduced;
-}
-
-function waapiTransform(frame: SampledMotionPlanTrack["state"], baseRotation: number): string {
-  return `translate(${frame.x ?? 0}px,${frame.y ?? 0}px) scale(${frame.scale ?? 1}) rotate(${(frame.rotation ?? 0) + baseRotation}deg)`;
 }
 
 function stageStyle(width: number, height: number): CSSProperties {
@@ -224,7 +254,7 @@ export function ZeroLayerStage({
   const assets = assetMap(snapshot);
   const items: LayerRenderItem[] = snapshot.layers.map((node, index) => ({
     key: `${frame}-${node.nodeId}`,
-    node: resolveNode(node, overrides, frame),
+    node: resolveZeroLayerNodeOverride(node, overrides, frame),
     frame,
     zIndex: index
   }));
@@ -243,7 +273,70 @@ function nodeById(snapshot: ZeroLayerSnapshot, nodeId: string): ZeroLayerNode | 
   return snapshot.layers.find((node) => node.nodeId === nodeId);
 }
 
-function interpolatedNode(from: ZeroLayerNode, to: ZeroLayerNode, progress: number): ZeroLayerNode {
+function nodeWithAppearance(
+  base: ZeroLayerNode,
+  appearance: ZeroLayerNode,
+  from: ZeroLayerNode,
+  to: ZeroLayerNode,
+  progress: number
+): ZeroLayerNode {
+  const {
+    cornerRadius: _cornerRadius,
+    text: _text,
+    fills: _fills,
+    strokes: _strokes,
+    effects: _effects,
+    textStyle: _textStyle,
+    assetId: _assetId,
+    renderMode: _renderMode,
+    blendMode: _blendMode,
+    opacity: _opacity,
+    rotation: _rotation,
+    ...structural
+  } = base;
+  return {
+    ...structural,
+    opacity: appearance.opacity,
+    ...(from.rotation != null || to.rotation != null
+      ? { rotation: lerp(from.rotation ?? 0, to.rotation ?? from.rotation ?? 0, progress) }
+      : {}),
+    ...(from.cornerRadius != null || to.cornerRadius != null
+      ? { cornerRadius: lerp(from.cornerRadius ?? 0, to.cornerRadius ?? 0, progress) }
+      : {}),
+    ...(appearance.text != null ? { text: appearance.text } : {}),
+    ...(appearance.fills ? { fills: appearance.fills } : {}),
+    ...(appearance.strokes ? { strokes: appearance.strokes } : {}),
+    ...(appearance.effects ? { effects: appearance.effects } : {}),
+    ...(appearance.textStyle ? { textStyle: appearance.textStyle } : {}),
+    ...(appearance.assetId ? { assetId: appearance.assetId } : {}),
+    ...(appearance.renderMode ? { renderMode: appearance.renderMode } : {}),
+    ...(appearance.blendMode ? { blendMode: appearance.blendMode } : {})
+  };
+}
+
+function interpolatedBorderRadius(
+  from: ZeroLayerNode,
+  to: ZeroLayerNode,
+  progress: number
+): CSSProperties["borderRadius"] {
+  const fromPercent = from.kind === "ellipse" ? 50 : 0;
+  const toPercent = to.kind === "ellipse" ? 50 : 0;
+  const fromPixels = from.kind === "ellipse" ? 0 : (from.cornerRadius ?? 0);
+  const toPixels = to.kind === "ellipse" ? 0 : (to.cornerRadius ?? 0);
+  const percent = lerp(fromPercent, toPercent, progress);
+  const pixels = lerp(fromPixels, toPixels, progress);
+  if (percent === 0) return pixels;
+  if (pixels === 0) return `${percent}%`;
+  return `calc(${percent}% + ${pixels}px)`;
+}
+
+function interpolatedNode(
+  from: ZeroLayerNode,
+  to: ZeroLayerNode,
+  appearance: ZeroLayerNode,
+  progress: number,
+  opacity: number
+): ZeroLayerNode {
   const node: ZeroLayerNode = {
     ...from,
     bounds: {
@@ -252,24 +345,16 @@ function interpolatedNode(from: ZeroLayerNode, to: ZeroLayerNode, progress: numb
       w: lerp(from.bounds.w, to.bounds.w, progress),
       h: lerp(from.bounds.h, to.bounds.h, progress)
     },
-    opacity: lerp(from.opacity, to.opacity, progress)
+    opacity
   };
-  if (from.cornerRadius != null || to.cornerRadius != null) {
-    node.cornerRadius = lerp(from.cornerRadius ?? 0, to.cornerRadius ?? 0, progress);
-  }
-  const source = progress < 0.5 ? from : to;
-  if (source.text != null) node.text = source.text;
-  if (source.fills) node.fills = source.fills;
-  if (source.strokes) node.strokes = source.strokes;
-  if (source.effects) node.effects = source.effects;
-  if (source.textStyle) node.textStyle = source.textStyle;
-  if (source.assetId) node.assetId = source.assetId;
-  if (source.renderMode) node.renderMode = source.renderMode;
-  if (source.blendMode) node.blendMode = source.blendMode;
   if (from.rotation != null || to.rotation != null) {
     node.rotation = lerp(from.rotation ?? 0, to.rotation ?? from.rotation ?? 0, progress);
   }
-  return node;
+  return {
+    ...nodeWithAppearance(node, appearance, from, to, progress),
+    opacity: node.opacity,
+    ...(node.rotation != null ? { rotation: node.rotation } : {})
+  };
 }
 
 function stepNumber(
@@ -352,12 +437,11 @@ function nodeWithMotionPlan(
 function stepProgress(
   compositionTrack: CompositionTrack | undefined,
   layerId: string,
-  globalProgress: number
-): { step: CompositionStep; progress: number } | undefined {
-  if (!compositionTrack || compositionTrack.totalDurationMs <= 0) return undefined;
-  const currentMs = clamp(globalProgress) * compositionTrack.totalDurationMs;
+  currentMs: number
+): { step: CompositionStep; progress: number; rawProgress: number } | undefined {
+  if (!compositionTrack) return undefined;
   const stepById = new Map(compositionTrack.steps.map((step) => [step.id, step]));
-  let sampled: { step: CompositionStep; progress: number } | undefined;
+  let sampled: { step: CompositionStep; progress: number; rawProgress: number } | undefined;
   for (const window of computeCompositionStepWindows(compositionTrack.steps)) {
     const step = stepById.get(window.stepId);
     if (!step || step.layerId !== layerId) continue;
@@ -371,9 +455,11 @@ function stepProgress(
       rawProgress = 0;
     }
     if (rawProgress == null) continue;
+    const clampedProgress = clamp(rawProgress);
     sampled = {
       step,
-      progress: step.easing ? easedProgress(step.easing, rawProgress) : clamp(rawProgress)
+      progress: step.easing ? easedProgress(step.easing, clampedProgress) : clampedProgress,
+      rawProgress: clampedProgress
     };
   }
   return sampled;
@@ -393,49 +479,8 @@ export function ZeroLayerMotionStage({
   overrides,
   onNodeSelect
 }: ZeroLayerMotionStageProps) {
-  const motionLayerElements = useRef(new Map<string, HTMLButtonElement>());
   const prefersReducedMotion = usePrefersReducedMotion();
   const p = prefersReducedMotion && isPlaying ? 1 : clamp(progress);
-  const playbackStartProgress = useRef(p);
-  if (!isPlaying) playbackStartProgress.current = p;
-
-  useEffect(() => {
-    if (
-      !isPlaying ||
-      prefersReducedMotion ||
-      !motionPlan ||
-      typeof Element.prototype.animate !== "function"
-    ) {
-      return undefined;
-    }
-    const initialTimeMs = playbackStartProgress.current * motionPlan.stageDurationMs;
-    const animations = compileMotionPlanKeyframes(motionPlan).flatMap((track) => {
-      const element = motionLayerElements.current.get(track.layerId);
-      if (!element) return [];
-      const baseRotation = Number(element.dataset.zeroBaseRotation ?? "0");
-      const frames = track.keyframes.map((frame) => ({
-        offset: frame.offset,
-        transform: waapiTransform(frame, baseRotation),
-        ...(frame.width != null ? { width: `${frame.width}px` } : {}),
-        ...(frame.height != null ? { height: `${frame.height}px` } : {}),
-        ...(frame.opacity != null ? { opacity: frame.opacity } : {})
-      }));
-      const animation = element.animate(frames, {
-        duration: track.timing.durationMs,
-        delay: 0,
-        easing: "linear",
-        fill: "both"
-      });
-      animation.currentTime = initialTimeMs - track.timing.delayMs;
-      return [animation];
-    });
-    return () => animations.forEach((animation) => animation.cancel());
-  }, [isPlaying, motionPlan, prefersReducedMotion]);
-
-  const onMotionLayerElement = (layerId: string, element: HTMLButtonElement | null) => {
-    if (element) motionLayerElements.current.set(layerId, element);
-    else motionLayerElements.current.delete(layerId);
-  };
 
   if (p <= 0 && !isPlaying) {
     return (
@@ -465,9 +510,21 @@ export function ZeroLayerMotionStage({
   }
   const fromAssets = assetMap(from);
   const toAssets = assetMap(to);
+  const effectiveMotionPlan =
+    motionPlan || compositionTrack
+      ? fillMissingMatchedMotionPlanTracks(motionPlan, compositionTrack, {
+          kind: "zero-layer-morph",
+          from,
+          to,
+          bindingResult,
+          ...(overrides ? { nodeOverrides: overrides } : {})
+        })
+      : undefined;
+  const playbackDurationMs = motionPlanPlaybackDurationMs(effectiveMotionPlan, compositionTrack);
+  const currentMs = p * playbackDurationMs;
   const sampledPlanByLayer = new Map(
-    motionPlan
-      ? sampleMotionPlan(motionPlan, p * motionPlan.stageDurationMs).map((track) => [track.layerId, track])
+    effectiveMotionPlan
+      ? sampleMotionPlan(effectiveMotionPlan, currentMs).map((track) => [track.layerId, track])
       : []
   );
   const boundFrom = new Set(bindingResult.bindings.map((binding) => binding.nodeId));
@@ -482,16 +539,39 @@ export function ZeroLayerMotionStage({
     const fromNode = nodeById(from, binding.nodeId);
     const toNode = nodeById(to, binding.toNodeId);
     if (!fromNode || !toNode) continue;
-    const resolvedFrom = resolveNode(fromNode, overrides, "from");
-    const resolvedTo = resolveNode(toNode, overrides, "to");
+    const resolvedFrom = resolveZeroLayerNodeOverride(fromNode, overrides, "from");
+    const resolvedTo = resolveZeroLayerNodeOverride(toNode, overrides, "to");
     const sampledPlan = sampledPlanByLayer.get(binding.layerId);
-    const activeStep = stepProgress(compositionTrack, binding.layerId, p);
+    const activeStep = stepProgress(compositionTrack, binding.layerId, currentMs);
     const nodeProgress = activeStep?.progress ?? p;
+    const appearanceProgress = sampledPlan?.progress ?? activeStep?.rawProgress ?? p;
+    const appearanceDiffers = zeroLayerAppearanceDiffers(resolvedFrom, resolvedTo, fromAssets, toAssets);
+    const mix = sampleZeroLayerSkinMix(appearanceProgress);
+    const skins: MatchedAppearanceSkin[] = appearanceDiffers
+      ? [
+          { frame: "from" as const, node: resolvedFrom, assets: fromAssets, weight: mix.from },
+          { frame: "to" as const, node: resolvedTo, assets: toAssets, weight: mix.to }
+        ]
+      : [
+          {
+            frame: "from" as const,
+            node: {
+              ...resolvedFrom,
+              opacity: lerp(resolvedFrom.opacity, resolvedTo.opacity, appearanceProgress)
+            },
+            assets: fromAssets,
+            weight: 1
+          }
+        ];
+    const appearanceNode = {
+      ...nodeWithAppearance(resolvedFrom, resolvedFrom, resolvedFrom, resolvedTo, appearanceProgress),
+      clipsContent: Boolean(resolvedFrom.clipsContent || resolvedTo.clipsContent)
+    };
     const node = sampledPlan
-      ? nodeWithMotionPlan(resolvedFrom, sampledPlan.state, resolvedFrom.opacity)
+      ? nodeWithMotionPlan(appearanceNode, sampledPlan.state, 1)
       : activeStep
-        ? nodeWithStepMotion(resolvedFrom, activeStep.step, nodeProgress, resolvedFrom.opacity)
-        : interpolatedNode(resolvedFrom, resolvedTo, nodeProgress);
+        ? nodeWithStepMotion(appearanceNode, activeStep.step, nodeProgress, 1)
+        : interpolatedNode(resolvedFrom, resolvedTo, resolvedFrom, nodeProgress, 1);
     items.push({
       item: {
         key: `match-${binding.nodeId}-${binding.toNodeId}`,
@@ -504,19 +584,21 @@ export function ZeroLayerMotionStage({
           : activeStep
             ? motionTransform(activeStep.step, nodeProgress)
             : undefined,
-        transformOrigin: stepTransformOrigin(activeStep?.step)
+        transformOrigin: stepTransformOrigin(activeStep?.step),
+        borderRadius: interpolatedBorderRadius(resolvedFrom, resolvedTo, appearanceProgress),
+        skins: skins.filter((skin) => skin.weight > 0)
       },
-      assets: activeStep ? fromAssets : p < 0.5 ? fromAssets : toAssets
+      assets: fromAssets
     });
   }
 
   for (const node of from.layers) {
     if (!node.visible || boundFrom.has(node.nodeId) || node.nodeId === from.nodeId) continue;
     const isExit = exitIds.has(node.nodeId);
-    const resolved = resolveNode(node, overrides, "from");
+    const resolved = resolveZeroLayerNodeOverride(node, overrides, "from");
     const layerId = layerIdFromNodeId(node.nodeId);
     const sampledPlan = isExit ? sampledPlanByLayer.get(layerId) : undefined;
-    const activeStep = isExit ? stepProgress(compositionTrack, layerId, p) : undefined;
+    const activeStep = isExit ? stepProgress(compositionTrack, layerId, currentMs) : undefined;
     const renderedNode = sampledPlan
       ? nodeWithMotionPlan(resolved, sampledPlan.state, resolved.opacity)
       : activeStep
@@ -544,10 +626,10 @@ export function ZeroLayerMotionStage({
   for (const node of to.layers) {
     if (!node.visible || boundTo.has(node.nodeId) || node.nodeId === to.nodeId) continue;
     const isEnter = enterIds.has(node.nodeId);
-    const resolved = resolveNode(node, overrides, "to");
+    const resolved = resolveZeroLayerNodeOverride(node, overrides, "to");
     const layerId = layerIdFromNodeId(node.nodeId);
     const sampledPlan = isEnter ? sampledPlanByLayer.get(layerId) : undefined;
-    const activeStep = isEnter ? stepProgress(compositionTrack, layerId, p) : undefined;
+    const activeStep = isEnter ? stepProgress(compositionTrack, layerId, currentMs) : undefined;
     const renderedNode = sampledPlan
       ? nodeWithMotionPlan(resolved, sampledPlan.state, resolved.opacity)
       : activeStep
@@ -582,9 +664,7 @@ export function ZeroLayerMotionStage({
     >
       {items
         .sort((left, right) => left.item.zIndex - right.item.zIndex)
-        .map(({ item, assets }) =>
-          renderLayer(item, assets, selectedNodeId, onNodeSelect, onMotionLayerElement)
-        )}
+        .map(({ item, assets }) => renderLayer(item, assets, selectedNodeId, onNodeSelect))}
     </div>
   );
 }

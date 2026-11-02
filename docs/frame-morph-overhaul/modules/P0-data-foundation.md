@@ -2,7 +2,7 @@
 
 > 上级总揽：[../README.md](../README.md)
 > 目标：为「高保真样式」和「可编辑动效」提供数据结构承载，纯内核、向后兼容、不改行为。
-> 状态：🟡 进行中（功能1/2 已完成，功能3/4 待做）
+> 状态：🟢 已完成（功能1/2/3/4 均已完成）
 
 ## 模块目标
 
@@ -10,12 +10,12 @@
 
 ## 规划的功能清单
 
-| #   | 功能                                                      | 状态      |
-| --- | --------------------------------------------------------- | --------- |
-| 1   | 富样式字段扩展（ZeroLayerNode + ZeroLayerTextStyle）      | 🟢 完成   |
-| 2   | normalize 归一化承接新字段                                | 🟢 完成   |
-| 3   | 动效一等数据模型 MotionTrack / MotionPlan                 | 🟢 完成   |
-| 4   | compileMotionPlan 适配层（现有 recipe 输出 → MotionPlan） | ⚪ 未开始 |
+| #   | 功能                                                      | 状态    |
+| --- | --------------------------------------------------------- | ------- |
+| 1   | 富样式字段扩展（ZeroLayerNode + ZeroLayerTextStyle）      | 🟢 完成 |
+| 2   | normalize 归一化承接新字段                                | 🟢 完成 |
+| 3   | 动效一等数据模型 MotionTrack / MotionPlan                 | 🟢 完成 |
+| 4   | compileMotionPlan 适配层（现有 recipe 输出 → MotionPlan） | 🟢 完成 |
 
 ---
 
@@ -110,14 +110,21 @@ type MotionPlan = { tracks: LayerMotionTrack[]; stageDurationMs: number };
 
 **涉及文件**（计划）：`packages/motion-copilot-core/src/zeroLayerMorph/compileMotionPlan.ts`（新增）
 
-**状态**：⚪ 未开始。
+**状态**：🟢 完成（2026-07-21）。
+
+**实际落地**
+
+- 新增 `compileMotionPlanFromRecipe`：以既有 recipe 的实际窗口为准，按 layer 合并关键帧并映射 node、kind、easing 与 stage 时长。
+- 新增 `deriveCompositionFromMotionPlan`：将 MotionPlan 投影回 `CompositionStep`；传入 recipe fallback 时保留现有的 preset、label、slot 和 metadata，仅由计划接管时间窗、状态和曲线。
+- `compileZeroLayerMotionComposition` 与 `applyZeroLayerMotionRecipe` 均改为先生成并写入 `visualSource.motionPlan`，再生成兼容步骤；旧保存数据没有 `motionPlan` 时不会阻断既有 recipe 路径。
+- `normalizeMotionPlan` 现在补齐 0/1 端点、丢弃空轨道、保证每 layer 一条轨道、优先 user 来源，并把 `stageDurationMs` 扩展到最晚轨道结束点。
+
+**验证**：新增 `test/compileMotionPlan.test.ts`；motion-copilot-core 184 tests、motion-copilot app 92 tests、类型检查与 ESLint 全部通过。
 
 ---
 
 ## 关联进展 · Recipe 清单化（2026-07-18，本地提交 `7cb79d4`）
 
-`zeroLayerRecipeManifests.ts` 给 recipe 补了结构化元数据(`intent`/`targets`/`restraint`)。它是「差异化编排」的元数据前奏,与 P0 数据地基同源,但**不属于本模块功能 3/4**——`MotionPlan` 动效一等数据模型仍未开工,下一步即从功能 3 起步。详见 [../CHANGELOG.md](../CHANGELOG.md)。
+`zeroLayerRecipeManifests.ts` 给 recipe 补了结构化元数据(`intent`/`targets`/`restraint`)。它是「差异化编排」的元数据前奏,与 P0 数据地基同源,但**不属于本模块功能 3/4**；功能 3 的 `MotionPlan` 数据模型已完成，下一步是功能 4 的 recipe → MotionPlan 适配层。详见 [../CHANGELOG.md](../CHANGELOG.md)。
 
----
-
-_模块最后更新：2026-07-18 (+0800)_
+_模块最后更新：2026-07-21 (+0800)_

@@ -6,6 +6,21 @@ import {
 } from "../src/export/exportPackage";
 import type { MotionManifest, MotionPatch } from "../src/manifest/types";
 
+type MotionWidgetHandle = {
+  update(params: Record<string, unknown>): void;
+  replay(): void;
+  pause(): void;
+  seek(progress: number): void;
+  destroy(): void;
+};
+
+type MotionWidgetApi = {
+  mountMotionWidget(
+    selector: string,
+    options: { baseUrl: string; params: Record<string, unknown>; autoplay: boolean }
+  ): MotionWidgetHandle;
+};
+
 describe("composeEditablePackageFiles", () => {
   it("includes source, manifest, metadata, and patch", () => {
     const manifest: MotionManifest = {
@@ -339,7 +354,7 @@ describe("composeEmbedPackageFiles", () => {
       globalMock.globalThis
     );
 
-    const api = (windowMock as unknown as { AiMotionWidget: { mountMotionWidget: Function } }).AiMotionWidget;
+    const api = (windowMock as unknown as { AiMotionWidget: MotionWidgetApi }).AiMotionWidget;
     const handle = api.mountMotionWidget("#slot", {
       baseUrl: "/widgets/tabbar",
       params: { selectedIndex: 0 },

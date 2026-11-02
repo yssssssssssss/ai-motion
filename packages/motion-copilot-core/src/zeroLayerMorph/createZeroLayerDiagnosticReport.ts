@@ -1,5 +1,8 @@
 import type { Bounds } from "../frameMorph/schema";
-import { compileZeroLayerMotionBindings } from "./compileZeroLayerMotionBindings";
+import {
+  compileZeroLayerMotionBindings,
+  isLowConfidenceZeroLayerBinding
+} from "./compileZeroLayerMotionBindings";
 import { compileZeroLayerMotionComposition } from "./compileZeroLayerMotionComposition";
 import { layerIdFromNodeId } from "./layerId";
 import type { ZeroLayerMotionBindingResult, ZeroLayerNode, ZeroLayerSnapshot } from "./schema";
@@ -23,7 +26,6 @@ export type CreateZeroLayerDiagnosticReportInput = {
 };
 
 const schemaVersion = "motion-copilot.zero-layer-diagnostic.v1";
-const lowConfidenceBindingThreshold = 64;
 
 function easingName(value: unknown): string {
   if (value && typeof value === "object" && "preset" in value && typeof value.preset === "string") {
@@ -231,15 +233,13 @@ function lowConfidenceRisk(
 }
 
 function lowConfidenceBindingRisks(bindingResult: ZeroLayerMotionBindingResult): ZeroLayerDiagnosticRisk[] {
-  return bindingResult.bindings
-    .filter((binding) => binding.confidence < lowConfidenceBindingThreshold)
-    .map((binding) => ({
-      code: "MATCH_LOW_CONFIDENCE",
-      severity: "warning",
-      nodeId: binding.nodeId,
-      relatedNodeIds: [binding.toNodeId],
-      message: `low confidence ${binding.confidence}`
-    }));
+  return bindingResult.bindings.filter(isLowConfidenceZeroLayerBinding).map((binding) => ({
+    code: "MATCH_LOW_CONFIDENCE",
+    severity: "warning",
+    nodeId: binding.nodeId,
+    relatedNodeIds: [binding.toNodeId],
+    message: `low confidence ${binding.confidence}`
+  }));
 }
 
 function motionItems(

@@ -101,7 +101,16 @@ function durationFor(recipeId: ZeroLayerMotionRecipeId, spec: ZeroMotionSpec): n
   if (recipeId === "spring-expand") base = 520;
   const enterExitBonus = Math.min(160, (spec.topology.enterCount + spec.topology.exitCount) * 18);
   const distanceBonus = Math.min(120, spec.deltas.averageMoveDistance * 0.8);
-  return clamp(base + enterExitBonus + distanceBonus, 220, 760);
+  const category = getZeroLayerRecipeManifest(recipeId)?.category;
+  const [minimum, maximum] =
+    category === "state"
+      ? [160, 300]
+      : category === "expand"
+        ? [280, 560]
+        : category === "overlay" || category === "list"
+          ? [220, 650]
+          : [180, 650];
+  return clamp(base + enterExitBonus + distanceBonus, minimum, maximum);
 }
 
 function primaryManifestStrategy(recipeId: ZeroLayerMotionRecipeId): ZeroLayerExpressionStrategyId {
@@ -159,7 +168,7 @@ export function adaptZeroLayerRecipeParameters(
       : level === "strong"
         ? corridorOffsetLimit(spec)
         : clamp(corridorOffsetLimit(spec) * 0.72, 8, 40);
-  const staggerMs = staggerFor(recipeId, spec);
+  const baseStaggerMs = staggerFor(recipeId, spec);
   const durationMs = durationFor(recipeId, spec);
   const easing =
     recipeId === "spring-expand" ||
@@ -215,11 +224,15 @@ export function adaptZeroLayerRecipeParameters(
         : recipeId === "smooth-morph"
           ? "none"
           : "together";
+  const staggerMs =
+    itemStaggerStrategy === "spatial"
+      ? Math.round(baseStaggerMs * (strategyRuntime?.staggerMultiplier ?? 1))
+      : 0;
 
   return {
     durationMs,
     easing,
-    staggerMs: Math.round(staggerMs * (strategyRuntime?.staggerMultiplier ?? 1)),
+    staggerMs,
     maskAxis: isRevealRecipe || isDropdownRecipe ? (verticalReveal ? "y" : axis) : "none",
     offsetPx,
     enterOffsetX: strategyEnterOffset.x,
@@ -245,18 +258,11 @@ export function adaptZeroLayerRecipeParameters(
     primaryExpressionStrategyId: strategyId,
     enterExpressionStrategyId: strategyId,
     manifestIntensity: intensity,
-    summary: `${axis === "x" ? "X 轴" : axis === "y" ? "Y 轴" : "弱几何"} / ${durationMs}ms / 错峰 ${staggerMs}ms / ${level}${
+    summary: `${axis === "x" ? "X 轴" : axis === "y" ? "Y 轴" : "弱几何"} / ${durationMs}ms / 目标错峰 ${staggerMs}ms / ${level}${
       isDropdownRecipe && dropdownLike ? " / 下拉展开" : ""
     }`,
     reasons
   };
-}
-
-function spatialOrder(step: CompositionStep): number {
-  const text = step.layerId ?? step.id;
-  let hash = 0;
-  for (const char of text) hash = (hash + char.charCodeAt(0)) % 97;
-  return hash;
 }
 
 function isEnter(step: CompositionStep): boolean {
@@ -300,17 +306,62 @@ export function applyZeroLayerRecipeAdaptedParameters(
   params: ZeroLayerRecipeAdaptedParameters,
   options: { orderPlan?: ZeroMotionOrderPlan } = {}
 ): CompositionStep[] {
+  const orderItemByLayerId = new Map((options.orderPlan?.items ?? []).map((item) => [item.layerId, item]));
+  const spatialLane = (step: CompositionStep): string | undefined => {
+    const orderItem = step.layerId ? orderItemByLayerId.get(step.layerId) : undefined;
+    if (!orderItem || orderItem.group === "foundation" || orderItem.group === "structure") {
+      return undefined;
+    }
+    const phase = isExit(step) ? "exit" : isEnter(step) ? "enter" : "matched";
+    return `${orderItem.group}:${phase}`;
+  };
+  const laneBaseDelay = new Map<string, number>();
+  const laneEntries = new Map<string, Array<{ stepId: string; order: number; index: number }>>();
+  steps.forEach((step, index) => {
+    const orderItem = step.layerId ? orderItemByLayerId.get(step.layerId) : undefined;
+    const lane = spatialLane(step);
+    if (!orderItem || !lane) return;
+    const authoredDelayMs = step.delayMs ?? orderItem.delayMs;
+    laneBaseDelay.set(lane, Math.min(laneBaseDelay.get(lane) ?? Number.POSITIVE_INFINITY, authoredDelayMs));
+    laneEntries.set(lane, [
+      ...(laneEntries.get(lane) ?? []),
+      { stepId: step.id, order: orderItem.order, index }
+    ]);
+  });
+  const laneRankByStepId = new Map<string, number>();
+  for (const entries of laneEntries.values()) {
+    entries
+      .sort((a, b) => a.order - b.order || a.index - b.index)
+      .forEach((entry, rank) => laneRankByStepId.set(entry.stepId, rank));
+  }
+  const adaptedDelay = (step: CompositionStep, index: number): number => {
+    const orderItem = step.layerId ? orderItemByLayerId.get(step.layerId) : undefined;
+    const authoredDelayMs = step.delayMs ?? orderItem?.delayMs ?? index * 8;
+    const lane = spatialLane(step);
+    if (params.itemStaggerStrategy !== "spatial" || !lane) return authoredDelayMs;
+    return (
+      (laneBaseDelay.get(lane) ?? authoredDelayMs) + (laneRankByStepId.get(step.id) ?? 0) * params.staggerMs
+    );
+  };
+  const baselineAuthoredEndMs = Math.max(
+    1,
+    ...steps.map((step, index) => {
+      const orderItem = step.layerId ? orderItemByLayerId.get(step.layerId) : undefined;
+      return (step.delayMs ?? orderItem?.delayMs ?? index * 8) + step.durationMs;
+    })
+  );
+  const staggeredAuthoredEndMs = Math.max(
+    1,
+    ...steps.map((step, index) => adaptedDelay(step, index) + step.durationMs)
+  );
+  const baselineTimeScale = params.durationMs / baselineAuthoredEndMs;
+  const staggeredTimeScale = params.durationMs / staggeredAuthoredEndMs;
   return steps.map((step, index) => {
-    const orderItem = step.layerId
-      ? options.orderPlan?.items.find((item) => item.layerId === step.layerId)
-      : undefined;
-    const order = orderItem ? orderItem.order : Math.min(index, spatialOrder(step));
-    const spatialDelay = params.itemStaggerStrategy === "spatial" ? order * params.staggerMs : index * 8;
-    const delayMs = step.id.startsWith("zero-layer-match")
-      ? Math.min(orderItem?.delayMs ?? step.delayMs ?? 0, params.staggerMs)
-      : Math.min(orderItem?.delayMs ?? spatialDelay, 280);
-    const durationMs =
-      isEnter(step) || isExit(step) ? Math.max(140, Math.round(params.durationMs * 0.46)) : params.durationMs;
+    const authoredDelayMs = adaptedDelay(step, index);
+    const timeScale =
+      params.itemStaggerStrategy === "spatial" && spatialLane(step) ? staggeredTimeScale : baselineTimeScale;
+    const delayMs = Math.round(authoredDelayMs * timeScale);
+    const durationMs = Math.max(60, Math.round(step.durationMs * timeScale));
     if (isEnter(step)) {
       const hasRecipeGeometry =
         (step.initial?.width != null &&
@@ -360,7 +411,7 @@ export function applyZeroLayerRecipeAdaptedParameters(
       return withTransformOrigin(
         {
           ...step,
-          delayMs: Math.max(0, Math.round(delayMs * 0.45)),
+          delayMs,
           durationMs,
           initial: { ...step.initial, scale: 1, opacity: 1 },
           animate: { ...step.animate, scale: params.scaleFrom, opacity: 0 }

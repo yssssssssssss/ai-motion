@@ -3,12 +3,18 @@ import {
   createSpringEasing,
   type ClassicEasingPreset,
   type CompositionStep,
+  type CompositionTrack,
   type EasingSpec,
   type MotionState
 } from "../schema/document";
 import { computeCompositionStepWindows } from "../composition/evaluateComposition";
 import { layerIdForNode } from "./layerId";
 import { MOTION_PLAN_SCHEMA_VERSION, normalizeMotionPlan } from "./normalizeMotionPlan";
+import { resolveZeroLayerNodeOverride } from "./zeroLayerAppearance";
+import {
+  zeroLayerExpressionStrategyForStep,
+  type ZeroLayerExpressionStop
+} from "./zeroLayerExpressionStrategies";
 import type {
   LayerMotionTrack,
   MotionKeyframe,
@@ -77,6 +83,38 @@ function keyframeFromState(offset: number, state: MotionState | undefined): Moti
   return frame;
 }
 
+function keyframeFromExpressionStop(
+  offset: number,
+  step: CompositionStep,
+  stop: ZeroLayerExpressionStop
+): MotionKeyframe {
+  if (stop.progress <= 0) {
+    const frame = keyframeFromState(offset, step.initial);
+    if (stop.opacity != null) frame.opacity = stop.opacity;
+    return frame;
+  }
+  if (stop.progress >= 1) {
+    const frame = keyframeFromState(offset, step.animate);
+    if (stop.opacity != null) frame.opacity = stop.opacity;
+    return frame;
+  }
+
+  const state: MotionState = {};
+  const keys = ["x", "y", "width", "height", "scale", "rotate", "opacity"] as const;
+  for (const key of keys) {
+    const initial = step.initial?.[key];
+    const animate = step.animate?.[key];
+    if (initial != null && animate != null) {
+      state[key] = initial + (animate - initial) * stop.progress;
+    } else if (initial != null || animate != null) {
+      const value = initial ?? animate;
+      if (value != null) state[key] = value;
+    }
+  }
+  if (stop.opacity != null) state.opacity = stop.opacity;
+  return keyframeFromState(offset, state);
+}
+
 function addKeyframe(frameByOffset: Map<number, MotionKeyframe>, frame: MotionKeyframe): void {
   frameByOffset.set(frame.offset, { ...(frameByOffset.get(frame.offset) ?? {}), ...frame });
 }
@@ -110,10 +148,15 @@ function trackForStepGroup(
   const durationMs = Math.max(0, end - start);
   const keyframes = new Map<number, MotionKeyframe>();
   for (const item of group) {
-    const initialOffset = durationMs === 0 ? 0 : (item.start - start) / durationMs;
-    const animateOffset = durationMs === 0 ? 1 : (item.end - start) / durationMs;
-    addKeyframe(keyframes, keyframeFromState(initialOffset, item.step.initial));
-    addKeyframe(keyframes, keyframeFromState(animateOffset, item.step.animate));
+    const strategy = zeroLayerExpressionStrategyForStep(item.step);
+    for (const stop of strategy.stops) {
+      const localOffset = Math.min(1, Math.max(0, stop.percent / 100));
+      const offset =
+        durationMs === 0
+          ? localOffset
+          : (item.start - start + (item.end - item.start) * localOffset) / durationMs;
+      addKeyframe(keyframes, keyframeFromExpressionStop(offset, item.step, stop));
+    }
   }
   const track: LayerMotionTrack = {
     layerId,
@@ -139,14 +182,15 @@ export function compileMotionPlanFromRecipe(input: CompileMotionPlanFromRecipeIn
   const recipeTracks = [...stepGroups(input.steps)]
     .map(([layerId, group]) => trackForStepGroup(input.source, layerId, group))
     .filter((track): track is LayerMotionTrack => track != null && !userLayerIds.has(track.layerId));
+  const tracks = [...recipeTracks, ...userTracks];
   const stageDurationMs = Math.max(
-    existing.stageDurationMs,
-    ...recipeTracks.map((track) => track.timing.delayMs + track.timing.durationMs)
+    0,
+    ...tracks.map((track) => track.timing.delayMs + track.timing.durationMs)
   );
 
   return normalizeMotionPlan({
     schemaVersion: MOTION_PLAN_SCHEMA_VERSION,
-    tracks: [...recipeTracks, ...userTracks],
+    tracks,
     stageDurationMs
   });
 }
@@ -169,7 +213,7 @@ export function updateMotionPlanTrackFromCompositionSteps(
   const preservedLayerIds = new Set(preservedUserTracks.map((track) => track.layerId));
   return normalizeMotionPlan({
     schemaVersion: MOTION_PLAN_SCHEMA_VERSION,
-    stageDurationMs: Math.max(regenerated.stageDurationMs, existing.stageDurationMs),
+    stageDurationMs: 0,
     tracks: [
       ...regenerated.tracks.filter(
         (track) => track.layerId !== layerId && !preservedLayerIds.has(track.layerId)
@@ -189,6 +233,7 @@ export function patchMotionPlanTrack(
   const plan = normalizeMotionPlan(value);
   return normalizeMotionPlan({
     ...plan,
+    stageDurationMs: 0,
     tracks: plan.tracks.map((track) =>
       track.layerId === layerId
         ? {
@@ -200,6 +245,181 @@ export function patchMotionPlanTrack(
         : track
     )
   });
+}
+
+const geometryKeys = ["x", "y", "width", "height"] as const;
+
+function sourceGeometryForLayer(
+  source: ZeroLayerMorphSource,
+  layerId: string
+): { initial: MotionState; animate: MotionState; exactEndpoints: boolean } | undefined {
+  const binding = source.bindingResult.bindings.find((item) => item.layerId === layerId);
+  if (binding) {
+    const rawFrom = source.from.layers.find((node) => node.nodeId === binding.nodeId);
+    const rawTo = source.to.layers.find((node) => node.nodeId === binding.toNodeId);
+    if (!rawFrom || !rawTo) return undefined;
+    const from = resolveZeroLayerNodeOverride(rawFrom, source.nodeOverrides, "from");
+    const to = resolveZeroLayerNodeOverride(rawTo, source.nodeOverrides, "to");
+    return {
+      initial: { x: 0, y: 0, width: from.bounds.w, height: from.bounds.h },
+      animate: {
+        x: to.bounds.x - from.bounds.x,
+        y: to.bounds.y - from.bounds.y,
+        width: to.bounds.w,
+        height: to.bounds.h
+      },
+      exactEndpoints: true
+    };
+  }
+
+  const enter = source.bindingResult.enter.find((node) => layerIdForNode(node) === layerId);
+  const exit = source.bindingResult.exit.find((node) => layerIdForNode(node) === layerId);
+  const rawNode = enter ?? exit;
+  if (!rawNode) return undefined;
+  const frame = enter ? "to" : "from";
+  const node = resolveZeroLayerNodeOverride(rawNode, source.nodeOverrides, frame);
+  const state = { x: 0, y: 0, width: node.bounds.w, height: node.bounds.h };
+  return { initial: state, animate: state, exactEndpoints: false };
+}
+
+function rebaseGeometryKeyframes(
+  keyframes: MotionKeyframe[],
+  key: (typeof geometryKeys)[number],
+  targetStart: number,
+  targetEnd: number
+): MotionKeyframe[] {
+  const values = keyframes.flatMap((frame) => (frame[key] == null ? [] : [frame[key]]));
+  if (values.length === 0) {
+    return keyframes.map((frame, index) =>
+      index === 0
+        ? { ...frame, [key]: targetStart }
+        : index === keyframes.length - 1
+          ? { ...frame, [key]: targetEnd }
+          : frame
+    );
+  }
+  const oldStart = values[0]!;
+  const oldEnd = values.at(-1)!;
+  const oldSpan = oldEnd - oldStart;
+  const targetSpan = targetEnd - targetStart;
+  return keyframes.map((frame, index) => {
+    if (index === 0) return { ...frame, [key]: targetStart };
+    if (index === keyframes.length - 1) return { ...frame, [key]: targetEnd };
+    const value = frame[key];
+    if (value == null) return frame;
+    if (oldSpan === 0) {
+      const targetBaseline = targetStart + targetSpan * frame.offset;
+      return { ...frame, [key]: targetBaseline + value - oldStart };
+    }
+    const ratio = (value - oldStart) / oldSpan;
+    return { ...frame, [key]: targetStart + targetSpan * ratio };
+  });
+}
+
+/**
+ * A sparse persisted track overrides only the properties it owns. Missing
+ * geometry is recovered from the compatibility composition or Zero source.
+ * Generated matched tracks are rebased when node overrides move their exact
+ * endpoints; user-owned geometry remains the persisted source of truth.
+ */
+export function fillMotionPlanGeometryFromComposition(
+  value: MotionPlan | unknown,
+  composition: CompositionTrack | undefined,
+  source?: ZeroLayerMorphSource
+): MotionPlan {
+  const plan = normalizeMotionPlan(value);
+  const stepByLayerId = new Map(
+    (composition?.steps ?? [])
+      .filter((step): step is CompositionStep & { layerId: string } => Boolean(step.layerId))
+      .map((step) => [step.layerId, step])
+  );
+  if (stepByLayerId.size === 0 && !source) return plan;
+  return normalizeMotionPlan({
+    ...plan,
+    stageDurationMs: 0,
+    tracks: plan.tracks.map((track) => {
+      const step = stepByLayerId.get(track.layerId);
+      const sourceGeometry = source ? sourceGeometryForLayer(source, track.layerId) : undefined;
+      if (!step && !sourceGeometry) return track;
+      let keyframes = track.keyframes;
+      for (const key of geometryKeys) {
+        const ownsGeometry = keyframes.some((frame) => frame[key] != null);
+        const initial = step?.initial?.[key] ?? sourceGeometry?.initial[key];
+        const animate = step?.animate?.[key] ?? sourceGeometry?.animate[key];
+        if (typeof initial !== "number" || typeof animate !== "number") continue;
+        const sourceInitial = sourceGeometry?.initial[key];
+        const sourceAnimate = sourceGeometry?.animate[key];
+        if (
+          sourceGeometry?.exactEndpoints &&
+          typeof sourceInitial === "number" &&
+          typeof sourceAnimate === "number" &&
+          (track.source !== "user" || !ownsGeometry)
+        ) {
+          keyframes = rebaseGeometryKeyframes(keyframes, key, sourceInitial, sourceAnimate);
+          continue;
+        }
+        if (ownsGeometry) continue;
+        keyframes = rebaseGeometryKeyframes(keyframes, key, initial, animate);
+      }
+      return keyframes === track.keyframes ? track : { ...track, keyframes };
+    })
+  });
+}
+
+/**
+ * Completes only missing matched tracks from the compatibility composition.
+ * Persisted tracks remain authoritative; enter/exit stay on their legacy path
+ * because standalone export applies expression stops only to matched layers.
+ */
+export function fillMissingMatchedMotionPlanTracks(
+  value: MotionPlan | unknown,
+  composition: CompositionTrack | undefined,
+  source: ZeroLayerMorphSource
+): MotionPlan {
+  const plan = fillMotionPlanGeometryFromComposition(value, composition, source);
+  if (!composition?.steps.length) return plan;
+  const plannedLayerIds = new Set(plan.tracks.map((track) => track.layerId));
+  const missingMatchedLayerIds = new Set(
+    source.bindingResult.bindings
+      .map((binding) => binding.layerId)
+      .filter((layerId) => !plannedLayerIds.has(layerId))
+  );
+  if (missingMatchedLayerIds.size === 0) return plan;
+  if (!composition.steps.some((step) => step.layerId && missingMatchedLayerIds.has(step.layerId))) {
+    return plan;
+  }
+  const { motionPlan: _motionPlan, ...sourceWithoutPlan } = source;
+  const fallbackPlan = compileMotionPlanFromRecipe({
+    source: sourceWithoutPlan,
+    steps: composition.steps
+  });
+  return fillMotionPlanGeometryFromComposition(
+    {
+      schemaVersion: MOTION_PLAN_SCHEMA_VERSION,
+      stageDurationMs: 0,
+      tracks: [
+        ...plan.tracks,
+        ...fallbackPlan.tracks.filter((track) => missingMatchedLayerIds.has(track.layerId))
+      ]
+    },
+    composition,
+    source
+  );
+}
+
+/** Shared global clock for MotionPlan tracks and any per-layer compatibility fallback. */
+export function motionPlanPlaybackDurationMs(
+  value: MotionPlan | unknown,
+  composition: CompositionTrack | undefined
+): number {
+  const plan = normalizeMotionPlan(value);
+  const compositionEnd = composition
+    ? computeCompositionStepWindows(composition.steps).reduce(
+        (latest, window) => Math.max(latest, window.end),
+        0
+      )
+    : 0;
+  return Math.max(plan.stageDurationMs, compositionEnd);
 }
 
 function stateFromKeyframe(frame: MotionKeyframe): MotionState {
@@ -234,6 +454,9 @@ export function deriveCompositionFromMotionPlan(
   fallbackSteps: CompositionStep[] = []
 ): CompositionStep[] {
   const plan = normalizeMotionPlan(value);
+  const fallbackWindows = new Map(
+    computeCompositionStepWindows(fallbackSteps).map((window) => [window.stepId, window])
+  );
   const fallbackByLayerId = new Map(
     fallbackSteps
       .filter((step): step is CompositionStep & { layerId: string } => Boolean(step.layerId))
@@ -242,32 +465,50 @@ export function deriveCompositionFromMotionPlan(
   const tracks = plan.tracks
     .map((track, index) => ({ track, index }))
     .sort((a, b) => a.track.timing.delayMs - b.track.timing.delayMs || a.index - b.index);
-  let previousStart = 0;
-  const steps = tracks.map(({ track }, index) => {
+  const plannedEntries = tracks.map(({ track }, index) => {
     const fallback = fallbackByLayerId.get(track.layerId);
     const first = track.keyframes[0]!;
     const last = track.keyframes.at(-1)!;
-    const start = track.timing.delayMs;
-    const delayMs = index === 0 ? start : Math.max(0, start - previousStart);
-    previousStart = start;
     return {
-      id: fallback?.id ?? `motion-plan-${index}-${track.layerId}`,
-      presetId: fallback?.presetId ?? "zero-layer-morph",
-      label: fallback?.label ?? "Zero 图层动效",
-      target: fallback?.target ?? "selected-layer",
-      layerId: track.layerId,
-      ...(fallback?.layerName ? { layerName: fallback.layerName } : {}),
-      timing: "parallel" as const,
-      delayMs,
-      durationMs: track.timing.durationMs,
-      slot: fallback?.slot ?? "trajectory",
-      initial: { ...(fallback?.initial ?? {}), ...stateFromKeyframe(first) },
-      animate: { ...(fallback?.animate ?? {}), ...stateFromKeyframe(last) },
-      easing: easingFromPhysics(track.physics),
-      fillMode: fallback?.fillMode ?? "both",
-      ...(fallback?.metadata ? { metadata: fallback.metadata } : {})
-    } as CompositionStep;
+      start: track.timing.delayMs,
+      order: index,
+      step: {
+        id: fallback?.id ?? `motion-plan-${index}-${track.layerId}`,
+        presetId: fallback?.presetId ?? "zero-layer-morph",
+        label: fallback?.label ?? "Zero 图层动效",
+        target: fallback?.target ?? "selected-layer",
+        layerId: track.layerId,
+        ...(fallback?.layerName ? { layerName: fallback.layerName } : {}),
+        timing: "parallel" as const,
+        delayMs: 0,
+        durationMs: track.timing.durationMs,
+        slot: fallback?.slot ?? "trajectory",
+        initial: { ...(fallback?.initial ?? {}), ...stateFromKeyframe(first) },
+        animate: { ...(fallback?.animate ?? {}), ...stateFromKeyframe(last) },
+        easing: easingFromPhysics(track.physics),
+        fillMode: fallback?.fillMode ?? "both",
+        ...(fallback?.metadata ? { metadata: fallback.metadata } : {})
+      } as CompositionStep
+    };
   });
   const plannedLayerIds = new Set(plan.tracks.map((track) => track.layerId));
-  return [...steps, ...fallbackSteps.filter((step) => !step.layerId || !plannedLayerIds.has(step.layerId))];
+  const fallbackEntries = fallbackSteps.flatMap((step, index) => {
+    if (step.layerId && plannedLayerIds.has(step.layerId)) return [];
+    return [
+      {
+        start: fallbackWindows.get(step.id)?.start ?? 0,
+        order: tracks.length + index,
+        step
+      }
+    ];
+  });
+  const entries = [...plannedEntries, ...fallbackEntries].sort(
+    (left, right) => left.start - right.start || left.order - right.order
+  );
+  let previousStart = 0;
+  return entries.map((entry, index) => {
+    const delayMs = index === 0 ? entry.start : Math.max(0, entry.start - previousStart);
+    previousStart = entry.start;
+    return { ...entry.step, timing: "parallel", delayMs };
+  });
 }

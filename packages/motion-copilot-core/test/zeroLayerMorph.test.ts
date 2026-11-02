@@ -25,6 +25,7 @@ import {
   parseZeroLayerFrameRole,
   applyZeroLayerMotionRecipe,
   recommendZeroLayerRecipes,
+  recommendZeroLayerRecipesForSource,
   getZeroLayerRecipeManifest,
   validateZeroLayerRecipeManifestRegistry,
   zeroLayerExpressionStrategyForStep,
@@ -220,7 +221,7 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(html).toContain('data-zero-layer-id="pill"');
     expect(html).toContain("border-radius:999px");
     expect(html).toContain("background:#f3f3f3");
-    expect(html).toContain("@keyframes mc-zero-layer-match");
+    expect(html).toContain("@keyframes mc-zero-layer-plan-");
     expect(html).not.toContain("mc-zero-from");
   });
 
@@ -610,6 +611,179 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(params.summary).toContain("Y 轴");
   });
 
+  it("uses the adapted spatial stagger to change the persisted track spread", () => {
+    const from = makeDropdownLayerSnapshot("from");
+    const to = makeDropdownLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+    const params = adaptZeroLayerRecipeParameters(spec, "content-stagger");
+    const spread = (staggerMs: number): number => {
+      const result = applyZeroLayerMotionRecipe(source, "content-stagger", {
+        spec,
+        adaptedParameters: { ...params, staggerMs }
+      });
+      if (result.document.visualSource?.kind !== "zero-layer-morph") throw new Error("missing source");
+      const delays =
+        result.document.visualSource.motionPlan?.tracks
+          .filter((track) => track.kind === "enter")
+          .map((track) => track.timing.delayMs) ?? [];
+      return Math.max(...delays) - Math.min(...delays);
+    };
+
+    expect(params.itemStaggerStrategy).toBe("spatial");
+    expect(params.summary).toContain("目标错峰");
+    expect(spread(64)).toBeGreaterThan(spread(12));
+  });
+
+  it("keeps foundation and structure timing stable while spatial stagger changes content", () => {
+    const from = makeDropdownLayerSnapshot("from");
+    const to = makeDropdownLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+    const params = adaptZeroLayerRecipeParameters(spec, "content-stagger");
+    const stableTimings = (staggerMs: number) => {
+      const result = applyZeroLayerMotionRecipe(source, "content-stagger", {
+        spec,
+        adaptedParameters: { ...params, staggerMs }
+      });
+      if (result.document.visualSource?.kind !== "zero-layer-morph") throw new Error("missing source");
+      const orderPlan = createZeroMotionOrderPlan(source, result.steps, spec);
+      const stableLayerIds = new Set(
+        orderPlan.items
+          .filter((item) => item.group === "foundation" || item.group === "structure")
+          .map((item) => item.layerId)
+      );
+      return Object.fromEntries(
+        (result.document.visualSource.motionPlan?.tracks ?? [])
+          .filter((track) => stableLayerIds.has(track.layerId))
+          .map((track) => [
+            track.layerId,
+            { delayMs: track.timing.delayMs, durationMs: track.timing.durationMs }
+          ])
+      );
+    };
+
+    const compact = stableTimings(12);
+    const spacious = stableTimings(64);
+
+    expect(Object.keys(compact).length).toBeGreaterThan(0);
+    expect(spacious).toEqual(compact);
+  });
+
+  it("keeps structural exits ahead of matched and entering layers regardless of spatial order", () => {
+    const root = {
+      nodeId: "root",
+      name: "根容器",
+      kind: "frame" as const,
+      bounds: { x: 0, y: 0, w: 200, h: 200 },
+      opacity: 1,
+      visible: true
+    };
+    const matchedFrom = {
+      nodeId: "copy",
+      parentId: "root",
+      name: "正文文字",
+      kind: "text" as const,
+      bounds: { x: 20, y: 50, w: 80, h: 20 },
+      opacity: 1,
+      visible: true,
+      text: "before"
+    };
+    const matchedTo = { ...matchedFrom, text: "after" };
+    const exiting = {
+      nodeId: "old-panel",
+      parentId: "root",
+      name: "旧面板",
+      kind: "rect" as const,
+      bounds: { x: 20, y: 100, w: 160, h: 30 },
+      opacity: 1,
+      visible: true,
+      fills: [{ type: "solid" as const, color: "#ffffff" }]
+    };
+    const entering = {
+      ...exiting,
+      nodeId: "new-panel",
+      name: "新面板",
+      bounds: { ...exiting.bounds, y: 0 }
+    };
+    const from = normalizeZeroLayerSnapshot({
+      schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
+      frameId: "root",
+      nodeId: "root",
+      name: "from",
+      width: 200,
+      height: 200,
+      screenshotUrl: "data:image/png;base64,FROM",
+      assets: [],
+      layers: [root, matchedFrom, exiting]
+    });
+    const to = normalizeZeroLayerSnapshot({
+      schemaVersion: "motion-copilot.zero-layer-snapshot.v1",
+      frameId: "root",
+      nodeId: "root",
+      name: "to",
+      width: 200,
+      height: 200,
+      screenshotUrl: "data:image/png;base64,TO",
+      assets: [],
+      layers: [root, matchedTo, entering]
+    });
+    const source = {
+      kind: "zero-layer-morph" as const,
+      from,
+      to,
+      bindingResult: {
+        bindings: [
+          {
+            layerId: "zero-layer-root",
+            nodeId: "root",
+            toNodeId: "root",
+            fromBounds: root.bounds,
+            toBounds: root.bounds,
+            confidence: 100,
+            reasons: ["same-node"]
+          },
+          {
+            layerId: "zero-layer-copy",
+            nodeId: "copy",
+            toNodeId: "copy",
+            fromBounds: matchedFrom.bounds,
+            toBounds: matchedTo.bounds,
+            confidence: 100,
+            reasons: ["same-node"]
+          }
+        ],
+        enter: [entering],
+        exit: [exiting],
+        unresolved: []
+      }
+    };
+    const spec = buildZeroMotionSpec(source);
+    const params = adaptZeroLayerRecipeParameters(spec, "content-stagger");
+    const result = applyZeroLayerMotionRecipe(source, "content-stagger", {
+      spec,
+      adaptedParameters: { ...params, staggerMs: 64 }
+    });
+    if (result.document.visualSource?.kind !== "zero-layer-morph") throw new Error("missing source");
+    const orderPlan = createZeroMotionOrderPlan(source, result.steps, spec);
+    const trackByLayerId = new Map(
+      (result.document.visualSource.motionPlan?.tracks ?? []).map((track) => [track.layerId, track])
+    );
+    const exitStep = result.steps.find((step) => step.id.startsWith("zero-layer-exit"));
+    const matchedStep = result.steps.find((step) => step.layerId === "zero-layer-copy");
+    const enterStep = result.steps.find((step) => step.id.startsWith("zero-layer-enter"));
+    const delayFor = (layerId: string | undefined) =>
+      layerId ? (trackByLayerId.get(layerId)?.timing.delayMs ?? Number.POSITIVE_INFINITY) : Infinity;
+
+    expect(orderPlan.groups.structure.map((item) => item.layerId)).toEqual(
+      expect.arrayContaining([exitStep?.layerId, matchedStep?.layerId, enterStep?.layerId])
+    );
+    expect(delayFor(exitStep?.layerId)).toBeLessThanOrEqual(delayFor(matchedStep?.layerId));
+    expect(delayFor(matchedStep?.layerId)).toBeLessThanOrEqual(delayFor(enterStep?.layerId));
+  });
+
   it("keeps subtle state-change recipe parameters shorter and restrained", () => {
     const from = makeLayerSnapshot("from");
     const to = normalizeZeroLayerSnapshot({
@@ -854,6 +1028,14 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(result.document.visualSource?.kind).toBe("zero-layer-morph");
     if (result.document.visualSource?.kind !== "zero-layer-morph") return;
     expect(result.document.visualSource.optimizerReport?.applied).toHaveLength(1);
+    expect(result.document.visualSource.bindingResult.bindings).toHaveLength(0);
+    expect(result.document.visualSource.motionPlan?.tracks.map((track) => track.kind).sort()).toEqual([
+      "enter",
+      "exit"
+    ]);
+    expect(new Set(result.document.visualSource.motionPlan?.tracks.map((track) => track.layerId))).toEqual(
+      new Set(result.steps.map((step) => step.layerId))
+    );
   });
 
   it("applies deterministic Zero native motion recipes with distinct motion choices", () => {
@@ -926,9 +1108,9 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(
       spring.steps
         .filter((step) => step.id.startsWith("zero-layer-match"))
-        .every((step) => step.easing?.type === "classic")
+        .some((step) => step.easing?.type === "spring")
     ).toBe(true);
-    expect(spring.steps.some((step) => step.label === "弹性主容器" && step.easing?.type === "classic")).toBe(
+    expect(spring.steps.some((step) => step.label === "弹性主容器" && step.easing?.type === "spring")).toBe(
       true
     );
     expect(status.steps.filter((step) => step.label.includes("文字"))).toEqual(
@@ -941,6 +1123,81 @@ describe("ZeroLayerSnapshot morph", () => {
     );
     expect(status.document.visualSource?.kind).toBe("zero-layer-morph");
     expect(status.document.composition?.steps).toHaveLength(status.steps.length);
+  });
+
+  it("uses the spec dominant layer instead of the root frame as the recipe main layer", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+    const rootBinding = bindingResult.bindings.find((binding) => binding.nodeId === from.nodeId);
+    const result = applyZeroLayerMotionRecipe(source, "spring-expand", { spec });
+    const mainStep = result.steps.find((step) => step.label === "弹性主容器");
+
+    expect(spec.topology.dominantLayerId).toBeDefined();
+    expect(spec.topology.dominantLayerId).not.toBe(rootBinding?.layerId);
+    expect(mainStep?.layerId).toBe(spec.topology.dominantLayerId);
+  });
+
+  it("keeps recipe timing hierarchy inside the category motion budget", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+
+    for (const recipe of zeroLayerMotionRecipes) {
+      const result = applyZeroLayerMotionRecipe(source, recipe.id, { spec });
+      const durationMs = result.document.composition?.totalDurationMs ?? 0;
+      if (recipe.category === "state") expect(durationMs).toBeGreaterThanOrEqual(160);
+      if (recipe.category === "state") expect(durationMs).toBeLessThanOrEqual(300);
+      if (recipe.category === "expand") expect(durationMs).toBeGreaterThanOrEqual(280);
+      if (recipe.category === "expand") expect(durationMs).toBeLessThanOrEqual(560);
+      if (recipe.category === "overlay" || recipe.category === "list") {
+        expect(durationMs).toBeLessThanOrEqual(650);
+      }
+      if (result.document.visualSource?.kind !== "zero-layer-morph") throw new Error("missing source");
+      expect(result.document.visualSource.motionPlan?.stageDurationMs).toBe(durationMs);
+    }
+
+    const container = applyZeroLayerMotionRecipe(source, "container-first", { spec });
+    if (container.document.visualSource?.kind !== "zero-layer-morph") throw new Error("missing source");
+    const durations = container.document.visualSource.motionPlan?.tracks.map(
+      (track) => track.timing.durationMs
+    );
+    expect(new Set(durations).size).toBeGreaterThan(1);
+  });
+
+  it("ignores root and transparent layers when recipe main-layer selection has no spec", () => {
+    const baseFrom = makeLayerSnapshot("from");
+    const baseTo = makeLayerSnapshot("to");
+    const makeBackgroundTransparent = (snapshot: ZeroLayerSnapshot): ZeroLayerSnapshot =>
+      normalizeZeroLayerSnapshot({
+        ...snapshot,
+        layers: snapshot.layers.map((layer) =>
+          layer.nodeId === "bg"
+            ? {
+                ...layer,
+                fills: [{ type: "solid" as const, color: "#ffffff", opacity: 0 }]
+              }
+            : layer
+        )
+      });
+    const from = makeBackgroundTransparent(baseFrom);
+    const to = makeBackgroundTransparent(baseTo);
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const pillBinding = bindingResult.bindings.find((binding) => binding.nodeId === "pill");
+    const result = applyZeroLayerMotionRecipe(source, "spring-expand");
+    const resultWithSpec = applyZeroLayerMotionRecipe(source, "spring-expand", {
+      spec: buildZeroMotionSpec(source)
+    });
+    const mainStep = result.steps.find((step) => step.label === "弹性主容器");
+    const mainStepWithSpec = resultWithSpec.steps.find((step) => step.label === "弹性主容器");
+
+    expect(mainStep?.layerId).toBe(pillBinding?.layerId);
+    expect(mainStepWithSpec?.layerId).toBe(pillBinding?.layerId);
   });
 
   it("keeps Zero native recipe manifests complete and safe", () => {
@@ -989,6 +1246,33 @@ describe("ZeroLayerSnapshot morph", () => {
       expect(recipe.samples).toHaveLength(5);
       expect(recipe.samples.at(-1)?.progress).toBe(1);
     }
+  });
+
+  it("samples overridden matched geometry against the same effective tail frame as preview and export", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const pillBinding = bindingResult.bindings.find((binding) => binding.nodeId === "pill");
+    if (!pillBinding) throw new Error("missing pill binding");
+    const report = createZeroLayerRecipeSampleReport(
+      {
+        kind: "zero-layer-morph",
+        from,
+        to,
+        bindingResult,
+        nodeOverrides: [
+          { frame: "from", nodeId: pillBinding.nodeId, x: 20, width: 80 },
+          { frame: "to", nodeId: pillBinding.toNodeId, x: 100, width: 120 }
+        ]
+      },
+      { recipeIds: ["smooth-morph"], samplePoints: [0, 1] }
+    );
+    const tail = report.recipes[0]?.samples
+      .at(-1)
+      ?.steps.find((step) => step.layerId === pillBinding.layerId);
+
+    expect(tail?.bounds).toMatchObject({ x: 100, w: 120 });
+    expect(report.risks.some((risk) => risk.code === "TAIL_FRAME_MISMATCH")).toBe(false);
   });
 
   it("recommends visibly different recipes for dropdown reveal scenes", () => {
@@ -1064,6 +1348,262 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(salience.schemaVersion).toBe("motion-copilot.zero-motion-salience.v1");
     expect(salience.score).toBeGreaterThan(0);
     expect(advice.actions.length).toBeGreaterThan(0);
+  });
+
+  it("measures MotionPlan intermediate opacity instead of only its endpoints", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+    const result = applyZeroLayerMotionRecipe(source, "status-switch", { spec });
+    if (result.document.visualSource?.kind !== "zero-layer-morph") throw new Error("missing source");
+    if (!result.document.visualSource.motionPlan) throw new Error("missing MotionPlan");
+    const report = evaluateZeroMotionSalience({
+      spec,
+      motionPlan: result.document.visualSource.motionPlan
+    });
+
+    expect(report.factors.opacityDelta).toBeGreaterThan(0);
+  });
+
+  it("measures stagger as relative track spread instead of absolute scene delay", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const source = {
+      kind: "zero-layer-morph" as const,
+      from,
+      to,
+      bindingResult: compileZeroLayerMotionBindings(from, to)
+    };
+    const spec = buildZeroMotionSpec(source);
+    const track = {
+      nodeId: "pill",
+      kind: "morph" as const,
+      source: "rule" as const,
+      timing: { delayMs: 120, durationMs: 200 },
+      keyframes: [
+        { offset: 0, opacity: 0 },
+        { offset: 1, opacity: 1 }
+      ]
+    };
+    const aligned = evaluateZeroMotionSalience({
+      spec,
+      motionPlan: {
+        schemaVersion: "motion-copilot.motion-plan.v1",
+        stageDurationMs: 320,
+        tracks: [
+          { ...track, layerId: "one" },
+          { ...track, layerId: "two" }
+        ]
+      }
+    });
+    const staggered = evaluateZeroMotionSalience({
+      spec,
+      motionPlan: {
+        schemaVersion: "motion-copilot.motion-plan.v1",
+        stageDurationMs: 392,
+        tracks: [
+          { ...track, layerId: "one" },
+          { ...track, layerId: "two", timing: { ...track.timing, delayMs: 192 } }
+        ]
+      }
+    });
+
+    expect(aligned.factors.stagger).toBe(0);
+    expect(staggered.factors.stagger).toBe(100);
+  });
+
+  it("restricts source-aware recommendations to safe fallbacks for low-confidence sources", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const compiledBindings = compileZeroLayerMotionBindings(from, to);
+    const lowConfidenceBinding = compiledBindings.bindings.find((binding) => binding.nodeId !== from.nodeId);
+    if (!lowConfidenceBinding) throw new Error("missing non-root binding");
+    const bindingResult = {
+      ...compiledBindings,
+      bindings: compiledBindings.bindings.map((binding) =>
+        binding.layerId === lowConfidenceBinding.layerId ? { ...binding, confidence: 60 } : binding
+      )
+    };
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const spec = buildZeroMotionSpec(source);
+    const recommendation = recommendZeroLayerRecipesForSource(source, spec);
+    const result = applyZeroLayerMotionRecipe(source, recommendation.selectedRecipeId!, { spec });
+
+    expect(recommendation.candidates.map((candidate) => candidate.recipeId)).toEqual(["smooth-morph"]);
+    expect(
+      recommendation.candidates.every(
+        (candidate) =>
+          zeroLayerRecipeManifests.find((manifest) => manifest.id === candidate.recipeId)?.capabilities
+            .safeFallback
+      )
+    ).toBe(true);
+    expect(
+      result.bindingResult.bindings.some((binding) => binding.layerId === lowConfidenceBinding.layerId)
+    ).toBe(false);
+    expect(result.bindingResult.exit.some((node) => node.nodeId === lowConfidenceBinding.nodeId)).toBe(true);
+    expect(result.bindingResult.enter.some((node) => node.nodeId === lowConfidenceBinding.toNodeId)).toBe(
+      true
+    );
+  });
+
+  it("recalls a safe fallback when a degraded source has none in the relevance top eight", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const diagnosticReport = createZeroLayerDiagnosticReport({ from, to, bindingResult });
+    const degradedSource = {
+      ...source,
+      diagnosticReport: {
+        ...diagnosticReport,
+        gate: {
+          ...diagnosticReport.gate,
+          status: "degraded" as const,
+          pass: false,
+          strategy: "safe-fade-unmatched" as const
+        }
+      }
+    };
+    const recommendation = recommendZeroLayerRecipesForSource(degradedSource, buildZeroMotionSpec(source));
+
+    expect(recommendation.candidates.map((candidate) => candidate.recipeId)).toEqual(["smooth-morph"]);
+  });
+
+  it("returns no native recommendation for blocked or screenshot-only diagnostic gates", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const diagnosticReport = createZeroLayerDiagnosticReport({ from, to, bindingResult });
+    const spec = buildZeroMotionSpec(source);
+
+    for (const gate of [
+      { status: "blocked" as const, strategy: "native-layer-morph" as const },
+      { status: "degraded" as const, strategy: "manual-fix-required" as const },
+      { status: "degraded" as const, strategy: "screenshot-fallback" as const }
+    ]) {
+      const recommendation = recommendZeroLayerRecipesForSource(
+        {
+          ...source,
+          diagnosticReport: {
+            ...diagnosticReport,
+            gate: { ...diagnosticReport.gate, ...gate, pass: false }
+          }
+        },
+        spec
+      );
+      expect(recommendation.candidates).toEqual([]);
+      expect(recommendation.selectedRecipeId).toBeUndefined();
+    }
+  });
+
+  it("rejects manual recipe application when the diagnostic gate forbids native motion", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const diagnosticReport = createZeroLayerDiagnosticReport({ from, to, bindingResult });
+
+    for (const gate of [
+      { status: "blocked" as const, strategy: "manual-fix-required" as const },
+      { status: "degraded" as const, strategy: "screenshot-fallback" as const }
+    ]) {
+      const source = {
+        kind: "zero-layer-morph" as const,
+        from,
+        to,
+        bindingResult,
+        diagnosticReport: {
+          ...diagnosticReport,
+          gate: { ...diagnosticReport.gate, ...gate, pass: false }
+        }
+      };
+
+      expect(() => applyZeroLayerMotionRecipe(source, "smooth-morph")).toThrow(
+        `Zero 原生图层动效已被质量门禁阻止（${gate.strategy}）`
+      );
+    }
+
+    const legacyReport = {
+      ...diagnosticReport,
+      risks: [
+        ...diagnosticReport.risks,
+        {
+          code: "COORDINATE_NORMALIZATION" as const,
+          severity: "error" as const,
+          message: "Legacy report retained an invalid geometry risk."
+        }
+      ]
+    };
+    delete (legacyReport as { gate?: unknown }).gate;
+    const legacySource = {
+      kind: "zero-layer-morph" as const,
+      from,
+      to,
+      bindingResult,
+      diagnosticReport: legacyReport as typeof diagnosticReport
+    };
+
+    expect(() => applyZeroLayerMotionRecipe(legacySource, "smooth-morph")).toThrow(
+      "Zero 原生图层动效已被质量门禁阻止（manual-fix-required）"
+    );
+    expect(
+      recommendZeroLayerRecipesForSource(legacySource, buildZeroMotionSpec(legacySource)).candidates
+    ).toEqual([]);
+  });
+
+  it("does not recommend recipes that compile to an empty trajectory", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const source = {
+      kind: "zero-layer-morph" as const,
+      from,
+      to,
+      bindingResult: { bindings: [], enter: [], exit: [], unresolved: [] }
+    };
+    const spec = buildZeroMotionSpec(source);
+    const relevance = recommendZeroLayerRecipes(spec, { limit: 8 });
+    const recommendation = recommendZeroLayerRecipesForSource(source, spec);
+
+    expect(relevance.candidates.length).toBeGreaterThan(1);
+    expect(recommendation.candidates).toEqual([]);
+    expect(recommendation.selectedRecipeId).toBeUndefined();
+  });
+
+  it("does not recommend motion whose compiled tracks have no visible painted area", () => {
+    const originalFrom = makeLayerSnapshot("from");
+    const originalTo = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(originalFrom, originalTo);
+    const hidePaint = (snapshot: ZeroLayerSnapshot): ZeroLayerSnapshot => ({
+      ...snapshot,
+      layers: snapshot.layers.map((node) => ({ ...node, opacity: 0 }))
+    });
+    const source = {
+      kind: "zero-layer-morph" as const,
+      from: hidePaint(originalFrom),
+      to: hidePaint(originalTo),
+      bindingResult
+    };
+    const recommendation = recommendZeroLayerRecipesForSource(source, buildZeroMotionSpec(source));
+
+    expect(recommendation.candidates).toEqual([]);
+    expect(recommendation.selectedRecipeId).toBeUndefined();
+  });
+
+  it("selects multiple motion families when a source has visibly distinct compiled trajectories", () => {
+    const from = makeLayerSnapshot("from");
+    const to = makeLayerSnapshot("to");
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const source = { kind: "zero-layer-morph" as const, from, to, bindingResult };
+    const recommendation = recommendZeroLayerRecipesForSource(source, buildZeroMotionSpec(source));
+    const families = recommendation.candidates.map((candidate) => {
+      const manifest = zeroLayerRecipeManifests.find((item) => item.id === candidate.recipeId);
+      return `${manifest?.category}/${manifest?.intent}`;
+    });
+
+    expect(recommendation.candidates.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(families).size).toBeGreaterThanOrEqual(2);
   });
 
   it("classifies vertical expansion and list reorder scenes from Zero layer topology", () => {
@@ -1338,7 +1878,7 @@ describe("ZeroLayerSnapshot morph", () => {
 
     for (const recipe of zeroLayerMotionRecipes) {
       const result = applyZeroLayerMotionRecipe(source, recipe.id);
-      for (const binding of bindingResult.bindings) {
+      for (const binding of result.bindingResult.bindings) {
         const step = result.steps.find((item) => item.layerId === binding.layerId);
         expect(step?.animate).toMatchObject({
           x: binding.toBounds.x - binding.fromBounds.x,
@@ -1381,7 +1921,7 @@ describe("ZeroLayerSnapshot morph", () => {
 
     for (const recipe of zeroLayerMotionRecipes) {
       const result = applyZeroLayerMotionRecipe(source, recipe.id);
-      for (const binding of bindingResult.bindings) {
+      for (const binding of result.bindingResult.bindings) {
         const step = result.steps.find((item) => item.layerId === binding.layerId);
         if (!step) throw new Error(`missing step for ${binding.layerId}`);
         const minX = Math.min(0, binding.toBounds.x - binding.fromBounds.x);
@@ -1411,7 +1951,8 @@ describe("ZeroLayerSnapshot morph", () => {
         expect(step.animate?.height ?? binding.toBounds.h).toBeLessThanOrEqual(maxHeight);
         expect(step.initial?.scale ?? 1).toBe(1);
         expect(step.animate?.scale ?? 1).toBe(1);
-        expect(step.easing?.type).toBe("classic");
+        expect(["classic", "spring"]).toContain(step.easing?.type);
+        if (step.easing?.type === "spring") expect(recipe.id).toBe("spring-expand");
       }
     }
   }, 15_000);
@@ -1458,9 +1999,10 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(statusHtml).not.toContain(
       '.mc-zero-layer-to [data-zero-layer-id="28:12"]{display:none!important;}'
     );
-    expect(statusHtml).toContain("@keyframes mc-zero-layer-tail-5-28-12");
+    expect(statusHtml).toContain("@keyframes mc-zero-layer-skin-");
+    expect(statusHtml).toContain('data-zero-layer-skin="single"');
     expect(springHtml).not.toBe(statusHtml);
-    expect(containerHtml).toContain("58%");
+    expect(containerHtml).toContain("zero-layer-expression:staged-container");
     expect(replaceHtml).toContain("42%");
     expect(replaceHtml).toContain("74%");
     expect(containerHtml).not.toBe(replaceHtml);
@@ -1822,10 +2364,8 @@ describe("ZeroLayerSnapshot morph", () => {
     expect(payload.diagnosticReport.schemaVersion).toBe("motion-copilot.zero-layer-diagnostic.v1");
     expect(payload.spec.schemaVersion).toBe("motion-copilot.zero-motion-spec.v1");
     expect(payload.spec.scene.type).toBe("horizontal-expand");
-    expect(payload.recommendation.selectedRecipeId).toBe("container-first");
-    expect(payload.recommendation.candidates.map((item) => item.recipeId)).toEqual(
-      expect.arrayContaining(["container-first", "axis-expand", "card-expand-reveal"])
-    );
+    expect(payload.recommendation.selectedRecipeId).toBe("smooth-morph");
+    expect(payload.recommendation.candidates.map((item) => item.recipeId)).toEqual(["smooth-morph"]);
     expect(payload.salience.schemaVersion).toBe("motion-copilot.zero-motion-salience.v1");
     expect(payload.repairAdvice.schemaVersion).toBe("motion-copilot.zero-motion-repair-advice.v1");
     expect(payload.repairAdvice.actions.length).toBeGreaterThan(0);
@@ -1850,7 +2390,7 @@ describe("ZeroLayerSnapshot morph", () => {
     );
 
     expect(output).toContain("Expression Strategies:");
-    expect(output).toContain("staged-container");
+    expect(output).toContain("subtle-snap");
   }, 15_000);
 
   it("runs the Zero layer recipe sampling harness command against fixtures", () => {

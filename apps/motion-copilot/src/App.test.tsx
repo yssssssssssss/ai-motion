@@ -11,6 +11,7 @@ import {
   buildZeroMotionSpec,
   compileZeroLayerMotionBindings,
   createDefaultDocument,
+  createZeroLayerDiagnosticReport,
   normalizeZeroLayerSnapshot,
   type CompositionStep,
   type MotionDocument,
@@ -1525,7 +1526,7 @@ describe("Motion Copilot app", () => {
 
     await clickButtonAsync("生成首尾帧动效");
 
-    await waitFor(() => expect(app.textContent).toContain("容器优先形变"));
+    await waitFor(() => expect(app.textContent).toContain("丝滑形变"));
     expect(app.textContent).toContain("Zero 原生图层");
     expect(app.textContent).toContain("来源：real-zero-mcp-http");
     expect(app.textContent).toContain("首帧：信息收起状态");
@@ -1611,6 +1612,11 @@ describe("Motion Copilot app", () => {
     await waitFor(() => expect(app.textContent).toContain("自动优化"));
     expect(app.textContent).toContain("DOWNGRADE_LOW_CONFIDENCE_TO_FADE");
     await waitFor(() => {
+      const cards = document.querySelectorAll<HTMLButtonElement>(".zero-layer-recommendation-card");
+      expect(cards).toHaveLength(1);
+      expect(cards[0]?.getAttribute("aria-label")).toContain("丝滑形变");
+    });
+    await waitFor(() => {
       const source = savedWorkspace().document.visualSource;
       expect(source?.kind).toBe("zero-layer-morph");
       if (source?.kind !== "zero-layer-morph") return;
@@ -1648,10 +1654,12 @@ describe("Motion Copilot app", () => {
     await clickButtonAsync("生成首尾帧动效");
 
     await waitFor(() => {
-      expect(savedWorkspace().compositionSteps?.some((step) => step.label === "容器优先形变")).toBe(true);
+      expect(savedWorkspace().compositionSteps?.some((step) => step.label === "丝滑形变")).toBe(true);
     });
     expect(
-      document.querySelector<HTMLButtonElement>('button[aria-label="容器优先"]')?.getAttribute("aria-pressed")
+      document
+        .querySelector<HTMLButtonElement>('button[aria-label="应用推荐动效 丝滑形变"]')
+        ?.getAttribute("aria-pressed")
     ).toBe("true");
     expect(app.textContent).toContain("智能推荐");
     expect(app.textContent).toContain("horizontal-expand");
@@ -1676,18 +1684,8 @@ describe("Motion Copilot app", () => {
     const smartCards = Array.from(
       document.querySelectorAll<HTMLButtonElement>(".zero-layer-recommendation-card")
     );
-    expect(smartCards.length).toBeGreaterThan(1);
+    expect(smartCards).toHaveLength(1);
     expect(smartCards[0]?.getAttribute("aria-pressed")).toBe("true");
-    act(() => {
-      smartCards[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    await waitFor(() => {
-      const nextSmartCards = Array.from(
-        document.querySelectorAll<HTMLButtonElement>(".zero-layer-recommendation-card")
-      );
-      expect(nextSmartCards[0]?.getAttribute("aria-pressed")).toBe("false");
-      expect(nextSmartCards[1]?.getAttribute("aria-pressed")).toBe("true");
-    });
 
     clickButton("展开");
     expect(app.textContent).toContain("弹性展开");
@@ -1705,7 +1703,7 @@ describe("Motion Copilot app", () => {
       expect(
         workspace.compositionSteps
           ?.filter((step) => step.id.startsWith("zero-layer-match"))
-          .every((step) => step.easing?.type === "classic" && step.initial?.scale === 1)
+          .some((step) => step.easing?.type === "spring" && step.initial?.scale === 1)
       ).toBe(true);
     });
     const springSignature = compositionSignature(savedWorkspace().compositionSteps);
@@ -1742,6 +1740,57 @@ describe("Motion Copilot app", () => {
     expect(
       document.querySelector<HTMLButtonElement>('button[aria-label="状态切换"]')?.getAttribute("aria-pressed")
     ).toBe("true");
+  });
+
+  it("disables manual Zero recipes when the saved source fails the native-motion gate", () => {
+    const from = normalizeZeroLayerSnapshot(layerFixture("28:19"));
+    const to = normalizeZeroLayerSnapshot(layerFixture("28:2"));
+    const bindingResult = compileZeroLayerMotionBindings(from, to);
+    const result = applyZeroLayerMotionRecipe(
+      { kind: "zero-layer-morph", from, to, bindingResult },
+      "smooth-morph"
+    );
+    const source = result.document.visualSource;
+    if (!source || source.kind !== "zero-layer-morph") throw new Error("expected Zero layer source");
+    const diagnosticReport = createZeroLayerDiagnosticReport({
+      from,
+      to,
+      bindingResult: source.bindingResult
+    });
+    source.diagnosticReport = {
+      ...diagnosticReport,
+      gate: {
+        ...diagnosticReport.gate,
+        status: "blocked",
+        pass: false,
+        strategy: "manual-fix-required",
+        summary: "请先修复无效的源图层几何。"
+      }
+    };
+    globalThis.localStorage?.setItem("mc-onboarded", "1");
+    globalThis.localStorage?.setItem(
+      "motion-copilot-workspace",
+      JSON.stringify({
+        schemaVersion: "0.2",
+        document: result.document,
+        compositionSteps: result.steps,
+        hasStarted: true,
+        prompt: "首尾帧动效",
+        presetTarget: "selected-layer"
+      })
+    );
+
+    const app = renderApp();
+    clickButton("帧间动效");
+
+    const recipeButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".zero-layer-recipe-button")
+    );
+    expect(recipeButtons.length).toBeGreaterThan(0);
+    expect(recipeButtons.every((button) => button.disabled)).toBe(true);
+    expect(app.textContent).toContain("Zero 原生图层动效已被质量门禁阻止");
+    expect(app.textContent).toContain("manual-fix-required");
+    expect(document.querySelector(".zero-layer-recipe-sample-panel")).toBeFalsy();
   });
 
   it("renders Zero native recipe geometry in the live preview instead of opacity-only fades", () => {
@@ -1982,7 +2031,7 @@ describe("Motion Copilot app", () => {
         document.querySelector<HTMLInputElement>('input[aria-label="Zero 图层尾帧 nodeId"]')?.value
       ).toBe("28:2");
     });
-    await waitFor(() => expect(app.textContent).toContain("容器优先形变"));
+    await waitFor(() => expect(app.textContent).toContain("丝滑形变"));
     expect(app.textContent).toContain("首帧：信息收起状态");
     expect(app.textContent).toContain("尾帧：信息展开状态");
     await waitFor(() => expect(globalThis.localStorage?.getItem("motion-copilot-workspace")).toBeTruthy());
@@ -2083,7 +2132,7 @@ describe("Motion Copilot app", () => {
     expect(inspectorText).not.toContain("画布与素材");
     expect(inspectorText).not.toContain("内容与动效");
     expect(inspectorText).not.toContain("图层圆角");
-    expect(app.textContent).toContain("容器优先形变");
+    expect(app.textContent).toContain("丝滑形变");
   });
 
   it("edits the Zero layer selected from the main canvas", async () => {

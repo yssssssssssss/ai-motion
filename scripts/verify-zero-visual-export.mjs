@@ -2,10 +2,10 @@
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -52,6 +52,27 @@ function requireString(args, name) {
     throw new Error(`Missing --${name}`);
   }
   return value.trim();
+}
+
+function checkpointFileName(progress) {
+  return `${Math.round(progress * 100)}.png`;
+}
+
+function parseCheckpoints(args) {
+  const raw = args.checkpoints ?? args.progresses ?? "0,0.25,0.5,0.75,1";
+  const values = String(raw)
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isFinite(value) && value >= 0 && value <= 1);
+  if (args["mid-progress"] != null) {
+    const midpoint = Number(args["mid-progress"]);
+    if (Number.isFinite(midpoint) && midpoint > 0 && midpoint < 1) values.push(midpoint);
+  }
+  const checkpoints = [...new Set(values)].sort((left, right) => left - right);
+  if (checkpoints[0] !== 0 || checkpoints.at(-1) !== 1) {
+    throw new Error("--checkpoints must include both 0 and 1 so the endpoint pixel gate remains active.");
+  }
+  return checkpoints;
 }
 
 async function getFreePort() {
@@ -292,8 +313,12 @@ async function main() {
   const from = requireString(args, "from");
   const to = requireString(args, "to");
   const threshold = Number.isFinite(args.threshold) ? args.threshold : 0.04;
-  const midProgress = args["mid-progress"] != null ? Number(args["mid-progress"]) : undefined;
+  const checkpoints = parseCheckpoints(args);
   const reportOutput = typeof args["report-output"] === "string" ? args["report-output"].trim() : undefined;
+  const baselineDir = typeof args["baseline-dir"] === "string" ? args["baseline-dir"].trim() : undefined;
+  const debugDir = typeof args["debug-dir"] === "string" ? args["debug-dir"].trim() : undefined;
+  const updateBaseline = args["update-baseline"] === true;
+  if (updateBaseline && !baselineDir) throw new Error("--update-baseline requires --baseline-dir.");
   const userDataDir = await mkdtemp(join(tmpdir(), "ai-motion-zero-verify-chrome-"));
   const chromePort = await getFreePort();
   const htmlUrl = /^https?:\/\//.test(html) ? html : pathToFileURL(resolve(process.cwd(), html)).href;
@@ -357,33 +382,50 @@ async function main() {
     );
     const toWidth = Math.round(args.toWidth ?? args.width ?? toExpectedSize.width ?? stageSize.width);
     const toHeight = Math.round(args.toHeight ?? args.height ?? toExpectedSize.height ?? stageSize.height);
-    const fromActual = await captureStage(cdp, htmlUrl, 0, fromWidth, fromHeight);
-    const toActual = await captureStage(cdp, htmlUrl, 1, toWidth, toHeight);
-
-    let midDiff = undefined;
-    if (midProgress != null && Number.isFinite(midProgress) && midProgress > 0 && midProgress < 1) {
-      const midActual = await captureStage(cdp, htmlUrl, midProgress, fromWidth, fromHeight);
-      const midEmpty = await compareInBrowser(cdp, midActual, fromActual, fromWidth, fromHeight, 0.005);
-      midDiff = {
-        progress: midProgress,
-        isDistinctFromFirst: !midEmpty.passed,
-        differenceFromFirst: midEmpty.differenceRatio
-      };
-      if (typeof args["debug-dir"] === "string" && args["debug-dir"].trim()) {
-        const debugDir = resolve(process.cwd(), args["debug-dir"].trim());
-        await writeDataUrl(join(debugDir, `mid-${midProgress}-actual.png`), midActual);
+    if (debugDir) await mkdir(resolve(process.cwd(), debugDir), { recursive: true });
+    if (baselineDir && updateBaseline) await mkdir(resolve(process.cwd(), baselineDir), { recursive: true });
+    const captures = [];
+    for (const progress of checkpoints) {
+      const width = progress === 0 ? fromWidth : progress === 1 ? toWidth : stageSize.width;
+      const height = progress === 0 ? fromHeight : progress === 1 ? toHeight : stageSize.height;
+      const actual = await captureStage(cdp, htmlUrl, progress, width, height);
+      const endpointExpected = progress === 0 ? fromExpected : progress === 1 ? toExpected : undefined;
+      const baselinePath = baselineDir
+        ? resolve(process.cwd(), baselineDir, checkpointFileName(progress))
+        : undefined;
+      const baselineExpected =
+        baselinePath && existsSync(baselinePath) ? await dataUrlForImageSource(baselinePath) : undefined;
+      const expected = endpointExpected ?? baselineExpected;
+      const diff = expected
+        ? await compareInBrowser(cdp, actual, expected, width, height, threshold)
+        : undefined;
+      if (debugDir)
+        await writeDataUrl(join(resolve(process.cwd(), debugDir), checkpointFileName(progress)), actual);
+      if (baselineDir && updateBaseline) {
+        await writeDataUrl(join(resolve(process.cwd(), baselineDir), checkpointFileName(progress)), actual);
       }
+      captures.push({
+        progress,
+        size: { width, height },
+        actual,
+        comparison: endpointExpected ? "endpoint" : baselineExpected ? "baseline" : "captured",
+        ...(diff ? { diff } : {})
+      });
     }
-
-    if (typeof args["debug-dir"] === "string" && args["debug-dir"].trim()) {
-      const debugDir = resolve(process.cwd(), args["debug-dir"].trim());
-      await writeDataUrl(join(debugDir, "from-actual.png"), fromActual);
-      await writeDataUrl(join(debugDir, "from-expected.png"), fromExpected);
-      await writeDataUrl(join(debugDir, "to-actual.png"), toActual);
-      await writeDataUrl(join(debugDir, "to-expected.png"), toExpected);
-    }
-    const fromDiff = await compareInBrowser(cdp, fromActual, fromExpected, fromWidth, fromHeight, threshold);
-    const toDiff = await compareInBrowser(cdp, toActual, toExpected, toWidth, toHeight, threshold);
+    const fromCapture = captures.find((capture) => capture.progress === 0);
+    const toCapture = captures.find((capture) => capture.progress === 1);
+    if (!fromCapture?.diff || !toCapture?.diff)
+      throw new Error("Endpoint captures are required for visual verification.");
+    const fromDiff = fromCapture.diff;
+    const toDiff = toCapture.diff;
+    const intermediateFailures = captures.filter(
+      (capture) => capture.progress > 0 && capture.progress < 1 && capture.diff && !capture.diff.passed
+    );
+    const checkpointsReport = captures.map((capture) => {
+      const report = { ...capture };
+      delete report.actual;
+      return report;
+    });
 
     const diffIssues = [];
     if (!fromDiff.passed) {
@@ -408,15 +450,29 @@ async function main() {
         differenceRatio: toDiff.differenceRatio
       });
     }
+    for (const capture of intermediateFailures) {
+      diffIssues.push({
+        id: `visual-diff-${Math.round(capture.progress * 100)}`,
+        severity: "error",
+        source: "render-risk",
+        category: "visual-diff",
+        title: `${Math.round(capture.progress * 100)}% 截帧与基线差异超阈值 (${(capture.diff.differenceRatio * 100).toFixed(1)}% > ${(threshold * 100).toFixed(1)}%)`,
+        progress: capture.progress,
+        differenceRatio: capture.diff.differenceRatio
+      });
+    }
 
     const enrichedReport = embeddedReport
       ? {
           ...embeddedReport,
           verifyIssues: diffIssues,
-          verifyResult: { fromDiff, toDiff, midDiff, threshold }
+          verifyResult: { fromDiff, toDiff, checkpoints: checkpointsReport, threshold }
         }
       : diffIssues.length > 0
-        ? { verifyIssues: diffIssues, verifyResult: { fromDiff, toDiff, midDiff, threshold } }
+        ? {
+            verifyIssues: diffIssues,
+            verifyResult: { fromDiff, toDiff, checkpoints: checkpointsReport, threshold }
+          }
         : null;
 
     if (reportOutput && enrichedReport) {
@@ -424,14 +480,14 @@ async function main() {
     }
 
     const result = {
-      passed: Boolean(fromDiff.passed && toDiff.passed),
+      passed: Boolean(fromDiff.passed && toDiff.passed && intermediateFailures.length === 0),
       threshold,
       stage: stageSize,
       fromSize: { width: fromWidth, height: fromHeight },
       toSize: { width: toWidth, height: toHeight },
       from: fromDiff,
       to: toDiff,
-      ...(midDiff ? { mid: midDiff } : {}),
+      checkpoints: checkpointsReport,
       embeddedReport: embeddedReport
         ? { score: embeddedReport.score, issueCount: embeddedReport.issues?.length ?? 0 }
         : null,

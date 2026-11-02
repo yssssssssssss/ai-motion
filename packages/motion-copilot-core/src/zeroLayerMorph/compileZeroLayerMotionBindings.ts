@@ -7,6 +7,11 @@ import type {
 } from "./schema";
 
 const MIN_CONFIDENCE = 56;
+export const ZERO_LAYER_LOW_CONFIDENCE_THRESHOLD = 64;
+
+export function isLowConfidenceZeroLayerBinding(binding: ZeroLayerMotionBinding): boolean {
+  return binding.confidence < ZERO_LAYER_LOW_CONFIDENCE_THRESHOLD;
+}
 
 function normalized(value: string | undefined): string {
   return (value ?? "").trim().toLowerCase();

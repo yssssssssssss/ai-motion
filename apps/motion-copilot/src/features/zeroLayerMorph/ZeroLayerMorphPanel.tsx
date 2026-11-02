@@ -11,7 +11,8 @@ import {
   deriveZeroLayerDiagnosticGate,
   evaluateZeroMotionSalience,
   applyZeroLayerMotionRecipe,
-  recommendZeroLayerRecipes,
+  recommendZeroLayerRecipesForSource,
+  zeroLayerNativeRecipeBlockReason,
   getZeroLayerRecipeManifest,
   type ZeroLayerDiagnosticReport,
   type ZeroLayerFramePair,
@@ -417,17 +418,21 @@ export function ZeroLayerMorphPanel({
     () => (savedSource ? buildZeroMotionSpec(savedSource) : undefined),
     [savedSource]
   );
+  const activeRecipeBlockReason = savedSource ? zeroLayerNativeRecipeBlockReason(savedSource) : undefined;
   const activeRecipeRecommendation = useMemo(
-    () => (activeMotionSpec ? recommendZeroLayerRecipes(activeMotionSpec) : undefined),
-    [activeMotionSpec]
+    () =>
+      savedSource && activeMotionSpec
+        ? recommendZeroLayerRecipesForSource(savedSource, activeMotionSpec)
+        : undefined,
+    [activeMotionSpec, savedSource]
   );
   const activeEvaluatedRecipeId = activeRecipeId ?? activeRecipeRecommendation?.selectedRecipeId;
   const activeRecommendedRecipeResult = useMemo(() => {
-    if (!savedSource || !activeEvaluatedRecipeId) return undefined;
+    if (!savedSource || !activeEvaluatedRecipeId || activeRecipeBlockReason) return undefined;
     return applyZeroLayerMotionRecipe(savedSource, activeEvaluatedRecipeId, {
       ...(activeMotionSpec ? { spec: activeMotionSpec } : {})
     });
-  }, [activeEvaluatedRecipeId, activeMotionSpec, savedSource]);
+  }, [activeEvaluatedRecipeId, activeMotionSpec, activeRecipeBlockReason, savedSource]);
   const activeRoleSummary = useMemo(() => roleSummary(savedSource), [savedSource]);
   const activeOrderPlan = useMemo(() => {
     if (!savedSource || !activeRecommendedRecipeResult?.steps) return undefined;
@@ -436,16 +441,26 @@ export function ZeroLayerMorphPanel({
   const activeRecommendedParameters = activeRecipeRecommendation?.candidates.find(
     (candidate) => candidate.recipeId === activeEvaluatedRecipeId
   )?.adaptedParameters;
+  const activeRecommendedMotionPlan =
+    activeRecommendedRecipeResult?.document.visualSource?.kind === "zero-layer-morph"
+      ? activeRecommendedRecipeResult.document.visualSource.motionPlan
+      : undefined;
   const activeMotionSalience = useMemo(
     () =>
       activeMotionSpec
         ? evaluateZeroMotionSalience({
             spec: activeMotionSpec,
             ...(activeRecommendedRecipeResult?.steps ? { steps: activeRecommendedRecipeResult.steps } : {}),
+            ...(activeRecommendedMotionPlan ? { motionPlan: activeRecommendedMotionPlan } : {}),
             ...(activeRecommendedParameters ? { adaptedParameters: activeRecommendedParameters } : {})
           })
         : undefined,
-    [activeMotionSpec, activeRecommendedParameters, activeRecommendedRecipeResult?.steps]
+    [
+      activeMotionSpec,
+      activeRecommendedMotionPlan,
+      activeRecommendedParameters,
+      activeRecommendedRecipeResult?.steps
+    ]
   );
   const activeRepairAdvice = useMemo(
     () =>
@@ -460,7 +475,10 @@ export function ZeroLayerMorphPanel({
     [activeMotionSpec, activeRecipeRecommendation, activeMotionSalience, diagnosticReport]
   );
   const activeDiagnosticGate = diagnosticReport ? diagnosticGate(diagnosticReport) : undefined;
-  const activeRecipeSampleSummary = useMemo(() => recipeSampleSummary(savedSource), [savedSource]);
+  const activeRecipeSampleSummary = useMemo(
+    () => (activeRecipeBlockReason ? undefined : recipeSampleSummary(savedSource)),
+    [activeRecipeBlockReason, savedSource]
+  );
   const activeRepairActions = activeRepairAdvice?.failures.length
     ? activeRepairAdvice.actions.filter((action) => action.type !== "change-recipe")
     : [];
@@ -508,8 +526,15 @@ export function ZeroLayerMorphPanel({
         diagnosticReport: report
       };
       const spec = buildZeroMotionSpec(recipeSource);
-      const recommendation = recommendZeroLayerRecipes(spec);
+      const recommendation = recommendZeroLayerRecipesForSource(recipeSource, spec);
       const appliedRecipeId = recommendation.selectedRecipeId;
+      if (!appliedRecipeId && report.gate.status !== "pass") {
+        setReadInfo(layerReadInfo(fromResult, toResult));
+        setDiagnosticReport(report);
+        setActiveRecipeId(undefined);
+        setError(recommendation.summary);
+        return;
+      }
       const result = appliedRecipeId
         ? applyZeroLayerMotionRecipe(recipeSource, appliedRecipeId, { spec })
         : compileZeroLayerMotionComposition({
@@ -569,6 +594,10 @@ export function ZeroLayerMorphPanel({
 
   function applyRecipe(recipeId: ZeroLayerMotionRecipeId) {
     if (!savedSource) return;
+    if (activeRecipeBlockReason) {
+      setError(activeRecipeBlockReason);
+      return;
+    }
     const result = applyZeroLayerMotionRecipe(savedSource, recipeId, {
       ...(activeMotionSpec ? { spec: activeMotionSpec } : {})
     });
@@ -841,6 +870,7 @@ export function ZeroLayerMorphPanel({
                     type="button"
                     className="primary-action"
                     onClick={() => applyRecipe(activeRecipeRecommendation.selectedRecipeId!)}
+                    disabled={Boolean(activeRecipeBlockReason)}
                   >
                     应用推荐方案
                   </button>
@@ -899,6 +929,7 @@ export function ZeroLayerMorphPanel({
                       onClick={() => applyRecipe(candidate.recipeId)}
                       aria-label={`应用推荐动效 ${recipe?.label ?? candidate.recipeId}`}
                       aria-pressed={isActiveRecipe}
+                      disabled={Boolean(activeRecipeBlockReason)}
                       key={candidate.recipeId}
                     >
                       <strong>
@@ -980,7 +1011,7 @@ export function ZeroLayerMorphPanel({
                           <button
                             type="button"
                             onClick={() => (action.recipeId ? applyRecipe(action.recipeId) : undefined)}
-                            disabled={!action.recipeId}
+                            disabled={!action.recipeId || Boolean(activeRecipeBlockReason)}
                             key={action.id}
                           >
                             {action.label}
@@ -996,6 +1027,11 @@ export function ZeroLayerMorphPanel({
 
           <div className="panel-section">
             <p className="eyebrow">更多动效方案</p>
+            {activeRecipeBlockReason ? (
+              <p className="zero-layer-frame-pair-empty" role="status">
+                {activeRecipeBlockReason}
+              </p>
+            ) : null}
             <div className="zero-layer-recipe-filters" aria-label="Zero 原生动效方案分类">
               {recipeCategoryFilters.map((category) => (
                 <button
@@ -1016,6 +1052,7 @@ export function ZeroLayerMorphPanel({
                   aria-label={recipe.label}
                   aria-pressed={activeRecipeId === recipe.id}
                   onClick={() => applyRecipe(recipe.id)}
+                  disabled={Boolean(activeRecipeBlockReason)}
                   key={recipe.id}
                 >
                   <strong>

@@ -1,5 +1,6 @@
 import type { Bounds } from "../frameMorph/schema";
 import type { ZeroLayerMorphSource, ZeroLayerNode } from "./schema";
+import { isLowConfidenceZeroLayerBinding } from "./compileZeroLayerMotionBindings";
 import {
   classifyZeroMotionScene,
   type ZeroMotionSceneClassification,
@@ -84,12 +85,14 @@ function textChangeCount(source: ZeroLayerMorphSource): number {
   return source.bindingResult.bindings.filter((binding) => {
     const fromNode = nodeById(source.from.layers, binding.nodeId);
     const toNode = nodeById(source.to.layers, binding.toNodeId);
-    return fromNode?.kind === "text" && toNode?.kind === "text" && (fromNode.text ?? "") !== (toNode.text ?? "");
+    return (
+      fromNode?.kind === "text" && toNode?.kind === "text" && (fromNode.text ?? "") !== (toNode.text ?? "")
+    );
   }).length;
 }
 
 function lowConfidenceCount(source: ZeroLayerMorphSource): number {
-  const fromBindings = source.bindingResult.bindings.filter((binding) => binding.confidence < 70).length;
+  const fromBindings = source.bindingResult.bindings.filter(isLowConfidenceZeroLayerBinding).length;
   const fromDiagnostic = source.diagnosticReport?.matching.lowConfidence.length ?? 0;
   const fromUnresolved = source.bindingResult.unresolved.filter((item) =>
     item.reason.toLowerCase().includes("confidence")
@@ -117,7 +120,10 @@ function risksFor(source: ZeroLayerMorphSource, averageMoveDistance: number): Ze
   return [...risks];
 }
 
-function summaryFor(scene: ZeroMotionSceneClassification, spec: Omit<ZeroMotionSpec, "scene" | "summary" | "risks">): string {
+function summaryFor(
+  scene: ZeroMotionSceneClassification,
+  spec: Omit<ZeroMotionSpec, "scene" | "summary" | "risks">
+): string {
   return [
     `系统判断当前更接近${scene.type}`,
     `matched ${spec.topology.matchedCount}`,
@@ -170,7 +176,8 @@ export function buildZeroMotionSpec(source: ZeroLayerMorphSource): ZeroMotionSpe
       dominantHeightDelta: dominantTo.h - dominantFrom.h,
       dominantAreaDeltaRatio: (area(dominantTo) - area(dominantFrom)) / Math.max(1, area(dominantFrom)),
       averageMoveDistance,
-      enterExitRatio: (source.bindingResult.enter.length + source.bindingResult.exit.length) / Math.max(1, matchedCount),
+      enterExitRatio:
+        (source.bindingResult.enter.length + source.bindingResult.exit.length) / Math.max(1, matchedCount),
       xMotionCount,
       yMotionCount,
       textChangeCount: textChangeCount(source),

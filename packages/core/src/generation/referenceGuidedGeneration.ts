@@ -161,11 +161,7 @@ function animationNameForIntent(input: {
   return `generated-${input.intent.trigger}-${input.motionKind}`;
 }
 
-function keyframesForMotion(input: {
-  name: string;
-  motionKind: string;
-  glow: boolean;
-}): string {
+function keyframesForMotion(input: { name: string; motionKind: string; glow: boolean }): string {
   if (input.motionKind === "slide-bounce") {
     return `@keyframes ${input.name} {
   0% {
@@ -301,8 +297,10 @@ function sourceFilesForButton(intent: SemanticGenerationIntent): SourceFile[] {
   const animationName = animationNameForIntent({ intent, directionLabel: direction.label, motionKind });
   const keyframes = keyframesForMotion({ name: animationName, motionKind, glow });
   const hasTravel = motionKind === "slide" || motionKind === "slide-bounce";
-  const stageClass = intent.trigger === "click" || intent.trigger === "hover" ? "semantic-stage" : "semantic-stage is-playing";
-  const playSelector = intent.trigger === "hover" ? ".semantic-button:hover" : ".semantic-stage.is-playing .semantic-button";
+  const stageClass =
+    intent.trigger === "click" || intent.trigger === "hover" ? "semantic-stage" : "semantic-stage is-playing";
+  const playSelector =
+    intent.trigger === "hover" ? ".semantic-button:hover" : ".semantic-stage.is-playing .semantic-button";
   const baseTransform = hasTravel
     ? "translate(var(--travel-x-start), var(--travel-y-start)) scale(1)"
     : "scale(1) rotate(0deg)";
@@ -422,7 +420,9 @@ ${keyframes}`;
 }
 
 function cardDescriptionForIntent(intent: SemanticGenerationIntent): string {
-  const match = intent.raw.match(/(?:描述|说明|内容|副标题|description)\s*(?:是|为|:|：)?\s*([^，。；;\n]{1,80})/i);
+  const match = intent.raw.match(
+    /(?:描述|说明|内容|副标题|description)\s*(?:是|为|:|：)?\s*([^，。；;\n]{1,80})/i
+  );
   return match?.[1]?.trim().replace(/^["'「『“]+|["'」』”]+$/g, "") || "用清晰的层次呈现关键信息";
 }
 
@@ -468,9 +468,15 @@ function sourceFilesForText(intent: SemanticGenerationIntent): SourceFile[] {
   const easing = easingForIntent(intent);
   const motionKind = motionKindForIntent(intent);
   const animationName = animationNameForIntent({ intent, directionLabel: "text", motionKind });
-  const keyframes = keyframesForMotion({ name: animationName, motionKind, glow: intent.effects.includes("glow") });
-  const stageClass = intent.trigger === "click" || intent.trigger === "hover" ? "semantic-stage" : "semantic-stage is-playing";
-  const selector = intent.trigger === "hover" ? ".semantic-text:hover" : ".semantic-stage.is-playing .semantic-text";
+  const keyframes = keyframesForMotion({
+    name: animationName,
+    motionKind,
+    glow: intent.effects.includes("glow")
+  });
+  const stageClass =
+    intent.trigger === "click" || intent.trigger === "hover" ? "semantic-stage" : "semantic-stage is-playing";
+  const selector =
+    intent.trigger === "hover" ? ".semantic-text:hover" : ".semantic-stage.is-playing .semantic-text";
   const loop = intent.trigger === "loop" ? " infinite" : "";
   const html = `<!doctype html>
 <html>
@@ -539,7 +545,11 @@ ${keyframes}`;
   return [
     { path: "source/index.html", kind: "html", content: html },
     { path: "source/style.css", kind: "css", content: css },
-    { path: "source/script.js", kind: "js", content: replayScript({ targetSelector: "[data-motion=textContent]", trigger: intent.trigger }) }
+    {
+      path: "source/script.js",
+      kind: "js",
+      content: replayScript({ targetSelector: "[data-motion=textContent]", trigger: intent.trigger })
+    }
   ];
 }
 
@@ -551,9 +561,15 @@ function sourceFilesForCard(intent: SemanticGenerationIntent): SourceFile[] {
   const easing = easingForIntent(intent);
   const motionKind = motionKindForIntent(intent);
   const animationName = animationNameForIntent({ intent, directionLabel: "card", motionKind });
-  const keyframes = keyframesForMotion({ name: animationName, motionKind, glow: intent.effects.includes("glow") });
-  const stageClass = intent.trigger === "click" || intent.trigger === "hover" ? "semantic-stage" : "semantic-stage is-playing";
-  const selector = intent.trigger === "hover" ? ".semantic-card:hover" : ".semantic-stage.is-playing .semantic-card";
+  const keyframes = keyframesForMotion({
+    name: animationName,
+    motionKind,
+    glow: intent.effects.includes("glow")
+  });
+  const stageClass =
+    intent.trigger === "click" || intent.trigger === "hover" ? "semantic-stage" : "semantic-stage is-playing";
+  const selector =
+    intent.trigger === "hover" ? ".semantic-card:hover" : ".semantic-stage.is-playing .semantic-card";
   const loop = intent.trigger === "loop" ? " infinite" : "";
   const html = `<!doctype html>
 <html>
@@ -639,7 +655,11 @@ ${keyframes}`;
   return [
     { path: "source/index.html", kind: "html", content: html },
     { path: "source/style.css", kind: "css", content: css },
-    { path: "source/script.js", kind: "js", content: replayScript({ targetSelector: "[data-motion=cardRoot]", trigger: intent.trigger }) }
+    {
+      path: "source/script.js",
+      kind: "js",
+      content: replayScript({ targetSelector: "[data-motion=cardRoot]", trigger: intent.trigger })
+    }
   ];
 }
 
@@ -648,12 +668,19 @@ function sourceFilesForBadge(intent: SemanticGenerationIntent): SourceFile[] {
   const label = escapeHtml(intent.text ?? "标签");
   const duration = durationForIntent(intent);
   const easing = easingForIntent(intent);
-  const pulseIntent: SemanticGenerationIntent = intent.effects.length > 0 ? intent : { ...intent, effects: ["pulse"] };
+  const pulseIntent: SemanticGenerationIntent =
+    intent.effects.length > 0 ? intent : { ...intent, effects: ["pulse"] };
   const motionKind = motionKindForIntent(pulseIntent);
   const animationName = animationNameForIntent({ intent, directionLabel: "badge", motionKind });
-  const keyframes = keyframesForMotion({ name: animationName, motionKind, glow: intent.effects.includes("glow") });
-  const stageClass = intent.trigger === "click" || intent.trigger === "hover" ? "semantic-stage" : "semantic-stage is-playing";
-  const selector = intent.trigger === "hover" ? ".semantic-badge:hover" : ".semantic-stage.is-playing .semantic-badge";
+  const keyframes = keyframesForMotion({
+    name: animationName,
+    motionKind,
+    glow: intent.effects.includes("glow")
+  });
+  const stageClass =
+    intent.trigger === "click" || intent.trigger === "hover" ? "semantic-stage" : "semantic-stage is-playing";
+  const selector =
+    intent.trigger === "hover" ? ".semantic-badge:hover" : ".semantic-stage.is-playing .semantic-badge";
   const loop = intent.trigger === "loop" ? " infinite" : "";
   const html = `<!doctype html>
 <html>
@@ -728,7 +755,11 @@ ${keyframes}`;
   return [
     { path: "source/index.html", kind: "html", content: html },
     { path: "source/style.css", kind: "css", content: css },
-    { path: "source/script.js", kind: "js", content: replayScript({ targetSelector: "[data-motion=badgeText]", trigger: intent.trigger }) }
+    {
+      path: "source/script.js",
+      kind: "js",
+      content: replayScript({ targetSelector: "[data-motion=badgeText]", trigger: intent.trigger })
+    }
   ];
 }
 
@@ -819,7 +850,11 @@ body {
   return [
     { path: "source/index.html", kind: "html", content: html },
     { path: "source/style.css", kind: "css", content: css },
-    { path: "source/script.js", kind: "js", content: replayScript({ targetSelector: "[data-motion=loaderRoot]", trigger: "loop" }) }
+    {
+      path: "source/script.js",
+      kind: "js",
+      content: replayScript({ targetSelector: "[data-motion=loaderRoot]", trigger: "loop" })
+    }
   ];
 }
 
@@ -993,8 +1028,14 @@ function explicitNumberAfter(raw: string, label: RegExp): number | null {
 function pageTransitionValues(intent: SemanticGenerationIntent): Record<string, unknown> {
   const raw = intent.raw;
   const explicitDuration = explicitNumberAfter(raw, /(?:循环时长|时长|duration)[^\d]{0,12}(\d{3,5})\s*ms/i);
-  const explicitEnterDistance = explicitNumberAfter(raw, /(?:进入距离|enterDistance|enter distance)[^\d]{0,12}(\d{2,4})\s*px/i);
-  const explicitOpacity = explicitNumberAfter(raw, /(?:泛白|过渡泛白|transitionOpacity|opacity)[^\d]{0,12}(0?\.\d+)/i);
+  const explicitEnterDistance = explicitNumberAfter(
+    raw,
+    /(?:进入距离|enterDistance|enter distance)[^\d]{0,12}(\d{2,4})\s*px/i
+  );
+  const explicitOpacity = explicitNumberAfter(
+    raw,
+    /(?:泛白|过渡泛白|transitionOpacity|opacity)[^\d]{0,12}(0?\.\d+)/i
+  );
   const explicitRadius = explicitNumberAfter(raw, /(?:圆角|windowRadius|radius)[^\d]{0,12}(\d{1,3})\s*px?/i);
   const wantsShorterTravel = /(距离.*短|短一点|更短|轨迹.*短|滑动.*短)/i.test(raw);
   const wantsLongerTravel = /(距离.*长|长一点|更长|轨迹.*长|滑动.*长)/i.test(raw);
@@ -1196,7 +1237,11 @@ body {
   return [
     { path: "source/index.html", kind: "html", content: html },
     { path: "source/style.css", kind: "css", content: css },
-    { path: "source/script.js", kind: "js", content: replayScript({ targetSelector: "[data-motion-root]", trigger: "loop" }) }
+    {
+      path: "source/script.js",
+      kind: "js",
+      content: replayScript({ targetSelector: "[data-motion-root]", trigger: "loop" })
+    }
   ];
 }
 
@@ -1371,7 +1416,9 @@ function buttonParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: duration,
       status: "confirmed",
       constraints: { min: 220, max: 2400, step: 20, unit: "ms" },
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }
+      ]
     },
     {
       id: "motionEasing",
@@ -1379,7 +1426,9 @@ function buttonParams(intent: SemanticGenerationIntent): MotionParam[] {
       type: "easing",
       default: easing,
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }
+      ]
     },
     {
       id: "travelDistance",
@@ -1388,7 +1437,9 @@ function buttonParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: 42,
       status: "confirmed",
       constraints: { min: 0, max: 80, step: 1, unit: "vw" },
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--travel-distance" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--travel-distance" }
+      ]
     },
     {
       id: "bounceIntensity",
@@ -1585,7 +1636,9 @@ function mobilePageParams(intent: SemanticGenerationIntent): MotionParam[] {
       type: "color",
       default: color.value,
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--foreground-bg" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--foreground-bg" }
+      ]
     },
     {
       id: "foregroundScaleStart",
@@ -1594,7 +1647,14 @@ function mobilePageParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: 0.72,
       constraints: { min: 0.4, max: 1, step: 0.01 },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--foreground-scale-start" }]
+      targets: [
+        {
+          kind: "css-variable",
+          file: "source/style.css",
+          selector: ":root",
+          name: "--foreground-scale-start"
+        }
+      ]
     },
     {
       id: "stageWidth",
@@ -1621,7 +1681,14 @@ function mobilePageParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: DEFAULT_MOBILE_PAGE_SIZE.backgroundLayerWidth,
       constraints: { min: 360, max: 640, step: 1, unit: "px" },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--background-layer-width" }]
+      targets: [
+        {
+          kind: "css-variable",
+          file: "source/style.css",
+          selector: ":root",
+          name: "--background-layer-width"
+        }
+      ]
     },
     {
       id: "backgroundLayerHeight",
@@ -1630,7 +1697,14 @@ function mobilePageParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: DEFAULT_MOBILE_PAGE_SIZE.backgroundLayerHeight,
       constraints: { min: 800, max: 1280, step: 1, unit: "px" },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--background-layer-height" }]
+      targets: [
+        {
+          kind: "css-variable",
+          file: "source/style.css",
+          selector: ":root",
+          name: "--background-layer-height"
+        }
+      ]
     },
     ...motionParams(intent)
   ];
@@ -1646,7 +1720,9 @@ function pageTransitionParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: values.cycleDuration,
       constraints: { min: 1400, max: 5000, step: 40, unit: "ms" },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--cycle-duration" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--cycle-duration" }
+      ]
     },
     {
       id: "enterDistance",
@@ -1655,7 +1731,9 @@ function pageTransitionParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: values.enterDistance,
       constraints: { min: 0, max: 1118, step: 1, unit: "px" },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--enter-distance" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--enter-distance" }
+      ]
     },
     {
       id: "exitDistance",
@@ -1664,7 +1742,9 @@ function pageTransitionParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: values.exitDistance,
       constraints: { min: -1118, max: 0, step: 1, unit: "px" },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--exit-distance" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--exit-distance" }
+      ]
     },
     {
       id: "transitionOpacity",
@@ -1673,7 +1753,9 @@ function pageTransitionParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: values.transitionOpacity,
       constraints: { min: 0, max: 0.9, step: 0.01 },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--transition-opacity" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--transition-opacity" }
+      ]
     },
     {
       id: "windowRadius",
@@ -1682,7 +1764,9 @@ function pageTransitionParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: values.windowRadius,
       constraints: { min: 0, max: 160, step: 1, unit: "px" },
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--window-radius" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--window-radius" }
+      ]
     },
     {
       id: "easing",
@@ -1690,7 +1774,9 @@ function pageTransitionParams(intent: SemanticGenerationIntent): MotionParam[] {
       type: "easing",
       default: values.easing,
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }
+      ]
     }
   ];
 }
@@ -1706,7 +1792,9 @@ function motionParams(intent: SemanticGenerationIntent): MotionParam[] {
       default: duration,
       status: "confirmed",
       constraints: { min: 220, max: 2400, step: 20, unit: "ms" },
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-duration" }
+      ]
     },
     {
       id: "motionEasing",
@@ -1714,7 +1802,9 @@ function motionParams(intent: SemanticGenerationIntent): MotionParam[] {
       type: "easing",
       default: easing,
       status: "confirmed",
-      targets: [{ kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }]
+      targets: [
+        { kind: "css-variable", file: "source/style.css", selector: ":root", name: "--motion-easing" }
+      ]
     }
   ];
 }
@@ -1783,7 +1873,14 @@ function loaderLayers(): MotionLayer[] {
       label: "加载器结构",
       kind: "structure",
       replaceable: false,
-      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=loaderRoot]", attribute: "class" }]
+      targets: [
+        {
+          kind: "html-attribute",
+          file: "source/index.html",
+          selector: "[data-motion=loaderRoot]",
+          attribute: "class"
+        }
+      ]
     }
   ];
 }
@@ -1795,21 +1892,42 @@ function pageTransitionLayers(): MotionLayer[] {
       label: "前页",
       kind: "structure",
       replaceable: false,
-      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=frontPage]", attribute: "class" }]
+      targets: [
+        {
+          kind: "html-attribute",
+          file: "source/index.html",
+          selector: "[data-motion=frontPage]",
+          attribute: "class"
+        }
+      ]
     },
     {
       id: "backPage",
       label: "后页",
       kind: "structure",
       replaceable: false,
-      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=backPage]", attribute: "class" }]
+      targets: [
+        {
+          kind: "html-attribute",
+          file: "source/index.html",
+          selector: "[data-motion=backPage]",
+          attribute: "class"
+        }
+      ]
     },
     {
       id: "transitionWash",
       label: "过渡泛白",
       kind: "structure",
       replaceable: false,
-      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=transitionWash]", attribute: "class" }]
+      targets: [
+        {
+          kind: "html-attribute",
+          file: "source/index.html",
+          selector: "[data-motion=transitionWash]",
+          attribute: "class"
+        }
+      ]
     }
   ];
 }
@@ -1821,14 +1939,28 @@ function mobilePageLayers(): MotionLayer[] {
       label: "背景图层",
       kind: "structure",
       replaceable: false,
-      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=backgroundLayer]", attribute: "class" }]
+      targets: [
+        {
+          kind: "html-attribute",
+          file: "source/index.html",
+          selector: "[data-motion=backgroundLayer]",
+          attribute: "class"
+        }
+      ]
     },
     {
       id: "foregroundLayer",
       label: "前景图层",
       kind: "structure",
       replaceable: false,
-      targets: [{ kind: "html-attribute", file: "source/index.html", selector: "[data-motion=foregroundLayer]", attribute: "class" }]
+      targets: [
+        {
+          kind: "html-attribute",
+          file: "source/index.html",
+          selector: "[data-motion=foregroundLayer]",
+          attribute: "class"
+        }
+      ]
     }
   ];
 }
@@ -2051,7 +2183,13 @@ function pageTransitionVariantFromReference(input: {
         values,
         patchId: `${input.id}-page-transition-variant`
       });
-  return pageTransitionFromReference({ id: input.id, intent: input.intent, intentV2: input.intentV2, reference, files });
+  return pageTransitionFromReference({
+    id: input.id,
+    intent: input.intent,
+    intentV2: input.intentV2,
+    reference,
+    files
+  });
 }
 
 function sourceText(component: MotionComponent): string {
@@ -2078,6 +2216,10 @@ function categoryForRole(role: SemanticGenerationRole): MotionComponent["categor
   return "interaction";
 }
 
+function recordCoverage(matches: boolean, label: string, satisfied: string[], missing: string[]): void {
+  (matches ? satisfied : missing).push(label);
+}
+
 function coverageFor(input: {
   component: MotionComponent;
   intent: SemanticGenerationIntent;
@@ -2087,19 +2229,25 @@ function coverageFor(input: {
   const missing: string[] = [];
 
   if (input.intent.role === "button") {
-    text.includes("<button") ? satisfied.push("button") : missing.push("button");
+    recordCoverage(text.includes("<button"), "button", satisfied, missing);
   } else if (input.intent.role === "text") {
-    text.includes("<h1") && text.includes("semantic-text") ? satisfied.push("text") : missing.push("text");
+    recordCoverage(text.includes("<h1") && text.includes("semantic-text"), "text", satisfied, missing);
   } else if (input.intent.role === "card") {
-    text.includes("semantic-card") && text.includes("cardtitle") && text.includes("carddescription")
-      ? satisfied.push("card")
-      : missing.push("card");
+    recordCoverage(
+      text.includes("semantic-card") && text.includes("cardtitle") && text.includes("carddescription"),
+      "card",
+      satisfied,
+      missing
+    );
   } else if (input.intent.role === "badge") {
-    text.includes("semantic-badge") ? satisfied.push("badge") : missing.push("badge");
+    recordCoverage(text.includes("semantic-badge"), "badge", satisfied, missing);
   } else if (input.intent.role === "loader") {
-    text.includes("semantic-loader") && text.includes("generated-loop-dots")
-      ? satisfied.push("loader")
-      : missing.push("loader");
+    recordCoverage(
+      text.includes("semantic-loader") && text.includes("generated-loop-dots"),
+      "loader",
+      satisfied,
+      missing
+    );
   } else if (input.intent.role === "page-transition") {
     const hasScreenLayers =
       (text.includes("mine-content") && text.includes("orders-content")) ||
@@ -2110,19 +2258,19 @@ function coverageFor(input: {
       text.includes("transition-wash") &&
       text.includes("--enter-distance") &&
       text.includes("--exit-distance");
-    hasScreenLayers && hasTransitionMotion ? satisfied.push("page-transition") : missing.push("page-transition");
+    recordCoverage(hasScreenLayers && hasTransitionMotion, "page-transition", satisfied, missing);
   } else if (input.intent.role === "mobile-page") {
     const hasMobilePage = text.includes("semantic-mobile-page") && text.includes("foreground-layer");
     const hasEntranceMotion = text.includes("generated-load-foreground-scale") && text.includes("scale(");
-    hasMobilePage && hasEntranceMotion ? satisfied.push("mobile-page") : missing.push("mobile-page");
+    recordCoverage(hasMobilePage && hasEntranceMotion, "mobile-page", satisfied, missing);
   }
   for (const negative of input.intent.negativePreferences) {
     if (/(按钮|button|cta)/i.test(negative)) {
-      !text.includes("<button") ? satisfied.push("不要按钮") : missing.push("不要按钮");
+      recordCoverage(!text.includes("<button"), "不要按钮", satisfied, missing);
     }
   }
   for (const color of input.intent.colors) {
-    text.includes(color.value.toLowerCase()) ? satisfied.push(color.label) : missing.push(color.label);
+    recordCoverage(text.includes(color.value.toLowerCase()), color.label, satisfied, missing);
   }
   for (const effect of input.intent.effects) {
     const ok =
@@ -2138,22 +2286,22 @@ function coverageFor(input: {
                 ? text.includes("pulse") || text.includes("generated-loop-dots")
                 : effect === "float"
                   ? text.includes("float") && text.includes("infinite")
-                : text.includes(effect);
-    ok ? satisfied.push(effect) : missing.push(effect);
+                  : text.includes(effect);
+    recordCoverage(ok, effect, satisfied, missing);
   }
   if (input.intent.direction) {
     const ok =
       input.intent.role === "page-transition"
         ? text.includes("--enter-distance") && text.includes("--exit-distance")
         : text.includes(input.intent.direction);
-    ok ? satisfied.push(input.intent.direction) : missing.push(input.intent.direction);
+    recordCoverage(ok, input.intent.direction, satisfied, missing);
   }
   if (input.intent.trigger === "click") {
-    text.includes('addeventlistener("click"') ? satisfied.push("click") : missing.push("click");
+    recordCoverage(text.includes('addeventlistener("click"'), "click", satisfied, missing);
   } else if (input.intent.trigger === "hover") {
-    text.includes(":hover") ? satisfied.push("hover") : missing.push("hover");
+    recordCoverage(text.includes(":hover"), "hover", satisfied, missing);
   } else if (input.intent.trigger === "loop") {
-    text.includes("infinite") ? satisfied.push("loop") : missing.push("loop");
+    recordCoverage(text.includes("infinite"), "loop", satisfied, missing);
   }
   if (text.includes("window.motionreplay")) satisfied.push("motionReplay");
   else missing.push("motionReplay");
@@ -2252,7 +2400,9 @@ export function createReferenceGuidedComponent(
   input: CreateReferenceGuidedComponentInput
 ): ReferenceGuidedGenerationResult {
   const intentV2 = input.intentV2 ?? parseSemanticIntentV2Fallback(input.brief);
-  const intent = input.intentV2 ? semanticIntentV2ToLegacyIntent(input.intentV2) : parseSemanticGenerationIntent(input.brief);
+  const intent = input.intentV2
+    ? semanticIntentV2ToLegacyIntent(input.intentV2)
+    : parseSemanticGenerationIntent(input.brief);
   const role = intent.role ?? "mobile-page";
   const id = `generated-reference-${role}-${input.now ?? Date.now()}`;
   const references = input.references ?? [];

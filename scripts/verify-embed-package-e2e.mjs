@@ -10,10 +10,6 @@ import { setTimeout as delay } from "node:timers/promises";
 
 const repoRoot = resolve(dirname(new URL(import.meta.url).pathname), "..");
 
-async function loadWorkspaceModule(path) {
-  return import(pathToFileURL(resolve(repoRoot, path)).href);
-}
-
 const wsModule = await import(
   pathToFileURL(resolve(repoRoot, "node_modules/.pnpm/ws@8.21.0/node_modules/ws/wrapper.mjs")).href
 );

@@ -104,6 +104,60 @@
       ]
     },
     {
+      "id": "startScreenImage",
+      "label": "起始页图片",
+      "type": "image",
+      "default": null,
+      "constraints": {
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
+      },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--start-screen"
+        }
+      ]
+    },
+    {
+      "id": "endScreenImage",
+      "label": "目标页图片",
+      "type": "image",
+      "default": null,
+      "constraints": {
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
+      },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--end-screen"
+        }
+      ]
+    },
+    {
+      "id": "endNavImage",
+      "label": "目标页导航图片",
+      "type": "image",
+      "default": null,
+      "constraints": {
+        "allowedFileTypes": ["image/png", "image/jpeg", "image/webp"]
+      },
+      "status": "confirmed",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--end-nav"
+        }
+      ]
+    },
+    {
       "id": "easing",
       "label": "横滑缓动",
       "type": "easing",
@@ -123,6 +177,95 @@
     { "id": "timing", "label": "速度", "params": ["cycleDuration", "easing"] },
     { "id": "trajectory", "label": "轨迹", "params": ["slideDistance"] },
     { "id": "tap", "label": "点击", "params": ["tapX", "tapY", "tapSize"] },
-    { "id": "visual", "label": "视觉", "params": ["navOverlayOpacity", "windowRadius"] }
+    { "id": "visual", "label": "视觉", "params": ["navOverlayOpacity", "windowRadius"] },
+    { "id": "assets", "label": "素材", "params": ["startScreenImage", "endScreenImage", "endNavImage"] }
+  ],
+  "layers": [
+    {
+      "id": "shell-frame",
+      "label": "手机外框",
+      "kind": "image",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--shell-frame"
+        }
+      ]
+    },
+    {
+      "id": "screen-window",
+      "label": "屏幕窗口",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": []
+    },
+    {
+      "id": "start-screen",
+      "label": "起始页图片",
+      "kind": "image",
+      "replaceable": true,
+      "required": true,
+      "paramId": "startScreenImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--start-screen"
+        }
+      ]
+    },
+    {
+      "id": "end-screen",
+      "label": "目标页图片",
+      "kind": "image",
+      "replaceable": true,
+      "required": true,
+      "paramId": "endScreenImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--end-screen"
+        }
+      ]
+    },
+    {
+      "id": "end-nav-overlay",
+      "label": "目标页导航",
+      "kind": "image",
+      "replaceable": true,
+      "required": true,
+      "paramId": "endNavImage",
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/assets.css",
+          "selector": ":root",
+          "name": "--end-nav"
+        }
+      ]
+    },
+    {
+      "id": "tap-ripple",
+      "label": "点击波纹",
+      "kind": "structure",
+      "replaceable": false,
+      "required": true,
+      "targets": [
+        {
+          "kind": "css-variable",
+          "file": "source/style.css",
+          "selector": ":root",
+          "name": "--tap-size"
+        }
+      ]
+    }
   ]
 }
